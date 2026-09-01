@@ -1,0 +1,19 @@
+# Blueprint de Render: en vez de configurar a mano en la web, Render lee esto.
+# New → Blueprint → conecta el repo → aplica.
+services:
+  - type: web
+    name: cars
+    runtime: docker
+    plan: free
+    region: oregon
+    # Sin --target: Docker construye la última etapa del Dockerfile, que es `runner`.
+    dockerfilePath: ./Dockerfile
+    # `/` redirige a /dashboard, así que la sonda apunta directo al destino.
+    healthCheckPath: /dashboard
+    autoDeploy: true
+    envVars:
+      # Render inyecta PORT solo; el server standalone de Next ya lo respeta.
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"

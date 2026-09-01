@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cars
 
-## Getting Started
+CRM e inventario para automotoras, reconstruido por ingeniería inversa a partir de
+capturas del producto original. SaaS multi-tenant.
 
-First, run the development server:
+## Correr
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev     # http://localhost:3000 → redirige a /dashboard
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+No necesita base de datos para arrancar: mientras `.env.local` no tenga credenciales
+de Supabase, la app se sirve de los datos semilla en `src/lib/data/seed.ts`
+(extraídos de las capturas reales).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Estructura
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/app/(app)/            19 rutas, una por ítem del menú
+src/components/shell/     sidebar, topbar y botón del asistente
+src/components/           piezas compartidas (PageHeader, StatCard, badges…)
+src/lib/types.ts          modelo de dominio
+src/lib/data/             capa de acceso: hoy semilla, mañana Supabase
+src/lib/supabase/         clientes de navegador y servidor
+supabase/migrations/      esquema SQL con RLS por organización
+docs/                     el análisis del producto original
+fotos/                    las capturas de referencia
+```
 
-## Learn More
+## Docker
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+docker compose up -d --build     # app en :3000 + Postgres en :5433
+docker compose logs -f app
+docker compose down              # -v además borra la base
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+El compose levanta el target `dev`: el código va montado, así que el hot reload
+funciona igual que en local. La migración se aplica sola la primera vez que se crea
+el volumen; para re-aplicarla, `docker compose down -v && docker compose up`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Imagen de producción (235MB, standalone, usuario sin privilegios):
 
-## Deploy on Vercel
+```bash
+docker build --target runner -t cars:prod .
+docker run --rm -p 3000:3000 cars:prod
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Si los puertos chocan con algo tuyo, `APP_PORT` y `DB_PORT` en `.env.local`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Conectar Supabase
+
+1. Crea el proyecto en supabase.com.
+2. `cp .env.example .env.local` y pega URL y anon key.
+3. Corre `supabase/migrations/0001_init.sql` en el SQL editor.
+4. Reemplaza los cuerpos de las funciones en `src/lib/data/index.ts` por queries.
+   Ninguna pantalla cambia: todas ya consumen esas funciones async.
+
+## Estado
+
+Fase 1 lista: shell navegable, tema, modelo de datos y 19 rutas con contenido real.
+Las rutas marcadas con un punto en el menú están pendientes y dicen de qué fase dependen.
+El plan por fases está en `docs/00-analisis-venpu.md`.

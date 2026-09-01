@@ -1,26 +1,172 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-ok: var(--ok);
+  --color-ok-foreground: var(--ok-foreground);
+  --color-warn: var(--warn);
+  --color-warn-foreground: var(--warn-foreground);
+  --color-crit: var(--crit);
+  --color-crit-foreground: var(--crit-foreground);
+  --color-hot: var(--hot);
+  --color-surface: var(--surface);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --radius: 0.5rem;
+
+  /* claro: no es el modo del producto, pero queda legible y consistente */
+  --background: oklch(0.985 0.002 286);
+  --foreground: oklch(0.19 0.004 286);
+  --surface: oklch(1 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.19 0.004 286);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.19 0.004 286);
+  --primary: oklch(0.86 0.155 101);
+  --primary-foreground: oklch(0.21 0.02 101);
+  --secondary: oklch(0.955 0.003 286);
+  --secondary-foreground: oklch(0.24 0.005 286);
+  --muted: oklch(0.955 0.003 286);
+  --muted-foreground: oklch(0.52 0.008 286);
+  --accent: oklch(0.95 0.02 101);
+  --accent-foreground: oklch(0.24 0.02 101);
+  --destructive: oklch(0.58 0.21 25);
+  --border: oklch(0.905 0.004 286);
+  --input: oklch(0.905 0.004 286);
+  --ring: oklch(0.80 0.14 101);
+
+  --ok: oklch(0.62 0.14 155);
+  --ok-foreground: oklch(0.99 0.01 155);
+  --warn: oklch(0.68 0.14 75);
+  --warn-foreground: oklch(0.99 0.01 75);
+  --crit: oklch(0.58 0.20 25);
+  --crit-foreground: oklch(0.99 0.01 25);
+  --hot: oklch(0.60 0.21 30);
+
+  --chart-1: oklch(0.86 0.155 101);
+  --chart-2: oklch(0.62 0.14 155);
+  --chart-3: oklch(0.60 0.15 250);
+  --chart-4: oklch(0.68 0.14 75);
+  --chart-5: oklch(0.58 0.20 25);
+
+  --sidebar: oklch(0.97 0.002 286);
+  --sidebar-foreground: oklch(0.19 0.004 286);
+  --sidebar-primary: oklch(0.86 0.155 101);
+  --sidebar-primary-foreground: oklch(0.21 0.02 101);
+  --sidebar-accent: oklch(0.93 0.004 286);
+  --sidebar-accent-foreground: oklch(0.19 0.004 286);
+  --sidebar-border: oklch(0.90 0.004 286);
+  --sidebar-ring: oklch(0.80 0.14 101);
+}
+
+.dark {
+  /* el modo real del producto */
+  --background: oklch(0.145 0.003 286);
+  --foreground: oklch(0.945 0.002 286);
+  --surface: oklch(0.195 0.004 286);
+  --card: oklch(0.195 0.004 286);
+  --card-foreground: oklch(0.945 0.002 286);
+  --popover: oklch(0.215 0.004 286);
+  --popover-foreground: oklch(0.945 0.002 286);
+  --primary: oklch(0.90 0.16 101);
+  --primary-foreground: oklch(0.20 0.03 101);
+  --secondary: oklch(0.26 0.005 286);
+  --secondary-foreground: oklch(0.945 0.002 286);
+  --muted: oklch(0.255 0.005 286);
+  --muted-foreground: oklch(0.66 0.008 286);
+  --accent: oklch(0.28 0.02 101);
+  --accent-foreground: oklch(0.90 0.16 101);
+  --destructive: oklch(0.64 0.20 25);
+  --border: oklch(0.285 0.005 286);
+  --input: oklch(0.30 0.005 286);
+  --ring: oklch(0.90 0.16 101);
+
+  --ok: oklch(0.74 0.15 155);
+  --ok-foreground: oklch(0.16 0.02 155);
+  --warn: oklch(0.80 0.14 78);
+  --warn-foreground: oklch(0.18 0.02 78);
+  --crit: oklch(0.66 0.20 25);
+  --crit-foreground: oklch(0.16 0.02 25);
+  --hot: oklch(0.68 0.21 32);
+
+  --chart-1: oklch(0.90 0.16 101);
+  --chart-2: oklch(0.74 0.15 155);
+  --chart-3: oklch(0.66 0.16 250);
+  --chart-4: oklch(0.80 0.14 78);
+  --chart-5: oklch(0.66 0.20 25);
+
+  --sidebar: oklch(0.165 0.003 286);
+  --sidebar-foreground: oklch(0.90 0.002 286);
+  --sidebar-primary: oklch(0.90 0.16 101);
+  --sidebar-primary-foreground: oklch(0.20 0.03 101);
+  --sidebar-accent: oklch(0.25 0.005 286);
+  --sidebar-accent-foreground: oklch(0.945 0.002 286);
+  --sidebar-border: oklch(0.26 0.005 286);
+  --sidebar-ring: oklch(0.90 0.16 101);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
   }
 }
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  body {
+    font-feature-settings: "cv11", "ss01";
+  }
+  /* columnas de cifras siempre alineadas */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
 }

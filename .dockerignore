@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.env*
+!.env.example
+npm-debug.log*
+*.tsbuildinfo
+next-env.d.ts
+
+# no van a la imagen: son material de referencia, no de ejecución
+fotos
+docs
+hola
+README.md
+AGENTS.md
+CLAUDE.md

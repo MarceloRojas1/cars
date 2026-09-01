@@ -1,0 +1,49 @@
+name: cars
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: cars
+      POSTGRES_PASSWORD: cars
+      POSTGRES_DB: cars
+    ports:
+      # 5433 en el host: el 5432 ya lo ocupa el Postgres instalado en la máquina.
+      # Cámbialo con DB_PORT=... en tu .env.local si prefieres otro.
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Se aplican una sola vez, en orden alfabético, al crear el volumen.
+      # Para re-aplicarlos: docker compose down -v && docker compose up
+      - ./docker/initdb/00-auth-shim.sql:/docker-entrypoint-initdb.d/00-auth-shim.sql:ro
+      - ./supabase/migrations/0001_init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cars -d cars"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      target: dev
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://cars:cars@db:5432/cars
+      WATCHPACK_POLLING: "true"   # hot reload fiable con volúmenes montados
+    env_file:
+      - path: .env.local
+        required: false
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - .:/app
+      # Volúmenes anónimos: el node_modules y el .next del contenedor no se
+      # pisan con los del host (que pueden traer binarios de otra plataforma).
+      - /app/node_modules
+      - /app/.next
+
+volumes:
+  pgdata:
