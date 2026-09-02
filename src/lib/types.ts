@@ -102,6 +102,9 @@ export type Vehicle = {
   puertas?: number;
   colorExterior?: string;
   colorInterior?: string;
+  vin?: string;
+  numeroMotor?: string;
+  cilindrada?: string;
   permisoCirculacionVence?: string;
   revisionTecnicaVence?: string;
   tags: string[];
@@ -133,6 +136,8 @@ export type Stage = {
   color: string;
   orden: number;
   agenteIaActivo: boolean;
+  /** Quién conduce la etapa. El traspaso ocurre al pasar de 'ia' a 'humano'. */
+  responsable: "ia" | "humano";
 };
 
 export type Lead = {
@@ -151,6 +156,11 @@ export type Lead = {
   mensajes: number;
   diasEnEtapa: number;
   creadoHace: string;
+  /** Id del evento en el canal de origen. Clave de idempotencia. */
+  externalId?: string;
+  /** Cuándo pasó del bot a un humano. */
+  traspasadoAt?: string;
+  notas?: string;
 };
 
 export type Client = {
@@ -202,4 +212,6 @@ export type Integration = {
   descripcion: string;
   estado: "conectado" | "no_conectado" | "incluido";
   detalle?: string;
+  /** Solo para las de IA: qué modelo quedó elegido. */
+  modelo?: string;
 };

@@ -347,6 +347,255 @@ los datos que existían en el build — el dashboard habría mostrado la semilla
 congelada aunque hubiera una base conectada. En un CRM multi-tenant no hay nada
 prerenderizable: todo depende de qué organización mira y del estado actual.
 
+## 2026-09-02 — Consulta de patente con Boostr
+
+**Proveedor elegido: Boostr** (`api.boostr.cl`), una de las preguntas de negocio
+que estaban abiertas. Endpoint `GET /vehicle/{patente}.json`, autenticación por
+cabecera `X-API-KEY`, límite de 5 consultas cada 10 segundos.
+
+**Sin `BOOSTR_API_KEY` se usa `/vehicle/fake/`**, que devuelve datos de ejemplo con
+la misma estructura. Así el flujo completo se puede probar sin contratar el
+servicio, y activarlo después es una variable de entorno.
+
+**Boostr entrega modelo y versión en un solo campo** (`"NEW WRX S AWD CVT 2.0T"`).
+Se separan buscando un modelo conocido de esa marca dentro del texto; lo que sobra
+queda como versión. Con datos limpios sale perfecto (`HILUX 2.4 DX 4X4` → Hilux +
+2.4 DX 4X4); con datos sucios queda aproximado y el vendedor lo corrige. La
+alternativa —meter todo en `modelo`— ensuciaría el catálogo que se autocompleta
+desde el inventario.
+
+**`type` = AUTOMOVIL no se mapea a carrocería a propósito**: no distingue sedán de
+hatchback, y una carrocería incorrecta es peor que una vacía. Sí se mapean
+CAMIONETA, JEEP→SUV, STATION WAGON, FURGON y MINIBUS.
+
+**El número de motor llega pero no se guarda**: no tenemos columna. Es un dato que
+va en la transferencia, así que probablemente valga la pena agregarlo.
+
+**Caché de 24 h en `plate_lookup`.** La consulta se paga por uso; repetir la misma
+patente el mismo día es dinero tirado. La tabla no lleva `organization_id` ni RLS a
+propósito: el dato del Registro Civil no es de nadie en particular.
+
+**`BOOSTR_BASE_URL` es configurable** para poder apuntar a un doble en las pruebas.
+
+**No se pudo llamar la API desde este entorno**: Cloudflare bloquea la IP del
+sandbox con un 403 en todas las rutas, con clave o sin ella. La integración se
+construyó contra el OpenAPI oficial y se verificó con un servidor que devuelve sus
+respuestas exactas. Falta probarla contra el servicio real.
+
+## 2026-09-02 — Preparado para el plan extendido de patentes
+
+**El mapeo lee los campos del plan extendido si vienen, y los ignora si no.**
+Todos son opcionales, así que el mismo código sirve para el plan gratuito y para
+el de pago: activar el extendido es poner `BOOSTR_API_KEY` del plan Pro, sin
+tocar ni una línea. Verificado con las dos respuestas: el gratuito llena 5 campos,
+el extendido llena 12.
+
+**Se agregaron `vin`, `numero_motor` y `cilindrada`** (migración 0006). El número
+de motor ya llegaba con el plan gratuito y se estaba descartando; va en la
+transferencia, así que ahora se guarda.
+
+**Con el plan extendido la versión llega aparte**, así que se deja de adivinar el
+corte de modelo/versión. La heurística solo actúa cuando no viene.
+
+**Los valores del Registro Civil se normalizan pero no se descartan.**
+DIESEL→Diésel, MECANICA→Manual, etc. Si aparece un valor desconocido se deja pasar
+con mayúscula inicial en vez de perderlo: un dato raro es mejor que ninguno.
+
+**La caché puede servir datos pobres tras cambiar de plan.** Si se consultó una
+patente con el plan gratuito y después se contrata el extendido, durante 24 h se
+seguiría devolviendo la respuesta guardada. Por eso `consultarPatente` acepta
+`forzar`, y la pantalla ofrece "consultar de nuevo" cuando el dato salió de caché.
+
+**Techo conocido:** el plan Pro da 100 consultas al día para toda la cuenta, no por
+automotora. Alcanza de sobra para una, pero con veinte clientes se agota temprano.
+A esa escala hay que pasar a la modalidad de créditos. Está anotado en
+`docs/escalar-a-200-clientes.md` como límite externo.
+
+## 2026-09-02 — Proveedor de patente desacoplado
+
+**Diagnóstico cerrado:** el 403 de Boostr es una página de Cloudflare
+("Attention Required", Ray ID a34a1c246fe0df53), no una respuesta de su
+aplicación. Descartado por evidencia: la misma IP, mismo cliente y mismo segundo
+obtiene **200 en `/rut/generate.json` y 403 en `/vehicle/*`**. No es la IP, ni el
+país, ni el tipo de cliente, ni rate limit: es una regla de firewall sobre esa
+ruta que alcanza también a su endpoint público de pruebas, documentado con
+`security: []`. Es un error de configuración de ellos.
+
+**AutoRiesgo tampoco es gratis**: su consulta programática responde
+`{"detail":"Not allowed on this endpoint... X-Api-Key... credits from $5.000"}`.
+
+**Por eso el proveedor pasó a ser intercambiable.** `src/lib/patente/` define un
+contrato (`Proveedor`) y tres adaptadores: `fixtures` (datos de ejemplo locales),
+`boostr` y `autoriesgo`. Se elige con `PROVEEDOR_PATENTE`; sin esa variable se usa
+el primero que tenga clave y, si ninguno la tiene, los datos de ejemplo.
+
+Por qué: **el proyecto no puede quedar detenido porque un tercero tenga mal
+configurado su firewall.** No es sobre-ingeniería — son tres archivos chicos y
+sacan la integración del camino crítico.
+
+**Los datos de ejemplo traen ficha completa a propósito**, para poder ejercitar el
+mapeo del plan extendido sin haberlo contratado. Están marcados como ficticios y
+la pantalla lo advierte.
+
+**La caché ahora guarda el proveedor** (migración 0007, clave primaria
+`(patente, proveedor)`). Sin eso, cambiar de proveedor seguiría sirviendo 24 h la
+respuesta del anterior.
+
+**El adaptador de AutoRiesgo no está verificado** contra una respuesta real: se
+escribió contra la forma esperada de `vehicle_data`. Al contratar créditos hay que
+confirmar los nombres de los campos antes de confiar en él. Está anotado en el
+propio archivo.
+
+## 2026-09-02 — Filtros y paginación del inventario
+
+**Se filtra y pagina en SQL, no en memoria.** Con 8.000 vehículos, traerlos todos
+para filtrarlos en JavaScript es el problema de escala que ya estaba anotado en
+`docs/escalar-a-200-clientes.md`. `buscarVehiculos()` arma el WHERE dinámicamente
+y usa `count(*) over()` para devolver el total en la misma consulta, sin una
+segunda ida a la base solo para saber cuántas páginas hay.
+
+**Los filtros viven en la URL, no en estado local.** Así el listado se comparte,
+el botón atrás funciona y el filtrado ocurre en el servidor. Cambiar cualquier
+filtro vuelve a la página 1: quedarse en la 3 con un resultado de 2 páginas es un
+clásico de listados mal hechos.
+
+**10 filas por página** (`POR_PAGINA`). La barra muestra primera, última, actual
+y vecinas, con elipsis cuando hay muchas.
+
+**Las marcas del desplegable salen del inventario**, no de un catálogo fijo: solo
+se ofrece filtrar por lo que existe.
+
+**El estado vacío distingue dos casos**: "todavía no cargas ningún vehículo" y
+"ningún vehículo coincide con los filtros". Son problemas distintos y la salida
+también.
+
+**Bug encontrado al probar:** el helper que numera los parámetros usaba `replace`,
+que solo sustituye la primera ocurrencia. La búsqueda por texto compara contra
+código, título y patente con el mismo parámetro, así que quedaban dos `$n`
+literales y Postgres respondía "syntax error at or near $". Corregido con
+`replaceAll`. Lo encontró la prueba de los 13 filtros, no el compilador.
+
+## 2026-09-02 — El embudo: tubería de eventos, no 9 columnas
+
+**El flujo real del negocio**, confirmado con el cliente: un anuncio de Instagram
+abre un chat de WhatsApp (CTWA), el bot atiende y califica, y cuando detecta
+interés lo entrega a una persona. Las columnas son la vista de esa tubería.
+
+**`stage.responsable` ('ia' | 'humano') — el cambio de modelo que ordena todo.**
+Antes solo existía `ai_agent_enabled` (sí/no), que no alcanza: hace falta saber
+*quién conduce* cada etapa. Nuevo, Calificando y Sin Respuesta las lleva el bot
+(esta última porque persigue a los que dejaron de contestar); desde Calificado en
+adelante, personas.
+
+**El traspaso bot→humano es el evento central.** Al mover un lead desde una etapa
+del bot a una de personas, recién ahí se asigna vendedor y se registra
+`traspasado_at`. Asignar antes ensuciaría la métrica de rapidez de contacto, que
+mide desde que el humano se hace cargo.
+
+**Las 9 etapas no son una fila.** Camino principal Nuevo → Calificando →
+Calificado → Contactado → Visita → Ganado; *Sin Respuesta* y *Descartado* son
+salidas desde cualquier punto; y **Consigna/Compra es otra vía completa** — ese
+lead quiere venderte su auto, no comprarte uno.
+
+**Punto de entrada único: `registrarLeadEntrante()`.** WhatsApp, Meta, Zernio y el
+sitio propio mandan payloads distintos; cada adaptador solo traduce, y la
+deduplicación, la asignación y la bitácora ocurren en un solo lugar. Conectar un
+canal es escribir una traducción y verificar su firma, sin tocar el embudo.
+Ninguno está conectado: faltan credenciales y verificación de firma.
+
+**Idempotencia desde el día uno.** Índice único sobre
+`(organization_id, source, external_id)`. WhatsApp y Meta reentregan eventos —
+verificado en la prueba: la segunda entrega del mismo evento devuelve
+`duplicado` y no crea otro lead. Retrofitear esto obliga a limpiar datos sucios.
+
+**El adaptador de WhatsApp distingue CTWA de un mensaje normal** por el campo
+`referral` que Meta adjunta cuando el chat nació de un anuncio: eso define si el
+lead es de campaña o espontáneo.
+
+**Ganado marca el vehículo como vendido** y avisa para registrar la venta en
+Control de Ventas. No la crea solo: arrastrar por error no debe generar una venta
+fantasma.
+
+**El motor de asignación ya es una interfaz** con el contexto completo (origen,
+tipo, sucursal), aunque hoy solo implemente la rotación. Los otros tres pasos de
+la jerarquía documentada son un `if` adentro, no un cambio de llamadas.
+
+**Bug encontrado al probar:** el listado mostraba 56 leads existiendo 34. El
+`left join conversation` multiplicaba filas porque la semilla, corrida dos veces,
+había creado conversaciones repetidas — el `on conflict do nothing` no tenía
+destino y no hacía nada. Tres arreglos: `left join lateral … limit 1` en la
+consulta, índice único `(lead_id, canal)` (migración 0009), y destino explícito
+en la semilla.
+
+**Segundo bug:** el script de semilla contaba los leads *después* del commit, en
+una conexión sin organización declarada, y RLS —correctamente— devolvía cero.
+El dato estaba bien; la pregunta estaba mal hecha.
+
+## 2026-09-02 — Panel de detalle del lead
+
+Reconstruido desde la captura en `hola/`: panel lateral con el detalle a la
+izquierda y la conversación de WhatsApp a la derecha.
+
+**Todo lo que se puede conectar, está conectado a datos reales:** el vehículo de
+interés sale del inventario, el vendedor del equipo, las etapas del embudo. Nada
+de listas inventadas dentro del panel.
+
+**Las notas son una tabla, no un campo.** En el original son varias, cada una con
+fecha y autor. `lead_note` con RLS forzado como el resto (migración 0010);
+`lead.notas` queda solo para la nota inicial del alta manual.
+
+**La bitácora sale de `lead_activity`**, que ya se venía llenando con cada
+movimiento. Marca en otro color los eventos de traspaso bot→humano.
+
+**Lo que falta se muestra, no se esconde.** "Registrar llamada", "Registrar venta"
+y "Recordatorio" aparecen en su lugar, deshabilitados y con el motivo en el
+tooltip. Es más honesto que ocultarlos: quien usa la pantalla sabe que la función
+existe y por qué todavía no.
+
+**La conversación de WhatsApp distingue dos casos**, como el original: el lead no
+llegó por WhatsApp, o llegó y el historial aún no se puede mostrar porque falta la
+integración.
+
+**El panel se remonta con cada lead** (`key={leadId}`) en vez de reiniciar estado
+dentro de un efecto — que además es lo que pedía el lint de React.
+
+## 2026-09-02 — Claude: cada automotora usa su propia cuenta
+
+**Modelo BYOK (bring your own key), no una clave compartida.** Cada organización
+guarda su clave de Anthropic; el consumo se factura a ella y ninguna gasta la
+cuota de otra. Por eso el cliente de Claude se construye por organización y no
+una sola vez para toda la aplicación.
+
+**Las credenciales se guardan cifradas con AES-256-GCM** (`src/lib/cripto.ts`).
+Guardarlas en texto plano significaría que cualquiera con lectura sobre la base
+—un respaldo filtrado, un volcado de depuración, un usuario con permisos de más—
+se lleva las claves de todos los clientes. GCM además autentica: alterar el dato
+guardado hace fallar el descifrado en vez de devolver basura. Verificado.
+
+**La clave maestra vive en `APP_ENCRYPTION_KEY`, fuera de la base.** Quien tenga
+solo la base no puede descifrar nada. Sin esa variable la aplicación se niega a
+guardar credenciales en vez de degradar a texto plano.
+
+**La clave nunca vuelve al navegador.** Solo viaja una pista con los últimos
+caracteres (`sk-ant-…7890`) para que el usuario reconozca cuál dejó puesta.
+
+**Se prueba antes de guardar**, con una llamada real a Anthropic. Guardar sin
+probar deja el problema para el día en que llegue un lead de verdad, que es el
+peor momento para descubrir que la clave estaba mal pegada. Los errores se
+traducen: clave inválida, sin permiso para el modelo, cuenta sin acceso, límite
+alcanzado.
+
+**Modelo por defecto: `claude-opus-5`**, con Sonnet 5 y Haiku 4.5 disponibles por
+si alguien prefiere bajar costo. Es decisión del cliente, no nuestra.
+
+**El catálogo de modelos vive aparte del cliente** (`ia/modelos.ts` vs
+`ia/claude.ts`): el segundo importa el SDK y toca la base, así que es solo de
+servidor, y el diálogo de configuración corre en el navegador.
+
+**Las integraciones ahora salen de la base**, pero el catálogo sigue siendo fijo
+en código: la base solo aporta el estado de cada una. Así agregar una integración
+nueva no requiere insertar filas.
+
 ## Decisiones pendientes
 
 - [ ] **¿Conectar Supabase antes de la Fase 2 o seguir con semilla?**

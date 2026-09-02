@@ -4,7 +4,8 @@ import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import {
-  actualizarVehiculoAction, crearVehiculoAction, type EstadoFormulario,
+  actualizarVehiculoAction, consultarPatenteAction, crearVehiculoAction,
+  type EstadoFormulario,
 } from "@/app/(app)/vehiculos/acciones";
 import { Campo, Seccion, Select, controlBase } from "@/components/form/campos";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,59 @@ export function VehiculoForm({
     if (suc) { setRegion(suc.region); setComuna(suc.comuna); }
   }
 
+  const [patente, setPatente] = useState(vehiculo?.patente ?? "");
+  const [buscando, setBuscando] = useState(false);
+  const [avisoPatente, setAvisoPatente] = useState<
+    { tipo: "ok" | "error"; texto: string } | null
+  >(null);
+  const [carroceriaAuto, setCarroceriaAuto] = useState<string | undefined>();
+  /** Campos que rellena la consulta de patente; el vendedor los puede corregir. */
+  const [desdePatente, setDesdePatente] = useState<Record<string, string>>({});
+  const campo = (k: string, guardado?: string | number) =>
+    desdePatente[k] ?? (guardado !== undefined ? String(guardado) : "");
+
+  async function buscarPorPatente() {
+    setBuscando(true);
+    setAvisoPatente(null);
+    try {
+      const r = await consultarPatenteAction(patente);
+      if (!r.ok) {
+        setAvisoPatente({ tipo: "error", texto: r.mensaje });
+        return;
+      }
+      const d = r.datos;
+      if (d.marca) setMarca(d.marca);
+      if (d.modelo) setModelo(d.modelo);
+      if (d.version) setVersion(d.version);
+      if (d.anio) setAnio(String(d.anio));
+      if (d.carroceria) setCarroceriaAuto(d.carroceria);
+
+      // Lo que solo llega con el plan extendido. Si no viene, no se toca.
+      const traidos: Record<string, string> = {};
+      if (d.km) traidos.km = String(d.km);
+      if (d.combustible) traidos.combustible = d.combustible;
+      if (d.transmision) traidos.transmision = d.transmision;
+      if (d.puertas) traidos.puertas = String(d.puertas);
+      if (d.color) traidos.colorExterior = d.color;
+      if (d.vin) traidos.vin = d.vin;
+      if (d.motor) traidos.numeroMotor = d.motor;
+      if (d.cilindrada) traidos.cilindrada = d.cilindrada;
+      setDesdePatente((prev) => ({ ...prev, ...traidos }));
+
+      setTituloManual(null); // que el título se rearme con lo que llegó
+      setAvisoPatente({
+        tipo: "ok",
+        texto: [
+          "Ficha rellenada" + (d.desdeCache ? " (dato en caché)" : "") + ".",
+          d.extendido ? "" : "El plan gratuito no trae la ficha técnica.",
+          "Revísala antes de guardar.",
+        ].filter(Boolean).join(" "),
+      });
+    } finally {
+      setBuscando(false);
+    }
+  }
+
   const [unicoDueno, setUnicoDueno] = useState(vehiculo?.cantidadDuenos === 1);
   const [tags, setTags] = useState<string[]>(vehiculo?.tags ?? []);
   const [tagPropio, setTagPropio] = useState("");
@@ -91,19 +145,35 @@ export function VehiculoForm({
             <input
               id="patente"
               name="patente"
-              defaultValue={vehiculo?.patente ?? ""}
+              value={patente}
+              onChange={(ev) => setPatente(ev.target.value.toUpperCase())}
+              onKeyDown={(ev) => {
+                if (ev.key === "Enter") { ev.preventDefault(); buscarPorPatente(); }
+              }}
               maxLength={8}
               placeholder="ABCD12"
               className={cn(controlBase, "font-mono uppercase")}
             />
           </div>
-          <Button type="button" variant="outline" disabled className="h-9 gap-2">
-            <Search className="size-3.5" /> Buscar y rellenar
+          <Button
+            type="button" variant="outline" className="h-9 gap-2"
+            onClick={buscarPorPatente}
+            disabled={buscando || patente.trim().length < 6}
+          >
+            <Search className="size-3.5" />
+            {buscando ? "Buscando…" : "Buscar y rellenar"}
           </Button>
-          <p className="flex-1 text-[11.5px] leading-relaxed text-muted-foreground">
-            Con el proveedor de datos conectado, esto rellena marca, modelo, año y
-            versión desde el Registro Civil. <span className="text-warn">Falta contratarlo</span>,
-            así que por ahora completa la ficha a mano más abajo.
+          <p className="flex-1 text-[11.5px] leading-relaxed">
+            {avisoPatente ? (
+              <span className={avisoPatente.tipo === "ok" ? "text-ok" : "text-crit"}>
+                {avisoPatente.texto}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">
+                Trae la ficha desde el Registro Civil. Lo que llegue se puede
+                corregir antes de guardar.
+              </span>
+            )}
           </p>
         </div>
       </section>
@@ -214,28 +284,42 @@ export function VehiculoForm({
       {/* --- 3. ficha técnica --- */}
       <Seccion numero="03" titulo="Ficha técnica" descripcion="Todo opcional, pero suma a la completitud del aviso.">
         <Campo label="Kilometraje" htmlFor="km">
-          <input id="km" name="km" inputMode="numeric" defaultValue={vehiculo?.km ?? ""} className={cn(controlBase, "tabular")} />
+          <input id="km" name="km" inputMode="numeric"
+            value={campo("km", vehiculo?.km)}
+            onChange={(ev) => setDesdePatente((p) => ({ ...p, km: ev.target.value }))}
+            className={cn(controlBase, "tabular")} />
         </Campo>
         <Campo label="Combustible" htmlFor="combustible">
-          <Select id="combustible" name="combustible" defaultValue={vehiculo?.combustible ?? ""}>
+          <Select id="combustible" name="combustible"
+            value={campo("combustible", vehiculo?.combustible)}
+            onChange={(ev) => setDesdePatente((p) => ({ ...p, combustible: ev.target.value }))}>
             <option value="">Sin especificar</option>
             {COMBUSTIBLES.map((c) => <option key={c} value={c}>{c}</option>)}
           </Select>
         </Campo>
         <Campo label="Transmisión" htmlFor="transmision">
-          <Select id="transmision" name="transmision" defaultValue={vehiculo?.transmision ?? ""}>
+          <Select id="transmision" name="transmision"
+            value={campo("transmision", vehiculo?.transmision)}
+            onChange={(ev) => setDesdePatente((p) => ({ ...p, transmision: ev.target.value }))}>
             <option value="">Sin especificar</option>
             {TRANSMISIONES.map((t) => <option key={t} value={t}>{t}</option>)}
           </Select>
         </Campo>
         <Campo label="Carrocería" htmlFor="carroceria">
-          <Select id="carroceria" name="carroceria" defaultValue={vehiculo?.carroceria ?? ""}>
+          <Select
+            id="carroceria" name="carroceria"
+            value={carroceriaAuto ?? undefined}
+            defaultValue={carroceriaAuto ? undefined : (vehiculo?.carroceria ?? "")}
+            onChange={(ev) => setCarroceriaAuto(ev.target.value)}
+          >
             <option value="">Sin especificar</option>
             {CARROCERIAS.map((c) => <option key={c} value={c}>{c}</option>)}
           </Select>
         </Campo>
         <Campo label="Puertas" htmlFor="puertas">
-          <Select id="puertas" name="puertas" defaultValue={vehiculo?.puertas ?? ""}>
+          <Select id="puertas" name="puertas"
+            value={campo("puertas", vehiculo?.puertas)}
+            onChange={(ev) => setDesdePatente((p) => ({ ...p, puertas: ev.target.value }))}>
             <option value="">Sin especificar</option>
             {PUERTAS.map((p) => <option key={p} value={p}>{p}</option>)}
           </Select>
@@ -243,12 +327,21 @@ export function VehiculoForm({
         <Campo label="Color exterior" htmlFor="colorExterior">
           <input
             id="colorExterior" name="colorExterior" list="lista-color-ext"
-            defaultValue={vehiculo?.colorExterior ?? ""}
+            value={campo("colorExterior", vehiculo?.colorExterior)}
+            onChange={(ev) => setDesdePatente((p) => ({ ...p, colorExterior: ev.target.value }))}
             autoComplete="off" className={controlBase}
           />
           <datalist id="lista-color-ext">
             {COLORES_EXTERIOR.map((c) => <option key={c} value={c} />)}
           </datalist>
+        </Campo>
+        <Campo label="Cilindrada" htmlFor="cilindrada" hint="Ej: 2.0">
+          <input
+            id="cilindrada" name="cilindrada"
+            value={campo("cilindrada", vehiculo?.cilindrada)}
+            onChange={(ev) => setDesdePatente((p) => ({ ...p, cilindrada: ev.target.value }))}
+            className={cn(controlBase, "tabular")}
+          />
         </Campo>
         <Campo label="Color interior" htmlFor="colorInterior">
           <input
@@ -264,6 +357,22 @@ export function VehiculoForm({
 
       {/* --- 4. documentación --- */}
       <Seccion numero="04" titulo="Documentación" descripcion="Fechas de vencimiento e historial de dueños.">
+        <Campo label="VIN / chasis" htmlFor="vin" hint="Llega con el plan extendido de patentes.">
+          <input
+            id="vin" name="vin" maxLength={17}
+            value={campo("vin", vehiculo?.vin)}
+            onChange={(ev) => setDesdePatente((p) => ({ ...p, vin: ev.target.value.toUpperCase() }))}
+            className={cn(controlBase, "tabular uppercase")}
+          />
+        </Campo>
+        <Campo label="N.º de motor" htmlFor="numeroMotor" hint="Va en la transferencia.">
+          <input
+            id="numeroMotor" name="numeroMotor"
+            value={campo("numeroMotor", vehiculo?.numeroMotor)}
+            onChange={(ev) => setDesdePatente((p) => ({ ...p, numeroMotor: ev.target.value.toUpperCase() }))}
+            className={cn(controlBase, "tabular uppercase")}
+          />
+        </Campo>
         <Campo label="Permiso de circulación vence" htmlFor="permisoCirculacionVence">
           <input
             id="permisoCirculacionVence" name="permisoCirculacionVence" type="date"

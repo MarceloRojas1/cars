@@ -116,12 +116,12 @@ test("sin organización declarada no se ve nada", async () => {
   assert.equal(rows[0].n, 0, "FILTRACIÓN: se lee sin declarar organización");
 });
 
-test("las 15 tablas con datos de cliente tienen RLS forzado", async () => {
+test("las tablas con datos de cliente tienen RLS forzado", async () => {
   const { rows } = await pool.query(`
     select c.relname from pg_class c
      where c.relname in ('branch','app_user','vehicle','stage','lead','conversation',
                          'client','operation','monthly_close','campaign','knowledge_item',
-                         'routing_rule','hero_slide','integration','reminder')
+                         'routing_rule','hero_slide','integration','reminder','lead_note')
        and not (c.relrowsecurity and c.relforcerowsecurity)`);
   assert.deepEqual(rows.map((r) => r.relname), [],
     "Estas tablas no tienen RLS forzado y filtran entre organizaciones");

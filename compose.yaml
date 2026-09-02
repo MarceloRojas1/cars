@@ -21,6 +21,12 @@ services:
       - ./supabase/migrations/0003_vehicle_ubicacion.sql:/docker-entrypoint-initdb.d/03-ubicacion.sql:ro
       - ./supabase/migrations/0004_vehicle_archivo.sql:/docker-entrypoint-initdb.d/04-archivo.sql:ro
       - ./supabase/migrations/0005_rls_forzado.sql:/docker-entrypoint-initdb.d/05-rls.sql:ro
+      - ./supabase/migrations/0006_vehicle_identificadores.sql:/docker-entrypoint-initdb.d/07-identificadores.sql:ro
+      - ./supabase/migrations/0007_plate_lookup_proveedor.sql:/docker-entrypoint-initdb.d/08-proveedor.sql:ro
+      - ./supabase/migrations/0008_embudo.sql:/docker-entrypoint-initdb.d/09-embudo.sql:ro
+      - ./supabase/migrations/0009_conversation_unica.sql:/docker-entrypoint-initdb.d/10-conversacion.sql:ro
+      - ./supabase/migrations/0010_lead_notas.sql:/docker-entrypoint-initdb.d/11-notas.sql:ro
+      - ./supabase/migrations/0011_integracion_unica.sql:/docker-entrypoint-initdb.d/12-integracion.sql:ro
       - ./docker/initdb/06-rol-app.sql:/docker-entrypoint-initdb.d/06-rol-app.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U velie -d velie"]

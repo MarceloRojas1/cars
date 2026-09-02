@@ -8,6 +8,7 @@ import {
   crearVehiculo, eliminarVehiculo,
 } from "@/lib/data";
 import { COMBUSTIBLES } from "@/lib/catalogos";
+import { consultarPatente } from "@/lib/patente";
 
 /** Vacío en un formulario es "no informado", no cero ni cadena vacía. */
 const opcional = (v: unknown) => (v === "" || v === null ? undefined : v);
@@ -47,6 +48,9 @@ const esquema = z.object({
   puertas: enteroOpcional,
   colorExterior: textoOpcional,
   colorInterior: textoOpcional,
+  vin: textoOpcional,
+  numeroMotor: textoOpcional,
+  cilindrada: textoOpcional,
   permisoCirculacionVence: textoOpcional,
   revisionTecnicaVence: textoOpcional,
   cantidadDuenos: enteroOpcional,
@@ -162,4 +166,10 @@ export async function eliminarAction(id: string) {
   await eliminarVehiculo(id);
   revalidar();
   return { ok: true };
+}
+
+/* --- consulta de patente --- */
+
+export async function consultarPatenteAction(patente: string, forzar = false) {
+  return consultarPatente(patente, forzar);
 }

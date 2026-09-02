@@ -5,7 +5,7 @@
 import { config } from "dotenv";
 import { Pool } from "pg";
 import {
-  organization, branches, users, stages, vehicles, clients,
+  organization, branches, users, stages, vehicles, clients, leads,
 } from "../src/lib/data/seed";
 
 config({ path: ".env.local" });
@@ -88,10 +88,36 @@ async function main() {
     );
   }
 
-  const { rows } = await cliente.query("select count(*)::int as n from vehicle");
+  for (const l of leads) {
+    await cliente.query(
+      `insert into lead (id, organization_id, stage_id, vehicle_id, vendedor_id,
+         nombre, telefono, email, source, tipo, temperatura, perdido,
+         stage_changed_at, created_at)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
+               now() - ($13 || ' days')::interval, now() - ($13 || ' days')::interval)
+       on conflict (id) do nothing`,
+      [uuid(l.id), orgId, uuid(l.stageId), l.vehicleId ? uuid(l.vehicleId) : null,
+       l.vendedorId ? uuid(l.vendedorId) : null, l.nombre, l.telefono, l.email ?? null,
+       l.source, l.tipo ?? null, l.temperatura, l.perdido, String(l.diasEnEtapa || 0)],
+    );
+    if (l.mensajes > 0) {
+      await cliente.query(
+        `insert into conversation (organization_id, lead_id, canal, mensajes_count, last_message_at)
+         values ($1,$2,'whatsapp',$3, now())
+         on conflict (lead_id, canal) do update set mensajes_count = excluded.mensajes_count`,
+        [orgId, uuid(l.id), l.mensajes],
+      );
+    }
+  }
+
+  // Los conteos van ANTES del commit: después, la conexión ya no declara
+  // organización y RLS —correctamente— devuelve cero.
+  const { rows } = await cliente.query(
+    "select (select count(*) from vehicle)::int as v, (select count(*) from lead)::int as l",
+  );
   await cliente.query("commit");
   cliente.release();
-  console.log(`✓ semilla cargada — ${rows[0].n} vehículos en la base`);
+  console.log(`✓ semilla cargada — ${rows[0].v} vehículos, ${rows[0].l} leads`);
   await pool.end();
 }
 

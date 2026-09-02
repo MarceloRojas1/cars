@@ -1,14 +1,18 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Plus, Search, Download, SlidersHorizontal, Lightbulb, ImageOff } from "lucide-react";
+import { Plus, Lightbulb, ImageOff } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Completitud, DiasEnSalon, EstadoVehiculo } from "@/components/badges";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { VehiculoAcciones } from "@/components/vehiculo-acciones";
-import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { clp, km } from "@/lib/format";
-import { getBranches, getOrganization, getUsers, getVehicles } from "@/lib/data";
+import {
+  buscarVehiculos, getBranches, getMarcasEnInventario, getOrganization,
+  getUsers, POR_PAGINA,
+} from "@/lib/data";
+import { VehiculosFiltros } from "@/components/vehiculos-filtros";
+import { Paginacion } from "@/components/paginacion";
 
 export const metadata = { title: "Vehículos" };
 
@@ -17,12 +21,39 @@ const CANAL_LABEL: Record<string, string> = {
 };
 
 export default async function VehiculosPage({ searchParams }: PageProps<"/vehiculos">) {
-  const { vista } = await searchParams;
-  const verArchivados = vista === "archivados";
+  const sp = await searchParams;
+  const texto = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : undefined);
+  const entero = (k: string) => {
+    const n = Number(texto(k));
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  };
 
-  const [vehicles, archivados, branches, users, org] = await Promise.all([
-    getVehicles(verArchivados), getVehicles(true), getBranches(), getUsers(), getOrganization(),
-  ]);
+  const verArchivados = texto("vista") === "archivados";
+  const pagina = entero("pagina") ?? 1;
+
+  const filtros = {
+    q: texto("q"),
+    marca: texto("marca"),
+    estado: texto("estado"),
+    combustible: texto("combustible"),
+    anioDesde: entero("anioDesde"),
+    anioHasta: entero("anioHasta"),
+    precioDesde: entero("precioDesde"),
+    precioHasta: entero("precioHasta"),
+    branchId: texto("branchId"),
+    vendedorId: texto("vendedorId"),
+    soloIncompletas: texto("incompletas") === "1",
+    archivados: verArchivados,
+    pagina,
+  };
+
+  const [{ vehiculos: vehicles, total }, cuentaArchivados, marcas, branches, users, org] =
+    await Promise.all([
+      buscarVehiculos(filtros),
+      buscarVehiculos({ archivados: true, porPagina: 1 }),
+      getMarcasEnInventario(),
+      getBranches(), getUsers(), getOrganization(),
+    ]);
   const incompletas = vehicles.filter((v) => v.completitudPct < 100).length;
 
   return (
@@ -33,9 +64,9 @@ export default async function VehiculosPage({ searchParams }: PageProps<"/vehicu
         meta={
           <>
             <span className="tabular font-medium text-foreground">
-              {vehicles.length}/{org.limiteVehiculos}
+              {total}/{org.limiteVehiculos}
             </span>{" "}
-            vehículos publicados · {org.limiteVehiculos - vehicles.length} disponibles
+            vehículos publicados · {org.limiteVehiculos - total} disponibles
           </>
         }
         accion={
@@ -59,7 +90,7 @@ export default async function VehiculosPage({ searchParams }: PageProps<"/vehicu
       <nav className="mb-5 flex gap-5 border-b border-border">
         {[
           { href: "/vehiculos", etiqueta: "Activos", activo: !verArchivados },
-          { href: "/vehiculos?vista=archivados", etiqueta: `Archivados (${archivados.length})`, activo: verArchivados },
+          { href: "/vehiculos?vista=archivados", etiqueta: `Archivados (${cuentaArchivados.total})`, activo: verArchivados },
         ].map((t) => (
           <Link
             key={t.href}
@@ -75,21 +106,12 @@ export default async function VehiculosPage({ searchParams }: PageProps<"/vehicu
         ))}
       </nav>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[240px] flex-1 sm:max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Buscar por código, título, patente…" className="h-9 pl-8" />
-        </div>
-        <Button variant="outline" size="sm" className="h-9">Marca</Button>
-        <Button variant="outline" size="sm" className="h-9">Estado</Button>
-        <Button variant="outline" size="sm" className="h-9">Combustible</Button>
-        <Button variant="outline" size="sm" className="h-9 gap-2">
-          <SlidersHorizontal className="size-3.5" /> Más filtros
-        </Button>
-        <Button variant="outline" size="sm" className="ml-auto h-9 gap-2">
-          <Download className="size-3.5" /> Exportar
-        </Button>
-      </div>
+      <VehiculosFiltros
+        marcas={marcas}
+        sucursales={branches}
+        vendedores={users.filter((u) => u.rol === "vendedor" || u.rol === "owner")}
+      />
+
 
       <div className="overflow-x-auto border-t border-border">
         <Table>
@@ -114,7 +136,9 @@ export default async function VehiculosPage({ searchParams }: PageProps<"/vehicu
                 <TableCell colSpan={11} className="py-14 text-center text-[13px] text-muted-foreground">
                   {verArchivados
                     ? "No hay vehículos archivados."
-                    : "Todavía no cargas ningún vehículo."}
+                    : total === 0 && Object.keys(sp).length > 0
+                      ? "Ningún vehículo coincide con los filtros."
+                      : "Todavía no cargas ningún vehículo."}
                 </TableCell>
               </TableRow>
             )}
@@ -177,6 +201,16 @@ export default async function VehiculosPage({ searchParams }: PageProps<"/vehicu
           </TableBody>
         </Table>
       </div>
+
+      <Paginacion
+        pagina={pagina}
+        total={total}
+        porPagina={POR_PAGINA}
+        base="/vehiculos"
+        params={Object.fromEntries(
+          Object.entries(sp).filter(([, v]) => typeof v === "string"),
+        ) as Record<string, string>}
+      />
     </>
   );
 }

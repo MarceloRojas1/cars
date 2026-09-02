@@ -62,15 +62,15 @@ export const users: AppUser[] = [
 ];
 
 export const stages: Stage[] = [
-  { id: "st_nuevo", nombre: "Nuevo", kind: "entry", color: "#7C8DAE", orden: 1, agenteIaActivo: true },
-  { id: "st_calificando", nombre: "Calificando", kind: "progress", color: "#C08A3E", orden: 2, agenteIaActivo: true },
-  { id: "st_calificado", nombre: "Calificado", kind: "progress", color: "#6FAF8B", orden: 3, agenteIaActivo: false },
-  { id: "st_contactado", nombre: "Contactado/Seguimiento", kind: "progress", color: "#6E9BA6", orden: 4, agenteIaActivo: false },
-  { id: "st_visita", nombre: "Visita Agendada", kind: "progress", color: "#9C8AAE", orden: 5, agenteIaActivo: false },
-  { id: "st_sin_respuesta", nombre: "Sin Respuesta", kind: "progress", color: "#A8896B", orden: 6, agenteIaActivo: true },
-  { id: "st_ganado", nombre: "Ganado", kind: "exit_won", color: "#F2F0EC", orden: 7, agenteIaActivo: false },
-  { id: "st_descartado", nombre: "Descartado", kind: "exit_lost", color: "#55555A", orden: 8, agenteIaActivo: false },
-  { id: "st_consigna", nombre: "Consigna / Compra", kind: "progress", color: "#8FA88F", orden: 9, agenteIaActivo: false },
+  { id: "st_nuevo", nombre: "Nuevo", kind: "entry", color: "#7C8DAE", orden: 1, agenteIaActivo: true, responsable: "ia" },
+  { id: "st_calificando", nombre: "Calificando", kind: "progress", color: "#C08A3E", orden: 2, agenteIaActivo: true, responsable: "ia" },
+  { id: "st_calificado", nombre: "Calificado", kind: "progress", color: "#6FAF8B", orden: 3, agenteIaActivo: false, responsable: "humano" },
+  { id: "st_contactado", nombre: "Contactado/Seguimiento", kind: "progress", color: "#6E9BA6", orden: 4, agenteIaActivo: false, responsable: "humano" },
+  { id: "st_visita", nombre: "Visita Agendada", kind: "progress", color: "#9C8AAE", orden: 5, agenteIaActivo: false, responsable: "humano" },
+  { id: "st_sin_respuesta", nombre: "Sin Respuesta", kind: "progress", color: "#A8896B", orden: 6, agenteIaActivo: true, responsable: "ia" },
+  { id: "st_ganado", nombre: "Ganado", kind: "exit_won", color: "#F2F0EC", orden: 7, agenteIaActivo: false, responsable: "humano" },
+  { id: "st_descartado", nombre: "Descartado", kind: "exit_lost", color: "#55555A", orden: 8, agenteIaActivo: false, responsable: "humano" },
+  { id: "st_consigna", nombre: "Consigna / Compra", kind: "progress", color: "#8FA88F", orden: 9, agenteIaActivo: false, responsable: "humano" },
 ];
 
 const V = (
