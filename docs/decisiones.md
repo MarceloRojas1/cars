@@ -596,6 +596,55 @@ servidor, y el diálogo de configuración corre en el navegador.
 en código: la base solo aporta el estado de cada una. Así agregar una integración
 nueva no requiere insertar filas.
 
+## 2026-09-02 — Dónde desplegar: la decisión se reabre
+
+**Estaba decidido Vercel. Vale la pena revisarlo**, porque esa decisión se tomó
+antes de que quedara claro que el agente de IA es la carga dominante del sistema
+(~120.000 mensajes diarios a 200 automotoras, más sincronizaciones horarias).
+
+La diferencia de fondo: **Vercel corre funciones sin servidor y Render corre
+contenedores.** De ahí sale todo lo demás.
+
+| | Vercel | Render |
+|---|---|---|
+| El Dockerfile que ya tenemos | se descarta | funciona hoy |
+| Workers, colas y cron | plataforma aparte | nativo |
+| Postgres | servicio externo | en la misma plataforma |
+| Costo | escala con tráfico | fijo por servicio |
+| CDN global para el catálogo | excelente | correcto |
+
+**Inclinación actual: Render para el panel y los workers.** Una plataforma, el
+contenedor probado, la base al lado. Para un equipo de una persona, la
+simplicidad operativa pesa más que la ventaja marginal.
+
+**Vercel gana cuando exista el catálogo público**, y por una razón técnica
+concreta: las páginas de vehículo se pueden generar una vez y servir guardadas
+(ver abajo). En Vercel esa copia vive en su red global compartida; en Render vive
+en el disco de cada contenedor, así que con más de una instancia se
+desincronizan — un visitante ve el precio nuevo y otro el viejo. Se arregla con un
+caché compartido, pero es trabajo que en Vercel no existe.
+
+**Desenlace probable: repartido.** Panel y workers en Render, catálogo público en
+Vercel. Decisión para cuando exista el catálogo, no antes.
+
+**Con cualquiera de los dos, las fotos igual tienen que ir a almacenamiento de
+objetos.** El disco de Render también es efímero.
+
+## 2026-09-02 — Generación estática del catálogo público (pendiente, ya preparada)
+
+Las páginas de vehículo del catálogo público son iguales para todos los
+visitantes, así que se arman una vez y se sirven guardadas: 200 automotoras × 40
+autos son ~8.000 páginas que el tráfico de compradores nunca haría tocar Postgres.
+
+**El mecanismo ya está a medio implementar sin haberlo buscado:** hay 11
+`revalidatePath` repartidos en las acciones. Cada vez que se guarda un vehículo o
+se mueve un lead ya se avisa qué páginas quedaron obsoletas. Hoy solo refrescan el
+panel; el día que exista el catálogo, esas mismas llamadas lo mantienen al día.
+
+**El panel es lo contrario y por eso lleva `force-dynamic`:** lo que ve una
+automotora no es lo que ve otra, así que guardar una copia sería servirle a alguien
+los datos de otro.
+
 ## Decisiones pendientes
 
 - [ ] **¿Conectar Supabase antes de la Fase 2 o seguir con semilla?**
