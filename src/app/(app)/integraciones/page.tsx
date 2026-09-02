@@ -31,10 +31,10 @@ export default async function IntegracionesPage() {
           if (!items.length) return null;
           return (
             <section key={g.id}>
-              <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              <h2 className="overline mb-2.5">
                 {g.titulo}
               </h2>
-              <ul className="divide-y overflow-hidden rounded-lg border bg-card">
+              <ul className="divide-y border border-border bg-card">
                 {items.map((i) => (
                   <li key={i.id} className="flex items-center gap-4 px-4 py-3">
                     <div className="min-w-0 flex-1">

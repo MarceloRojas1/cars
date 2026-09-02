@@ -1,4 +1,4 @@
--- Cars — esquema base. Derivado del análisis de VENPU (docs/00-analisis-venpu.md).
+-- Velie — esquema base. Derivado del análisis de VENPU (docs/00-analisis-venpu.md).
 -- Postgres. Todo cuelga de organization_id (multi-tenant + RLS).
 
 create type user_role       as enum ('owner','admin','vendedor');

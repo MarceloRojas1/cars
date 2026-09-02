@@ -70,15 +70,21 @@ export type AppUser = {
   chatsActivos: number;
 };
 
+export type Combustible =
+  | "Bencina" | "Diésel" | "Híbrido" | "Híbrido enchufable" | "Eléctrico" | "Gas (GLP/GNV)";
+
 export type Vehicle = {
   id: string;
   codigo: string;
   titulo: string;
   marca: string;
+  modelo?: string;
+  version?: string;
   anio: number;
+  patente?: string;
   precio: number;
   km: number;
-  combustible: "Bencina" | "Diesel" | "Híbrido" | "Eléctrico";
+  combustible: Combustible;
   branchId: string;
   estado: VehicleStatus;
   vendedorId?: string;
@@ -87,6 +93,37 @@ export type Vehicle = {
   /** Base del cálculo "días en salón". */
   publicadoHaceDias: number;
   canales: PublicationChannel[];
+
+  /* --- ficha extendida (migración 0002) --- */
+  /** Pie sugerido en CLP. Opcional: no todo vehículo se ofrece con financiamiento. */
+  pieFinanciamiento?: number;
+  transmision?: string;
+  carroceria?: string;
+  puertas?: number;
+  colorExterior?: string;
+  colorInterior?: string;
+  permisoCirculacionVence?: string;
+  revisionTecnicaVence?: string;
+  tags: string[];
+  /** 1 equivale a "único dueño". undefined = no informado. */
+  cantidadDuenos?: number;
+  equipamiento?: string;
+
+  /* --- ubicación y presentación (migración 0003) --- */
+  descripcion?: string;
+  region?: string;
+  comuna?: string;
+  archivado?: boolean;
+  /** URL de la foto principal. Viene resuelta en el listado. */
+  fotoPrincipal?: string;
+  fotos?: VehiclePhoto[];
+};
+
+export type VehiclePhoto = {
+  id: string;
+  url: string;
+  orden: number;
+  esPrincipal: boolean;
 };
 
 export type Stage = {

@@ -1,31 +1,35 @@
-import { AlertTriangle, MessageSquare, Bell, Monitor } from "lucide-react";
+import { MessageSquare, Bell, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
- * Banda superior con el estado global de la cuenta.
- * En el producto real esto se enciende cuando la integración de canales se cae.
+ * Banda de estado de la cuenta. Contenida a propósito: informa sin gritar.
+ * El punto rojo carga el significado; el fondo se mantiene neutro.
  */
 export function Topbar() {
   return (
-    <header className="flex h-11 shrink-0 items-center gap-3 border-b border-crit/30 bg-crit/12 px-4">
-      <AlertTriangle className="size-4 shrink-0 text-crit" strokeWidth={2} />
-      <p className="text-[13px] text-crit">No estás recibiendo leads nuevos</p>
+    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-border px-6">
+      <span className="size-1.5 shrink-0 rounded-full bg-crit" aria-hidden />
+      <p className="text-[12.5px] text-muted-foreground">
+        No estás recibiendo leads nuevos
+      </p>
+      <Button
+        variant="link"
+        size="sm"
+        className="h-auto p-0 text-[12.5px] text-foreground underline-offset-4"
+      >
+        Activar
+      </Button>
 
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex items-center gap-0.5">
         <Button variant="ghost" size="icon" className="size-8 text-muted-foreground" aria-label="Conversaciones">
-          <MessageSquare className="size-4" />
+          <MessageSquare className="size-[15px]" strokeWidth={1.5} />
         </Button>
         <Button variant="ghost" size="icon" className="relative size-8 text-muted-foreground" aria-label="Notificaciones">
-          <Bell className="size-4" />
-          <span className="absolute -right-0.5 -top-0.5 rounded-full bg-crit px-1 text-[9px] font-semibold text-crit-foreground">
-            9+
-          </span>
+          <Bell className="size-[15px]" strokeWidth={1.5} />
+          <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-crit" />
         </Button>
         <Button variant="ghost" size="icon" className="size-8 text-muted-foreground" aria-label="Pantalla">
-          <Monitor className="size-4" />
-        </Button>
-        <Button size="sm" className="ml-2 h-7 bg-crit text-crit-foreground hover:bg-crit/90">
-          Activar
+          <Monitor className="size-[15px]" strokeWidth={1.5} />
         </Button>
       </div>
     </header>

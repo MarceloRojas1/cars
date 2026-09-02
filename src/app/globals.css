@@ -8,8 +8,10 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+  --font-marca: var(--font-marca);
+  --font-heading: var(--font-serif);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -57,97 +59,100 @@
 }
 
 :root {
-  --radius: 0.5rem;
+  /* Aristas nítidas: 3px. Los radios derivados quedan todos por debajo. */
+  --radius: 0.1875rem;
 
-  /* claro: no es el modo del producto, pero queda legible y consistente */
-  --background: oklch(0.985 0.002 286);
-  --foreground: oklch(0.19 0.004 286);
-  --surface: oklch(1 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.19 0.004 286);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.19 0.004 286);
-  --primary: oklch(0.86 0.155 101);
-  --primary-foreground: oklch(0.21 0.02 101);
-  --secondary: oklch(0.955 0.003 286);
-  --secondary-foreground: oklch(0.24 0.005 286);
-  --muted: oklch(0.955 0.003 286);
-  --muted-foreground: oklch(0.52 0.008 286);
-  --accent: oklch(0.95 0.02 101);
-  --accent-foreground: oklch(0.24 0.02 101);
-  --destructive: oklch(0.58 0.21 25);
-  --border: oklch(0.905 0.004 286);
-  --input: oklch(0.905 0.004 286);
-  --ring: oklch(0.80 0.14 101);
+  /* Claro: papel. La app corre en oscuro, esto queda coherente por si acaso. */
+  --background: #FAF9F6;
+  --foreground: #17171A;
+  --surface: #FFFFFF;
+  --card: #FFFFFF;
+  --card-foreground: #17171A;
+  --popover: #FFFFFF;
+  --popover-foreground: #17171A;
+  --primary: #17171A;
+  --primary-foreground: #FAF9F6;
+  --secondary: #F0EFEA;
+  --secondary-foreground: #17171A;
+  --muted: #F0EFEA;
+  --muted-foreground: #6B6B70;
+  --accent: #EDECE7;
+  --accent-foreground: #17171A;
+  --destructive: #A8443E;
+  --border: #DFDDD6;
+  --input: #DFDDD6;
+  --ring: #9A9A9E;
 
-  --ok: oklch(0.62 0.14 155);
-  --ok-foreground: oklch(0.99 0.01 155);
-  --warn: oklch(0.68 0.14 75);
-  --warn-foreground: oklch(0.99 0.01 75);
-  --crit: oklch(0.58 0.20 25);
-  --crit-foreground: oklch(0.99 0.01 25);
-  --hot: oklch(0.60 0.21 30);
+  /* El color solo aparece cuando significa algo. */
+  --ok: #3F7D5C;
+  --ok-foreground: #FAF9F6;
+  --warn: #92652A;
+  --warn-foreground: #FAF9F6;
+  --crit: #A8443E;
+  --crit-foreground: #FAF9F6;
+  --hot: #A85639;
 
-  --chart-1: oklch(0.86 0.155 101);
-  --chart-2: oklch(0.62 0.14 155);
-  --chart-3: oklch(0.60 0.15 250);
-  --chart-4: oklch(0.68 0.14 75);
-  --chart-5: oklch(0.58 0.20 25);
+  --chart-1: #17171A;
+  --chart-2: #3F7D5C;
+  --chart-3: #4A5A78;
+  --chart-4: #92652A;
+  --chart-5: #A8443E;
 
-  --sidebar: oklch(0.97 0.002 286);
-  --sidebar-foreground: oklch(0.19 0.004 286);
-  --sidebar-primary: oklch(0.86 0.155 101);
-  --sidebar-primary-foreground: oklch(0.21 0.02 101);
-  --sidebar-accent: oklch(0.93 0.004 286);
-  --sidebar-accent-foreground: oklch(0.19 0.004 286);
-  --sidebar-border: oklch(0.90 0.004 286);
-  --sidebar-ring: oklch(0.80 0.14 101);
+  --sidebar: #F4F3EF;
+  --sidebar-foreground: #17171A;
+  --sidebar-primary: #17171A;
+  --sidebar-primary-foreground: #FAF9F6;
+  --sidebar-accent: #EAE9E3;
+  --sidebar-accent-foreground: #17171A;
+  --sidebar-border: #DFDDD6;
+  --sidebar-ring: #9A9A9E;
 }
 
 .dark {
-  /* el modo real del producto */
-  --background: oklch(0.145 0.003 286);
-  --foreground: oklch(0.945 0.002 286);
-  --surface: oklch(0.195 0.004 286);
-  --card: oklch(0.195 0.004 286);
-  --card-foreground: oklch(0.945 0.002 286);
-  --popover: oklch(0.215 0.004 286);
-  --popover-foreground: oklch(0.945 0.002 286);
-  --primary: oklch(0.90 0.16 101);
-  --primary-foreground: oklch(0.20 0.03 101);
-  --secondary: oklch(0.26 0.005 286);
-  --secondary-foreground: oklch(0.945 0.002 286);
-  --muted: oklch(0.255 0.005 286);
-  --muted-foreground: oklch(0.66 0.008 286);
-  --accent: oklch(0.28 0.02 101);
-  --accent-foreground: oklch(0.90 0.16 101);
-  --destructive: oklch(0.64 0.20 25);
-  --border: oklch(0.285 0.005 286);
-  --input: oklch(0.30 0.005 286);
-  --ring: oklch(0.90 0.16 101);
+  /* Monocromo hueso: el acento ES el texto. */
+  --background: #0C0C0D;
+  --foreground: #F2F0EC;
+  --surface: #141415;
+  --card: #141415;
+  --card-foreground: #F2F0EC;
+  --popover: #17171A;
+  --popover-foreground: #F2F0EC;
+  --primary: #F2F0EC;
+  --primary-foreground: #0C0C0D;
+  --secondary: #1F1F21;
+  --secondary-foreground: #F2F0EC;
+  --muted: #1B1B1D;
+  --muted-foreground: #8A8A8E;
+  --accent: #1F1F21;
+  --accent-foreground: #F2F0EC;
+  --destructive: #C0605A;
+  --border: #262628;
+  --input: #2E2E31;
+  --ring: #55555A;
 
-  --ok: oklch(0.74 0.15 155);
-  --ok-foreground: oklch(0.16 0.02 155);
-  --warn: oklch(0.80 0.14 78);
-  --warn-foreground: oklch(0.18 0.02 78);
-  --crit: oklch(0.66 0.20 25);
-  --crit-foreground: oklch(0.16 0.02 25);
-  --hot: oklch(0.68 0.21 32);
+  /* Desaturados a propósito: deben leerse como estado, no como decoración. */
+  --ok: #6FAF8B;
+  --ok-foreground: #0C0C0D;
+  --warn: #C08A3E;
+  --warn-foreground: #0C0C0D;
+  --crit: #C0605A;
+  --crit-foreground: #0C0C0D;
+  --hot: #C4744F;
 
-  --chart-1: oklch(0.90 0.16 101);
-  --chart-2: oklch(0.74 0.15 155);
-  --chart-3: oklch(0.66 0.16 250);
-  --chart-4: oklch(0.80 0.14 78);
-  --chart-5: oklch(0.66 0.20 25);
+  --chart-1: #F2F0EC;
+  --chart-2: #6FAF8B;
+  --chart-3: #7C8DAE;
+  --chart-4: #C08A3E;
+  --chart-5: #C0605A;
 
-  --sidebar: oklch(0.165 0.003 286);
-  --sidebar-foreground: oklch(0.90 0.002 286);
-  --sidebar-primary: oklch(0.90 0.16 101);
-  --sidebar-primary-foreground: oklch(0.20 0.03 101);
-  --sidebar-accent: oklch(0.25 0.005 286);
-  --sidebar-accent-foreground: oklch(0.945 0.002 286);
-  --sidebar-border: oklch(0.26 0.005 286);
-  --sidebar-ring: oklch(0.90 0.16 101);
+  --sidebar: #0A0A0B;
+  --sidebar-foreground: #C9C7C2;
+  --sidebar-primary: #F2F0EC;
+  --sidebar-primary-foreground: #0C0C0D;
+  --sidebar-accent: #1A1A1C;
+  --sidebar-accent-foreground: #F2F0EC;
+  --sidebar-border: #1F1F21;
+  --sidebar-ring: #55555A;
 }
 
 @layer base {
@@ -162,11 +167,30 @@
   }
 }
 @layer base {
-  body {
-    font-feature-settings: "cv11", "ss01";
-  }
-  /* columnas de cifras siempre alineadas */
+  /* Cifras: siempre monoespaciadas y alineadas en columna. */
   .tabular {
+    font-family: var(--font-mono), ui-monospace, monospace;
     font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  /* Etiquetas de sección y encabezados de tabla. */
+  .overline {
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+  /* Wordmark de marca: Sora ExtraBold, tracking de la guía. */
+  .wordmark {
+    font-family: var(--font-marca), "Helvetica Neue", Arial, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  /* Títulos serif: apretados y con óptica de display. */
+  .display {
+    font-family: var(--font-serif), Georgia, serif;
+    font-weight: 400;
+    letter-spacing: -0.015em;
   }
 }

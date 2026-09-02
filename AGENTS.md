@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- BEGIN:project -->
 
-# Cars — contexto del proyecto
+# Velie — contexto del proyecto
 
 Recreación de un CRM para automotoras chilenas a partir de capturas (`fotos/`).
 **Antes de tocar nada, lee `docs/decisiones.md`.** Tiene cada decisión tomada con su
@@ -32,8 +32,15 @@ Cuando tomemos una decisión que no sea obvia mirando el código, anótala en
   `src/lib/data/index.ts`, que es async para poder cambiarse a Supabase sin tocar la UI.
 - **Plata**: CLP entero, sin decimales. Usa `clp()` de `src/lib/format.ts`.
   Toda columna de cifras lleva la clase `tabular`.
-- **Colores semánticos**: `ok` / `warn` / `crit` son tokens propios, no del acento.
-  El amarillo (`primary`) es la marca, no un estado.
+- **Monocromo**: la paleta es neutra y el acento (`primary`) es el hueso `#F2F0EC`,
+  o sea el mismo color del texto. **El color solo aparece cuando significa algo**:
+  `ok` / `warn` / `crit` / `hot` para estados reales. Un rol, un canal o una etiqueta
+  se distinguen por peso o por un punto, nunca por una cápsula de color.
+- **Formas**: radio 3px (`--radius`), filetes de 1px, sin sombras. Las tablas no van
+  dentro de una tarjeta: se separan con líneas horizontales.
+- **Tipografía**: serif (`.display`, Newsreader) solo para títulos y cifras grandes;
+  IBM Plex Sans para la interfaz; IBM Plex Mono para cifras y códigos (clase `.tabular`).
+  Las etiquetas de sección usan `.overline`.
 - **Antigüedad de stock**: `severidadDias()` tiene los umbrales del producto
   (>30d advertencia, >60d crítico). No los redefinas en cada pantalla.
 - **`vehicleId` en un lead es opcional a propósito.** Un lead puede no tener vehículo.

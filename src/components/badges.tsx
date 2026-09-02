@@ -1,4 +1,3 @@
-import { Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { severidadDias } from "@/lib/format";
 import type { LeadSource, Stage, VehicleStatus } from "@/lib/types";
@@ -18,18 +17,15 @@ const SOURCE_LABEL: Record<LeadSource, string> = {
   marketplace: "Marketplace",
 };
 
+/** El origen es un dato, no un estado: va en texto, sin caja de color. */
 export function SourceBadge({ source }: { source: LeadSource }) {
-  return (
-    <span className="inline-flex items-center rounded border px-1.5 py-0.5 text-[11px] text-muted-foreground">
-      {SOURCE_LABEL[source]}
-    </span>
-  );
+  return <span className="text-[12px] text-muted-foreground">{SOURCE_LABEL[source]}</span>;
 }
 
 export function StageBadge({ stage }: { stage: Stage }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[12px]">
-      <span className="size-1.5 rounded-full" style={{ background: stage.color }} />
+    <span className="inline-flex items-center gap-2 text-[12.5px]">
+      <span className="size-[5px] shrink-0 rounded-full" style={{ background: stage.color }} />
       {stage.nombre}
     </span>
   );
@@ -37,28 +33,29 @@ export function StageBadge({ stage }: { stage: Stage }) {
 
 export function EstadoVehiculo({ estado }: { estado: VehicleStatus }) {
   const estilos: Record<VehicleStatus, string> = {
-    disponible: "border-primary/40 bg-primary/12 text-primary",
-    pendiente: "border-warn/40 bg-warn/12 text-warn",
-    reservado: "border-chart-3/40 bg-chart-3/12 text-chart-3",
-    vendido: "border-ok/40 bg-ok/12 text-ok",
+    disponible: "text-foreground",
+    pendiente: "text-warn",
+    reservado: "text-chart-3",
+    vendido: "text-ok",
   };
   return (
-    <span className={cn("inline-flex rounded-full border px-2 py-0.5 text-[11px] capitalize", estilos[estado])}>
+    <span className={cn("inline-flex items-center gap-2 text-[12.5px] capitalize", estilos[estado])}>
+      <span className="size-[5px] rounded-full bg-current opacity-70" />
       {estado}
     </span>
   );
 }
 
-/** Antigüedad de publicación con el código de color del producto (regla R4). */
+/** Antigüedad de publicación con los umbrales del producto (regla R4). */
 export function DiasEnSalon({ dias }: { dias: number }) {
   const sev = severidadDias(dias);
   return (
     <span
       className={cn(
-        "tabular inline-flex rounded px-1.5 py-0.5 font-mono text-[11px]",
-        sev === "crit" && "bg-crit/15 text-crit",
-        sev === "warn" && "bg-warn/15 text-warn",
-        sev === "ok" && "bg-muted text-muted-foreground",
+        "tabular text-[12.5px]",
+        sev === "crit" && "text-crit",
+        sev === "warn" && "text-warn",
+        sev === "ok" && "text-muted-foreground",
       )}
     >
       {dias}d
@@ -67,17 +64,20 @@ export function DiasEnSalon({ dias }: { dias: number }) {
 }
 
 export function Hot() {
-  return <Flame className="size-3.5 text-hot" strokeWidth={2} aria-label="Lead caliente" />;
+  return (
+    <span
+      className="inline-block size-[5px] shrink-0 rounded-full bg-hot"
+      title="Lead caliente"
+      aria-label="Lead caliente"
+    />
+  );
 }
 
 export function Completitud({ pct }: { pct: number }) {
   const completa = pct >= 100;
   return (
-    <span className="inline-flex items-center gap-1.5 text-[12px]">
-      <span className={cn("size-1.5 rounded-full", completa ? "bg-ok" : "bg-warn")} />
-      <span className={cn("tabular", completa ? "text-ok" : "text-muted-foreground")}>
-        {completa ? "100%" : `${pct}%`}
-      </span>
+    <span className={cn("tabular text-[12.5px]", completa ? "text-ok" : "text-muted-foreground")}>
+      {pct}%
     </span>
   );
 }

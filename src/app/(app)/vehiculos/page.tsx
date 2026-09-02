@@ -1,10 +1,12 @@
-import { Plus, Search, Download, SlidersHorizontal, Lightbulb, MoreHorizontal } from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
+import { Plus, Search, Download, SlidersHorizontal, Lightbulb, ImageOff } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Completitud, DiasEnSalon, EstadoVehiculo } from "@/components/badges";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { VehiculoAcciones } from "@/components/vehiculo-acciones";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { clp, km } from "@/lib/format";
 import { getBranches, getOrganization, getUsers, getVehicles } from "@/lib/data";
 
@@ -14,9 +16,12 @@ const CANAL_LABEL: Record<string, string> = {
   mercadolibre: "ML", ml_propia: "ML+", chileautos: "CA", yapo: "YP",
 };
 
-export default async function VehiculosPage() {
-  const [vehicles, branches, users, org] = await Promise.all([
-    getVehicles(), getBranches(), getUsers(), getOrganization(),
+export default async function VehiculosPage({ searchParams }: PageProps<"/vehiculos">) {
+  const { vista } = await searchParams;
+  const verArchivados = vista === "archivados";
+
+  const [vehicles, archivados, branches, users, org] = await Promise.all([
+    getVehicles(verArchivados), getVehicles(true), getBranches(), getUsers(), getOrganization(),
   ]);
   const incompletas = vehicles.filter((v) => v.completitudPct < 100).length;
 
@@ -33,11 +38,15 @@ export default async function VehiculosPage() {
             vehículos publicados · {org.limiteVehiculos - vehicles.length} disponibles
           </>
         }
-        accion={<Button className="gap-2"><Plus className="size-4" /> Nuevo vehículo</Button>}
+        accion={
+          <Link href="/vehiculos/nuevo" className={buttonVariants({ className: "gap-2" })}>
+            <Plus className="size-4" /> Nuevo vehículo
+          </Link>
+        }
       />
 
       {incompletas > 0 && (
-        <div className="mb-5 flex items-center gap-3 rounded-lg border border-warn/30 bg-warn/8 px-4 py-3">
+        <div className="mb-5 flex items-center gap-3 border-l-2 border-l-warn bg-warn/[0.06] px-4 py-3">
           <Lightbulb className="size-4 shrink-0 text-warn" />
           <p className="flex-1 text-[13.5px]">
             <span className="font-medium">{incompletas} publicaciones incompletas</span>
@@ -47,13 +56,24 @@ export default async function VehiculosPage() {
         </div>
       )}
 
-      <Tabs defaultValue="disponibles" className="mb-4">
-        <TabsList>
-          <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
-          <TabsTrigger value="pendientes">Pendientes</TabsTrigger>
-          <TabsTrigger value="todos">Todos</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <nav className="mb-5 flex gap-5 border-b border-border">
+        {[
+          { href: "/vehiculos", etiqueta: "Activos", activo: !verArchivados },
+          { href: "/vehiculos?vista=archivados", etiqueta: `Archivados (${archivados.length})`, activo: verArchivados },
+        ].map((t) => (
+          <Link
+            key={t.href}
+            href={t.href}
+            className={`-mb-px border-b py-2 text-[13px] transition-colors ${
+              t.activo
+                ? "border-b-foreground text-foreground"
+                : "border-b-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t.etiqueta}
+          </Link>
+        ))}
+      </nav>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="relative min-w-[240px] flex-1 sm:max-w-xs">
@@ -71,7 +91,7 @@ export default async function VehiculosPage() {
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border bg-card">
+      <div className="overflow-x-auto border-t border-border">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -89,17 +109,46 @@ export default async function VehiculosPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {vehicles.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={11} className="py-14 text-center text-[13px] text-muted-foreground">
+                  {verArchivados
+                    ? "No hay vehículos archivados."
+                    : "Todavía no cargas ningún vehículo."}
+                </TableCell>
+              </TableRow>
+            )}
             {vehicles.map((v) => {
               const sucursal = branches.find((b) => b.id === v.branchId);
               const vendedor = users.find((u) => u.id === v.vendedorId);
               return (
                 <TableRow key={v.id}>
-                  <TableCell className="font-mono text-[12px] text-primary">{v.codigo}</TableCell>
+                  <TableCell className="tabular text-[12px] text-muted-foreground">{v.codigo}</TableCell>
                   <TableCell>
-                    <p className="max-w-[320px] truncate text-[13px] font-medium">{v.titulo}</p>
-                    <p className="text-[11.5px] text-muted-foreground">
-                      {v.combustible} · {sucursal?.comuna}
-                    </p>
+                    <div className="flex items-center gap-3">
+                      {v.fotoPrincipal ? (
+                        <Image
+                          src={v.fotoPrincipal}
+                          alt=""
+                          width={52}
+                          height={39}
+                          className="size-[39px] w-[52px] shrink-0 border border-border object-cover"
+                        />
+                      ) : (
+                        <span
+                          className="grid size-[39px] w-[52px] shrink-0 place-items-center border border-dashed border-border text-muted-foreground/50"
+                          title="Sin fotos"
+                        >
+                          <ImageOff className="size-3.5" strokeWidth={1.5} />
+                        </span>
+                      )}
+                      <div className="min-w-0">
+                        <p className="max-w-[300px] truncate text-[13px] font-medium">{v.titulo}</p>
+                        <p className="text-[11.5px] text-muted-foreground">
+                          {v.combustible} · {sucursal?.comuna}
+                        </p>
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell className="tabular text-right text-[13px] font-medium">{clp(v.precio)}</TableCell>
                   <TableCell className="tabular text-[13px]">{v.anio}</TableCell>
@@ -118,9 +167,9 @@ export default async function VehiculosPage() {
                   <TableCell className="text-right"><DiasEnSalon dias={v.publicadoHaceDias} /></TableCell>
                   <TableCell className="text-right"><Completitud pct={v.completitudPct} /></TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" className="size-7" aria-label="Acciones">
-                      <MoreHorizontal className="size-4" />
-                    </Button>
+                    <VehiculoAcciones
+                      id={v.id} titulo={v.titulo} estado={v.estado} archivado={v.archivado}
+                    />
                   </TableCell>
                 </TableRow>
               );

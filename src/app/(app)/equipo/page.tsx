@@ -6,10 +6,11 @@ import { getBranches, getOrganization, getUsers } from "@/lib/data";
 
 export const metadata = { title: "Equipo" };
 
+// El rol es un dato, no un estado: se distingue por peso, no por color.
 const ROL_ESTILO: Record<string, string> = {
-  owner: "border-chart-3/40 bg-chart-3/12 text-chart-3",
-  admin: "border-primary/40 bg-primary/12 text-primary",
-  vendedor: "border-ok/40 bg-ok/12 text-ok",
+  owner: "text-foreground",
+  admin: "text-foreground",
+  vendedor: "text-muted-foreground",
 };
 
 export default async function EquipoPage() {
@@ -34,7 +35,7 @@ export default async function EquipoPage() {
         <Button variant="outline" size="sm" className="h-9">Todos los roles</Button>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border bg-card">
+      <div className="overflow-x-auto border-t border-border">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -55,9 +56,7 @@ export default async function EquipoPage() {
                   <p className="text-[11.5px] text-muted-foreground">{u.email}</p>
                 </TableCell>
                 <TableCell>
-                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] capitalize ${ROL_ESTILO[u.rol]}`}>
-                    {u.rol}
-                  </span>
+                  <span className={`text-[12.5px] capitalize ${ROL_ESTILO[u.rol]}`}>{u.rol}</span>
                 </TableCell>
                 <TableCell className="text-[12.5px] text-muted-foreground">
                   {u.telefono && <p className="flex items-center gap-1"><Phone className="size-3" />{u.telefono}</p>}
@@ -72,7 +71,8 @@ export default async function EquipoPage() {
                   ) : "Sin asignar"}
                 </TableCell>
                 <TableCell>
-                  <span className="inline-flex rounded-full border border-ok/40 bg-ok/12 px-2 py-0.5 text-[11px] text-ok">
+                  <span className="inline-flex items-center gap-2 text-[12.5px] text-ok">
+                    <span className="size-[5px] rounded-full bg-current opacity-70" />
                     {u.activo ? "Activo" : "Inactivo"}
                   </span>
                 </TableCell>

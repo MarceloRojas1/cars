@@ -17,7 +17,7 @@ export default async function SucursalesPage() {
         accion={<Button className="gap-2"><Plus className="size-4" /> Crear sucursal</Button>}
       />
 
-      <div className="overflow-x-auto rounded-lg border bg-card">
+      <div className="overflow-x-auto border-t border-border">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -55,9 +55,12 @@ export default async function SucursalesPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1.5">
-                      <span className="inline-flex rounded-full border border-ok/40 bg-ok/12 px-2 py-0.5 text-[11px] text-ok">Activa</span>
+                      <span className="inline-flex items-center gap-2 text-[12.5px] text-ok">
+                        <span className="size-[5px] rounded-full bg-current opacity-70" />
+                        Activa
+                      </span>
                       {b.esPrincipal && (
-                        <span className="inline-flex rounded-full border border-chart-3/40 bg-chart-3/12 px-2 py-0.5 text-[11px] text-chart-3">Principal</span>
+                        <span className="overline">Principal</span>
                       )}
                     </div>
                   </TableCell>

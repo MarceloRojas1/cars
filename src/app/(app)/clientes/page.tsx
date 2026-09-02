@@ -23,7 +23,7 @@ export default async function ClientesPage() {
         <Input placeholder="Buscar por nombre o RUT…" className="h-9 pl-8" />
       </div>
 
-      <div className="overflow-x-auto rounded-lg border bg-card">
+      <div className="overflow-x-auto border-t border-border">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">

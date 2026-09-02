@@ -2,11 +2,13 @@
 # New → Blueprint → conecta el repo → aplica.
 services:
   - type: web
-    name: cars
+    name: velie
     runtime: docker
     plan: free
     region: oregon
-    # Sin --target: Docker construye la última etapa del Dockerfile, que es `runner`.
+    # Sin --target, Docker construye la ÚLTIMA etapa: hoy es `demo`, que trae
+    # Postgres adentro y se levanta sola. Es un entorno de prueba.
+    # Para producción: etapa `runner` + DATABASE_URL a un Postgres gestionado.
     dockerfilePath: ./Dockerfile
     # `/` redirige a /dashboard, así que la sonda apunta directo al destino.
     healthCheckPath: /dashboard

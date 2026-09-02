@@ -9,11 +9,13 @@ export function PageHeader({
   meta?: ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-border pb-5">
       <div>
-        <h1 className="text-[26px] font-bold tracking-tight">{titulo}</h1>
-        {descripcion && <p className="mt-0.5 text-[14px] text-muted-foreground">{descripcion}</p>}
-        {meta && <div className="mt-2 text-[13px] text-muted-foreground">{meta}</div>}
+        <h1 className="display text-[32px] leading-[1.1]">{titulo}</h1>
+        {descripcion && (
+          <p className="mt-1.5 text-[13.5px] text-muted-foreground">{descripcion}</p>
+        )}
+        {meta && <div className="mt-2.5 text-[12.5px] text-muted-foreground">{meta}</div>}
       </div>
       {accion}
     </div>

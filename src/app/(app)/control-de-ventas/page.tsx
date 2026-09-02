@@ -30,7 +30,7 @@ export default async function ControlDeVentasPage() {
         </TabsList>
       </Tabs>
 
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mb-8 grid grid-cols-2 border-y border-border py-6 xl:grid-cols-5">
         <StatCard etiqueta="Unidades vendidas" valor={operations.length} delta={{ valor: 75 }} />
         <StatCard etiqueta="Ingresos" valor={clp(ingresos, { compacto: true })} delta={{ valor: 54 }} />
         <StatCard etiqueta="Utilidad" valor={clp(utilidad, { compacto: true })} nota="Falta definir qué entra en gastos" />
@@ -38,9 +38,9 @@ export default async function ControlDeVentasPage() {
         <StatCard etiqueta="Días promedio en stock" valor={diasProm.toFixed(1)} delta={{ valor: 6 }} />
       </div>
 
-      <section className="mb-6 rounded-lg border bg-card">
+      <section className="mb-8 border border-border bg-card">
         <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
-          <h2 className="text-[15px] font-semibold">Cierres mensuales</h2>
+          <h2 className="display text-[17px]">Cierres mensuales</h2>
           <Button variant="outline" size="sm" className="h-8 gap-2">
             <Lock className="size-3.5" /> Cerrar mes
           </Button>
@@ -68,7 +68,7 @@ export default async function ControlDeVentasPage() {
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border bg-card">
+      <div className="overflow-x-auto border-t border-border">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">

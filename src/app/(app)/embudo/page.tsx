@@ -40,7 +40,7 @@ export default async function EmbudoPage() {
         {columnas.map(({ stage, leads: leadsEtapa }) => (
           <section
             key={stage.id}
-            className="flex w-[280px] shrink-0 flex-col rounded-lg border bg-card"
+            className="flex w-[268px] shrink-0 flex-col border border-border bg-card"
             aria-label={`Etapa ${stage.nombre}`}
           >
             <header
@@ -71,7 +71,7 @@ export default async function EmbudoPage() {
                 return (
                   <article
                     key={lead.id}
-                    className="rounded-md border bg-background p-2.5"
+                    className="border border-border bg-background p-2.5"
                     style={lead.temperatura === "hot" ? { borderLeft: "2px solid var(--hot)" } : undefined}
                   >
                     <div className="flex items-center gap-1.5">

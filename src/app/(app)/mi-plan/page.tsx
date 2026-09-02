@@ -9,7 +9,7 @@ export const metadata = { title: "Mi Plan" };
 
 function Uso({ etiqueta, usado, limite }: { etiqueta: string; usado: number; limite: number }) {
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="border border-border bg-card p-5">
       <div className="mb-2 flex items-baseline justify-between">
         <p className="text-[14px] font-medium">{etiqueta}</p>
         <p className="tabular text-[13px] text-muted-foreground">
@@ -43,18 +43,18 @@ export default async function MiPlanPage() {
       </Tabs>
 
       <div className="max-w-2xl space-y-3">
-        <div className="flex items-center justify-between rounded-lg border bg-card p-4">
+        <div className="flex items-center justify-between border border-border bg-card p-5">
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Estado</p>
+            <p className="overline">Estado</p>
             <p className="text-[17px] font-semibold text-ok">Activo</p>
           </div>
           <div className="text-right">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Próximo cobro</p>
+            <p className="overline">Próximo cobro</p>
             <p className="text-[17px] font-semibold">4 de agosto de 2026</p>
           </div>
         </div>
 
-        <div className="rounded-lg border bg-card p-4">
+        <div className="border border-border bg-card p-5">
           <div className="mb-2 flex items-baseline justify-between">
             <p className="text-[14px] font-medium">Conversaciones IA</p>
             <p className="tabular text-[13px] text-muted-foreground">
@@ -71,9 +71,9 @@ export default async function MiPlanPage() {
           <Uso etiqueta="Vehículos" usado={vehicles.length} limite={org.limiteVehiculos} />
         </div>
 
-        <div className="rounded-lg border bg-card p-4">
+        <div className="border border-border bg-card p-5">
           <div className="flex items-baseline justify-between">
-            <p className="text-[15px] font-semibold">Estimado del próximo cobro</p>
+            <p className="display text-[17px]">Estimado del próximo cobro</p>
             <p className="tabular text-[19px] font-bold">{clp(neto + iva)}</p>
           </div>
           <p className="mt-1 text-[12px] text-muted-foreground">

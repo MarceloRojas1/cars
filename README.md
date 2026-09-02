@@ -1,4 +1,4 @@
-# Cars
+# Velie
 
 CRM e inventario para automotoras, reconstruido por ingeniería inversa a partir de
 capturas del producto original. SaaS multi-tenant.
@@ -43,8 +43,8 @@ el volumen; para re-aplicarla, `docker compose down -v && docker compose up`.
 Imagen de producción (235MB, standalone, usuario sin privilegios):
 
 ```bash
-docker build --target runner -t cars:prod .
-docker run --rm -p 3000:3000 cars:prod
+docker build --target runner -t velie:prod .
+docker run --rm -p 3000:3000 velie:prod
 ```
 
 Si los puertos chocan con algo tuyo, `APP_PORT` y `DB_PORT` en `.env.local`.

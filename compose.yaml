@@ -1,12 +1,12 @@
-name: cars
+name: velie
 
 services:
   db:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: cars
-      POSTGRES_PASSWORD: cars
-      POSTGRES_DB: cars
+      POSTGRES_USER: velie
+      POSTGRES_PASSWORD: velie
+      POSTGRES_DB: velie
     ports:
       # 5433 en el host: el 5432 ya lo ocupa el Postgres instalado en la máquina.
       # Cámbialo con DB_PORT=... en tu .env.local si prefieres otro.
@@ -17,8 +17,13 @@ services:
       # Para re-aplicarlos: docker compose down -v && docker compose up
       - ./docker/initdb/00-auth-shim.sql:/docker-entrypoint-initdb.d/00-auth-shim.sql:ro
       - ./supabase/migrations/0001_init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./supabase/migrations/0002_vehicle_publicacion.sql:/docker-entrypoint-initdb.d/02-vehiculo.sql:ro
+      - ./supabase/migrations/0003_vehicle_ubicacion.sql:/docker-entrypoint-initdb.d/03-ubicacion.sql:ro
+      - ./supabase/migrations/0004_vehicle_archivo.sql:/docker-entrypoint-initdb.d/04-archivo.sql:ro
+      - ./supabase/migrations/0005_rls_forzado.sql:/docker-entrypoint-initdb.d/05-rls.sql:ro
+      - ./docker/initdb/06-rol-app.sql:/docker-entrypoint-initdb.d/06-rol-app.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cars -d cars"]
+      test: ["CMD-SHELL", "pg_isready -U velie -d velie"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -31,7 +36,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://cars:cars@db:5432/cars
+      DATABASE_URL: postgres://velie_app:velie_app@db:5432/velie
       WATCHPACK_POLLING: "true"   # hot reload fiable con volúmenes montados
     env_file:
       - path: .env.local

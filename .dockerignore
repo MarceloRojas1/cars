@@ -10,6 +10,7 @@ next-env.d.ts
 # no van a la imagen: son material de referencia, no de ejecución
 fotos
 docs
+pdf
 hola
 README.md
 AGENTS.md

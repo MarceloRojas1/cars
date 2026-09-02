@@ -23,12 +23,12 @@ export default async function AutomatizacionPage() {
         {stages.map((s) => (
           <li
             key={s.id}
-            className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3"
+            className="flex items-center gap-3 border border-border bg-card px-5 py-3.5"
             style={{ borderLeft: `3px solid ${s.color}` }}
           >
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <h2 className="text-[14px] font-semibold">{s.nombre}</h2>
+                <h2 className="display text-[16px]">{s.nombre}</h2>
                 <span className="rounded border px-1.5 py-px font-mono text-[10.5px] text-muted-foreground">
                   {KIND_LABEL[s.kind]}
                 </span>

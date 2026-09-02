@@ -13,7 +13,7 @@ export default function ConsultarPatentePage() {
         descripcion="Consulta datos del Registro Civil, tasación de mercado y alerta de encargo por robo sin crear un vehículo"
       />
 
-      <div className="max-w-xl rounded-lg border bg-card p-5">
+      <div className="max-w-xl border border-border bg-card p-5">
         <p className="mb-3 flex items-center gap-2 text-[14px] font-medium">
           <ScanSearch className="size-4 text-primary" /> Ingresa una patente
         </p>
@@ -27,7 +27,7 @@ export default function ConsultarPatentePage() {
         Los datos se cachean por 24 h para reducir costos.
       </p>
 
-      <div className="mt-5 max-w-xl rounded-lg border border-warn/30 bg-warn/8 px-4 py-3">
+      <div className="mt-5 max-w-xl border-l-2 border-l-warn bg-warn/[0.06] px-4 py-3">
         <p className="text-[13px] font-medium text-warn">Falta definir el proveedor de datos</p>
         <p className="mt-1 text-[12.5px] text-muted-foreground">
           El Registro Civil no expone una API pública: esta pantalla necesita un proveedor

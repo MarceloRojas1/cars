@@ -46,7 +46,7 @@ export default async function CampanasPage() {
         Estado local — sincronización automática cada hora.
       </p>
 
-      <div className="overflow-x-auto rounded-lg border bg-card">
+      <div className="overflow-x-auto border-t border-border">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -67,8 +67,8 @@ export default async function CampanasPage() {
             {campaigns.map((c) => (
               <TableRow key={c.id}>
                 <TableCell>
-                  <span className="flex items-center gap-1.5 text-[12.5px] text-ok">
-                    <span className="size-1.5 rounded-full bg-ok" /> Activa
+                  <span className="flex items-center gap-2 text-[12.5px] text-ok">
+                    <span className="size-[5px] rounded-full bg-current opacity-70" /> Activa
                   </span>
                 </TableCell>
                 <TableCell>

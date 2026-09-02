@@ -42,7 +42,7 @@ export default async function LeadsPage() {
         <Button size="sm" className="h-9 gap-2"><Plus className="size-3.5" /> Agregar lead</Button>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border bg-card">
+      <div className="overflow-x-auto border-t border-border">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">

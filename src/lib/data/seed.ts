@@ -62,15 +62,15 @@ export const users: AppUser[] = [
 ];
 
 export const stages: Stage[] = [
-  { id: "st_nuevo", nombre: "Nuevo", kind: "entry", color: "#3B82F6", orden: 1, agenteIaActivo: true },
-  { id: "st_calificando", nombre: "Calificando", kind: "progress", color: "#E0A030", orden: 2, agenteIaActivo: true },
-  { id: "st_calificado", nombre: "Calificado", kind: "progress", color: "#4FB185", orden: 3, agenteIaActivo: false },
-  { id: "st_contactado", nombre: "Contactado/Seguimiento", kind: "progress", color: "#22B8CF", orden: 4, agenteIaActivo: false },
-  { id: "st_visita", nombre: "Visita Agendada", kind: "progress", color: "#8A8A93", orden: 5, agenteIaActivo: false },
-  { id: "st_sin_respuesta", nombre: "Sin Respuesta", kind: "progress", color: "#E0A030", orden: 6, agenteIaActivo: true },
-  { id: "st_ganado", nombre: "Ganado", kind: "exit_won", color: "#4FB185", orden: 7, agenteIaActivo: false },
-  { id: "st_descartado", nombre: "Descartado", kind: "exit_lost", color: "#8A8A93", orden: 8, agenteIaActivo: false },
-  { id: "st_consigna", nombre: "Consigna / Compra", kind: "progress", color: "#A78BFA", orden: 9, agenteIaActivo: false },
+  { id: "st_nuevo", nombre: "Nuevo", kind: "entry", color: "#7C8DAE", orden: 1, agenteIaActivo: true },
+  { id: "st_calificando", nombre: "Calificando", kind: "progress", color: "#C08A3E", orden: 2, agenteIaActivo: true },
+  { id: "st_calificado", nombre: "Calificado", kind: "progress", color: "#6FAF8B", orden: 3, agenteIaActivo: false },
+  { id: "st_contactado", nombre: "Contactado/Seguimiento", kind: "progress", color: "#6E9BA6", orden: 4, agenteIaActivo: false },
+  { id: "st_visita", nombre: "Visita Agendada", kind: "progress", color: "#9C8AAE", orden: 5, agenteIaActivo: false },
+  { id: "st_sin_respuesta", nombre: "Sin Respuesta", kind: "progress", color: "#A8896B", orden: 6, agenteIaActivo: true },
+  { id: "st_ganado", nombre: "Ganado", kind: "exit_won", color: "#F2F0EC", orden: 7, agenteIaActivo: false },
+  { id: "st_descartado", nombre: "Descartado", kind: "exit_lost", color: "#55555A", orden: 8, agenteIaActivo: false },
+  { id: "st_consigna", nombre: "Consigna / Compra", kind: "progress", color: "#8FA88F", orden: 9, agenteIaActivo: false },
 ];
 
 const V = (
@@ -81,6 +81,7 @@ const V = (
   id: `veh_${codigo.toLowerCase()}`,
   codigo, titulo, marca, anio, precio, km: kilometros, combustible,
   branchId: "suc_001", estado: "disponible", completitudPct, publicadoHaceDias, canales,
+  tags: [],
 });
 
 export const vehicles: Vehicle[] = [
@@ -88,7 +89,7 @@ export const vehicles: Vehicle[] = [
   V("COD922081", "Mercedes Benz E 63 AMG Año 2011", "Mercedes Benz", 2011, 45950000, 81216, "Bencina", 91, 14),
   V("COD922048", "RAM 1500 Limited año 2023", "RAM", 2023, 43950000, 59160, "Bencina", 91, 16),
   V("COD922018", "Maserati Grecale GT Mild-Hybrid 4x4 año 2024", "Maserati", 2024, 54450000, 18879, "Bencina", 100, 18),
-  V("COD922014", "Peugeot 5008 Blue HDI 130 1.5 Año 2023", "Peugeot", 2023, 22250000, 38681, "Diesel", 91, 21),
+  V("COD922014", "Peugeot 5008 Blue HDI 130 1.5 Año 2023", "Peugeot", 2023, 22250000, 38681, "Diésel", 91, 21),
   V("COD921984", "FORD Explorer XLT 4x4 año 2023", "Ford", 2023, 28950000, 71908, "Bencina", 91, 24),
   V("COD921973", "Peugeot 3008 1.6 GT Hibrido año 2023", "Peugeot", 2023, 21550000, 48903, "Híbrido", 91, 27),
   V("COD921934", "JEEP Wrangler 3.6 Unlimited Rubicon 4X4 Año 2013", "Jeep", 2013, 22950000, 94617, "Bencina", 91, 31),
@@ -96,7 +97,7 @@ export const vehicles: Vehicle[] = [
   V("COD921910", "AUDI Q3 35 TFSI Sport AT Año 2023", "Audi", 2023, 28750000, 44271, "Bencina", 91, 35),
   V("COD921820", "Chevrolet Silverado Trail Boss 5.3 LTS Año 2021", "Chevrolet", 2021, 31450000, 47739, "Bencina", 91, 38),
   V("COD921766", "FORD F 150 LARIAT BLACK 5.0 V8 2025 Facturable", "Ford", 2025, 47450000, 45000, "Bencina", 97, 42),
-  V("COD921740", "CHEVROLET Silverado Diesel 3.0L 4X4 AT 2023", "Chevrolet", 2023, 51950000, 40500, "Diesel", 91, 45),
+  V("COD921740", "CHEVROLET Silverado Diesel 3.0L 4X4 AT 2023", "Chevrolet", 2023, 51950000, 40500, "Diésel", 91, 45),
   V("COD921659", "JEEP Grand Cherokee LAREDO 3.6 4x2 2019", "Jeep", 2019, 18450000, 59000, "Bencina", 97, 52, ["mercadolibre", "ml_propia", "chileautos"]),
   V("COD921217", "MERCEDES BENZ E 350 Elegance 3.5 V6 AMG 2006", "Mercedes Benz", 2006, 8450000, 199192, "Bencina", 97, 61, ["mercadolibre", "ml_propia", "chileautos"]),
   V("COD921088", "RAM 700 1.3 SLT 4X2 CAB. SIM. MT 2P 2025", "RAM", 2025, 14950000, 12400, "Bencina", 91, 66),
