@@ -9,7 +9,8 @@
     "lint": "eslint",
     "db:seed": "tsx scripts/seed-db.ts",
     "test:aislamiento": "tsx --test tests/aislamiento.test.ts",
-    "db:seed-sql": "tsx scripts/generar-seed-sql.ts"
+    "db:seed-sql": "tsx scripts/generar-seed-sql.ts",
+    "showrooms": "tsx scripts/generar-showrooms.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",

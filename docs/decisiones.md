@@ -645,6 +645,240 @@ panel; el día que exista el catálogo, esas mismas llamadas lo mantienen al dí
 automotora no es lo que ve otra, así que guardar una copia sería servirle a alguien
 los datos de otro.
 
+## 2026-09-05 — Estudio IA: la biblioteca de fondos
+
+El Estudio monta el vehículo recortado sobre un fondo generado. Esta entrada
+cubre los fondos; el recorte y el montaje siguen abiertos.
+
+**La biblioteca compartida vive en código, no en la base** (`ia/imagenes/escenas.ts`).
+Es la misma decisión que en integraciones: son ocho escenas iguales para todas
+las automotoras, así que replicarlas por organización sería copiar la misma fila
+doscientas veces y tener que migrarlas cada vez que se agrega una. La tabla
+`showroom` guarda solo los fondos *propios*, que sí son de quien los pidió.
+Se revierte el día que la biblioteca deba editarse desde la interfaz o variar
+por plataforma.
+
+**Una escena catalogada sin imagen aparece como "sin generar"**, no desaparece
+de la grilla. La pantalla dice qué falta y cómo generarlo (`npm run showrooms`)
+en vez de mostrar una biblioteca más chica y dejar creer que eso es todo.
+
+**El usuario describe el lugar; el encuadre lo pone el sistema.** `promptDe()`
+agrega siempre `CAMARA` — perspectiva de un punto, cámara a ras de suelo y piso
+despejado en primer plano. Sin eso salen fondos bonitos e inservibles: si el
+horizonte queda a media altura, el auto no se puede apoyar en ninguna parte. Es
+también la razón de que el prompt y la descripción estén separados en el
+catálogo, y no concatenados a mano en cada escena.
+
+**La línea de piso se anota, no se detecta.** Cada escena declara dónde está el
+suelo (0-1 desde arriba) y la grilla la dibuja punteada sobre la miniatura. La
+detección automática se probó y no funciona con reflejos ni con piso mojado.
+Anotarla cuesta un número por escena y es exacta.
+
+**Quién paga la generación: mixto.** Si la automotora conectó su propia cuenta
+del proveedor, paga ella; si no, se usa la clave de la plataforma, que es la que
+costea la biblioteca compartida. `claveDeImagenes()` devuelve también quién paga,
+para poder registrarlo y limitarlo cuando exista cuota.
+
+**La generación corre dentro de la acción de servidor, sin cola.** FLUX es
+asíncrono y puede demorar más de un minuto, así que el usuario espera con el
+diálogo abierto. Es aceptable mientras sea una acción manual y ocasional; el día
+que se generen fondos en lote o desde el agente, esto tiene que pasar a la cola
+junto con las sincronizaciones (ver la decisión de despliegue: es otro argumento
+para Render).
+
+**`showroom` es la única tabla con política mixta de RLS**: las filas sin
+`organization_id` son la biblioteca compartida y las ve todo el mundo. Como eso
+debilita la regla general, el test de aislamiento cubre el caso explícitamente —
+nadie ve un fondo ajeno y nadie puede crear un fondo compartido desde la app.
+
+## 2026-09-05 — Gemini como proveedor de imágenes, FLUX como alternativa
+
+**Gemini (Nano Banana) queda por defecto**, `gemini-3.1-flash-image`. Entrega la
+imagen en una sola llamada — FLUX es asíncrono y hay que sondearlo hasta que
+esté lista — y sale más barato: ~US$0.10 por imagen en 2K contra el precio por
+imagen de FLUX. Ocho fondos son menos de un dólar.
+
+**FLUX no se borra.** Sigue disponible con `PROVEEDOR_IMAGEN=flux` y es la razón
+de que exista `ProveedorImagen`: cambiar de proveedor no toca la pantalla, la
+acción ni el script. Se elige en una variable de entorno, no en el código.
+
+**Lo que se pierde con Gemini: la semilla.** Su API no la expone, así que
+regenerar una escena da otra imagen y un fondo no se puede reproducir. Por eso el
+proveedor declara `reproducible: false`, la columna `semilla` queda en null y el
+script lo avisa al terminar. Si algún día importa poder repetir un fondo exacto
+—por ejemplo para regenerar la biblioteca completa sin que cambie el catálogo—
+eso solo lo da FLUX, y ese es el motivo para volver.
+
+**El formato pasó de 832×1408 a 864×1536.** Gemini no recibe píxeles sino una
+proporción de una lista fija, y 3:5 no está en ella. Pidiendo 9:16 exacto, la
+imagen sale con la forma que la miniatura ya dibuja: si no calzaran, la línea de
+piso quedaría corrida respecto del suelo real, que es justo el dato que la
+tarjeta existe para mostrar. Los dos lados son múltiplos de 32, que es lo que
+además exige FLUX.
+
+**La clave de plataforma ahora la nombra el proveedor** (`envClave`), no una
+constante: `GEMINI_API_KEY` o `BFL_API_KEY` según cuál esté puesto. Agregar un
+tercer proveedor no obliga a tocar `claveDeImagenes()`.
+
+**Toda imagen de Gemini lleva marca de agua SynthID** (invisible). No afecta el
+uso, pero conviene saberlo antes de prometerle a una automotora que el fondo es
+"suyo" sin más.
+
+## 2026-09-05 — El Estudio arma piezas con un editor, no con IA
+
+**Lo único que genera la IA es el fondo.** El vehículo sale recortado de su
+propia foto y todo lo demás —qué dice, dónde, con qué fuente y color— lo decide
+quien arma la pieza. La alternativa era pedirle a un modelo que compusiera la
+escena completa, y se descartó por dos razones: un generador **redibuja** el
+auto, y acá se publica el auto de un cliente real; y la ubicación del precio
+sobre el fondo es una decisión de diseño que cambia con cada foto, no algo que
+convenga sortear en cada generación.
+
+**El recorte es segmentación local (`rembg` / U2-Net), no una API.** ~6 s de CPU
+por foto, costo cero, y los píxeles son los del vehículo real. Se guarda con el
+hash de la foto de origen, así que una foto se recorta una sola vez para
+siempre. Gemini además no serviría: su API entrega JPEG, sin transparencia.
+**Costo:** agrega python3 + rembg como dependencia de la máquina; en el
+contenedor de producción hay que instalarlo o mover el recorte a un servicio
+aparte. Si falta, el editor lo dice y deja seguir.
+
+**La vista previa y el archivo final son el mismo dibujo.** `dibujar()` es la
+única función que pinta: el editor la llama sobre un canvas de 864×1536 que se
+muestra escalado por CSS, y descargar es ese mismo canvas a JPEG. No hay dos
+renderizadores que se puedan desalinear, y lo que se ve arrastrando es
+exactamente lo que se baja.
+
+**Esto cambia una decisión que yo mismo había recomendado al revés.** Con textos
+de fuente, color y tamaño editables, rearmar la pieza en el servidor con sharp
+obliga a tener las tipografías en el servidor y a que rendericen igual que en el
+navegador. El navegador ya tiene las fuentes cargadas por `next/font`, así que
+dibujar ahí es más fiel y más simple. Se revierte si algún día hay que
+regenerar piezas sin abrir el editor —por ejemplo en lote para el catálogo—;
+ahí sí conviene el servidor, y el modelo de la pieza ya está guardado en
+proporciones para permitirlo.
+
+**Las medidas son proporciones (0-1), no píxeles.** Una pieza guardada así se
+puede volver a dibujar en cualquier tamaño: la misma disposición sirve para la
+historia de Instagram y para la ficha del catálogo. Es también lo que permite
+que la vista previa chica y el archivo grande coincidan.
+
+**Los textos salen de la ficha, no se tipean.** Marca, modelo, año, kilómetros y
+precio vienen del vehículo guardado. Es donde se cuelan los errores de precio en
+una publicación, y el editor deja corregir el texto pero parte del dato real.
+
+## 2026-09-05 — El Estudio ofrece dos acciones, no tres pestañas
+
+**La pantalla dice lo que se puede hacer: crear una pieza o crear un fondo.**
+Antes eran pestañas —Showrooms, Creativos, Contenido— que describen secciones y
+no acciones: había que entender la estructura del producto antes de poder usarlo.
+
+**Elegir el auto y el fondo es un paso previo, con imágenes.** Se ve la foto real
+del vehículo y el fondo, en vez de escogerlos de una lista de texto: son las dos
+decisiones que definen la pieza y ambas son visuales. Los vehículos sin foto
+aparecen, pero no se pueden elegir — sin foto no hay recorte que montar, y
+esconderlos haría parecer que el inventario está incompleto.
+
+**El auto se cambia dentro del editor conservando la disposición.**
+`cambiarVehiculo()` reemplaza el recorte y el contenido de los textos que salen
+de la ficha, y respeta posición, fuente, tamaño y color. Es lo que permite armar
+un diseño una vez y pasarle varios autos por encima; rehacerlo en cada cambio
+obligaría a rearmar la pieza por vehículo, que es el trabajo que el editor
+existe para evitar. Los datos que el auto anterior no tenía se agregan como
+capas nuevas en vez de perderse.
+
+## 2026-09-05 — La sombra sigue el contorno inferior, no el borde de la imagen
+
+**Una sola mancha bajo el recorte siempre se ve despegada.** El borde inferior
+de la silueta es la rueda que quedó más adelante; en una foto de tres cuartos
+—que es como se fotografía un auto— las otras ruedas tocan el piso bastante más
+arriba. Una sombra centrada en ese borde queda por debajo del auto entero.
+
+**Se calcula el contorno: por columna, el píxel opaco más bajo.** La sombra es
+la unión de manchas apoyadas en ese contorno, difuminadas después de dibujarlas
+para que se fundan en una sola. Así abraza cada rueda a su altura real. El
+contorno se calcula una vez por recorte y se guarda; recorrer los píxeles en
+cada repintado haría inusable el arrastre.
+
+**Aplastar la silueta no sirve, por dos razones que costó ver.** Aplastar la
+franja baja da una barra: la mitad inferior de un auto es casi un rectángulo de
+neumático a neumático. Y aplastar la silueta completa da un velo parejo de punta
+a punta. Las dos se probaron y las dos se ven como una mancha rectangular sobre
+el piso.
+
+**El negro va sólido y la intensidad se aplica al dibujar la capa.** Si la
+intensidad se aplica al rellenar, el desenfoque se la come y subir el control no
+cambia casi nada — se verificó que entre 30% y 100% no había diferencia visible.
+
+## 2026-09-05 — El recorte se ajusta al vehículo
+
+**`rembg` devuelve un PNG del tamaño de la foto original**, con el auto flotando
+entre márgenes transparentes. Quien lo monta después apoya el **borde de la
+imagen** en el suelo, no las ruedas: en la foto de prueba sobraban 400 px bajo el
+vehículo, así que el auto levitaba y el reflejo aparecía muy por debajo, separado
+por una franja de piso limpio.
+
+Se recorta a la caja del contenido en `scripts/recortar.py`, apenas sale del
+modelo. Se corrige en el origen y no en cada lugar que lo dibuja, porque el
+recorte lo van a consumir el editor, el catálogo y lo que venga después, y todos
+heredarían el mismo error.
+
+**Los recortes ya generados quedaron inválidos**, así que el nombre del archivo
+incluye una versión (`v2`) además del hash de la foto. Sin eso, las cachés
+viejas seguirían sirviendo el recorte con margen y el arreglo no se vería.
+
+**Antes de esto se intentó compensar moviendo el reflejo hacia arriba.** No era
+la causa: el solape ayuda a que el reflejo no se despegue, pero el hueco venía
+del margen del recorte. Vale como recordatorio de que la posición de una capa
+casi nunca es el problema cuando lo que falla es de dónde salen sus medidas.
+
+## 2026-09-05 — El reflejo se espeja por columna, no sobre un eje
+
+**Espejar la imagen entera sobre un solo eje supone que todo el vehículo apoya a
+la misma altura**, y no es así: en una foto de tres cuartos —que es como se
+fotografía un auto— la rueda trasera toca el piso mucho más arriba que la
+delantera. En la foto de prueba la diferencia es de 313 px sobre 673 de alto.
+Con un eje único, solo la rueda más cercana queda pegada a su reflejo y el resto
+del auto flota sobre el suyo.
+
+**Cada columna se refleja sobre su propio punto de apoyo**, tomado del mismo
+contorno inferior que usa la sombra. El desvanecido también se mide desde ese
+punto: uno global apagaría antes lo que nace más arriba.
+
+**Sombra y reflejo se guardan en caché por recorte, tamaño e intensidad.**
+Armarlos recorre 400 columnas y no cambian mientras se arrastra —solo se mueve
+el resultado—, así que recalcularlos en cada movimiento haría el editor
+inusable. Se descartan las más viejas para que mover un deslizador no llene la
+memoria de variantes intermedias.
+
+## 2026-09-05 — Armonizar con IA: el montaje lo decidimos, la integración la hace el modelo
+
+**El reflejo y la sombra correctos son un problema de geometría 3D que no se
+resuelve con recortes 2D.** Se intentaron cuatro fórmulas —elipse, silueta
+aplastada, franja baja, espejado por columna— y cada una arregló algo dejando
+otra cosa mal. Un modelo de imagen lo resuelve de una vez: entiende el plano del
+piso, el material y de dónde viene la luz.
+
+**Se le manda el montaje YA ARMADO, no el recorte y el fondo por separado.** Con
+dos imágenes sueltas el modelo recompone la escena a su gusto: en la prueba dio
+vuelta el auto, lo achicó y lo redibujó. Editando una imagen existente conserva
+pose, tamaño y vehículo — se comparó la entrada contra la salida y mantuvo
+carrocería, llantas, insignias y hasta el reflejo de los árboles en el
+parabrisas. **La posición y el tamaño los sigue decidiendo quien edita**; al
+modelo se le pide una sola cosa.
+
+**Los textos nunca se le mandan.** Se dibujan encima del resultado, en local:
+un modelo de imagen deforma el texto, y además el precio tiene que poder
+seguir editándose después de armonizar.
+
+**Es opcional, y por buenas razones.** Repinta cada píxel del vehículo, así que
+un detalle fino —la patente, un rayón— puede derivar: publicar el auto de un
+cliente con una foto repintada es una decisión del negocio, no técnica. Además
+cuesta ~US$0.10 por pieza, tarda ~18 s y no es reproducible. El montaje manual
+sigue siendo el modo por defecto y es gratis.
+
+**La versión armonizada se descarta al mover el vehículo o cambiar el fondo**,
+porque dejaría de corresponder al montaje. Mover un texto no la invalida.
+
 ## Decisiones pendientes
 
 - [ ] **¿Conectar Supabase antes de la Fase 2 o seguir con semilla?**
@@ -654,3 +888,8 @@ los datos de otro.
 - [ ] Modelo de comisión de consignación.
 - [ ] Proveedor de datos para Consultar patente.
 - [ ] Permisos del rol vendedor (¿ve precios de compra y utilidad?).
+- [ ] Cómo se despliega el recorte: `rembg` es una dependencia de python que hoy
+      no está en el Dockerfile. ¿Se agrega a la imagen o va como servicio aparte?
+- [ ] Guardar la pieza armada por vehículo, para reabrirla y reeditarla.
+- [ ] Si la línea de piso alcanza para montar el auto o hace falta ajustarla por
+      foto: la altura de cámara del recorte no siempre calza con la del fondo.

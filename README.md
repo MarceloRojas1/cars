@@ -10,6 +10,15 @@ npm run dev     # http://localhost:3000 → redirige a /dashboard
 npm run build
 ```
 
+Los fondos del Estudio no vienen en el repositorio: se generan una vez con
+`GEMINI_API_KEY` puesta en `.env.local` y quedan en `public/uploads/showrooms/`.
+(Con `PROVEEDOR_IMAGEN=flux` y `BFL_API_KEY` se usa FLUX en vez de Gemini.)
+
+```bash
+npm run showrooms          # las ocho escenas de la biblioteca
+npm run showrooms marmol   # solo una, para iterarla
+```
+
 No necesita base de datos para arrancar: mientras `.env.local` no tenga credenciales
 de Supabase, la app se sirve de los datos semilla en `src/lib/data/seed.ts`
 (extraídos de las capturas reales).

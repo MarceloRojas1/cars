@@ -121,8 +121,31 @@ test("las tablas con datos de cliente tienen RLS forzado", async () => {
     select c.relname from pg_class c
      where c.relname in ('branch','app_user','vehicle','stage','lead','conversation',
                          'client','operation','monthly_close','campaign','knowledge_item',
-                         'routing_rule','hero_slide','integration','reminder','lead_note')
+                         'routing_rule','hero_slide','integration','reminder','lead_note',
+                         'showroom')
        and not (c.relrowsecurity and c.relforcerowsecurity)`);
   assert.deepEqual(rows.map((r) => r.relname), [],
     "Estas tablas no tienen RLS forzado y filtran entre organizaciones");
+});
+
+/**
+ * `showroom` es la única tabla con política mixta: las filas sin organización
+ * son la biblioteca compartida de la plataforma y las ve todo el mundo. Eso
+ * solo es seguro si sigue siendo imposible ver —o crear— un fondo ajeno.
+ */
+test("los fondos propios no cruzan de automotora, los compartidos sí", async () => {
+  await comoOrg(ORG_A, `delete from showroom where nombre = 'TEST-FONDO-A'`);
+  await comoOrg(ORG_A,
+    `insert into showroom (organization_id, nombre, url) values ($1,'TEST-FONDO-A','/x.png')`,
+    [ORG_A]);
+
+  const ajenos = await comoOrg(ORG_B,
+    `select id from showroom where nombre = 'TEST-FONDO-A'`);
+  assert.equal(ajenos.length, 0, "FILTRACIÓN: se ve el fondo propio de otra automotora");
+
+  await assert.rejects(
+    () => comoOrg(ORG_B,
+      `insert into showroom (organization_id, nombre, url) values (null,'TEST-COMPARTIDO','/x.png')`),
+    "Una automotora pudo crear un fondo compartido para todas",
+  );
 });

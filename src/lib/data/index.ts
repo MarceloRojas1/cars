@@ -16,8 +16,10 @@ import { consultar, dbConfigurada, enTransaccion } from "@/lib/db";
 import { idSemilla, uuidDe, ORG_UUID, SUCURSAL_POR_DEFECTO } from "./ids";
 import { calcularCompletitud } from "./completitud";
 import { MODELOS_SEMILLA } from "@/lib/catalogos";
+import { ESCENAS, promptDe } from "@/lib/ia/imagenes/escenas";
+import { imagenLocalExiste } from "@/lib/storage";
 import type {
-  AppUser, Branch, Combustible, Integration, Lead, Stage, Vehicle,
+  AppUser, Branch, Combustible, Integration, Lead, Showroom, Stage, Vehicle,
 } from "@/lib/types";
 
 /** Fila de `vehicle` tal como vuelve de Postgres. */
@@ -935,4 +937,87 @@ export async function desconectarIntegracion(proveedor: string) {
       where organization_id = $1 and proveedor = $2`,
     [ORG_UUID, proveedor],
   );
+}
+
+/* --- Estudio: biblioteca de fondos --- */
+
+/**
+ * Los fondos de la plataforma salen del catálogo en código (`ESCENAS`) y los de
+ * la automotora, de la base. Es la misma división que en integraciones: el
+ * catálogo compartido no se replica por organización.
+ *
+ * Una escena catalogada cuyo archivo todavía no se generó viaja con `url: null`
+ * en vez de omitirse — la pantalla dice qué falta en lugar de mostrar menos.
+ */
+export async function getShowrooms(): Promise<{ biblioteca: Showroom[]; propios: Showroom[] }> {
+  const biblioteca: Showroom[] = ESCENAS.map((e) => {
+    // El archivo lo deja `npm run showrooms` con el id de la escena; la
+    // extensión depende de lo que entregue el proveedor.
+    const url = ["png", "jpg", "webp"]
+      .map((ext) => `/uploads/showrooms/${e.id}.${ext}`)
+      .find(imagenLocalExiste) ?? null;
+    return {
+      id: e.id,
+      nombre: e.nombre,
+      url,
+      origen: "biblioteca",
+      lineaPiso: e.lineaPiso,
+      usos: 0,
+      prompt: promptDe(e),
+    };
+  });
+
+  if (!dbConfigurada()) return { biblioteca, propios: [] };
+
+  const filas = await consultar<{
+    id: string; nombre: string; url: string; linea_piso: number;
+    usos: number; modelo: string | null; prompt: string | null;
+  }>(
+    ORG_UUID,
+    `select id, nombre, url, linea_piso, usos, modelo, prompt from showroom
+      where organization_id = $1
+      order by created_at desc`,
+    [ORG_UUID],
+  );
+
+  return {
+    biblioteca,
+    propios: filas.map((f) => ({
+      id: f.id,
+      nombre: f.nombre,
+      url: f.url,
+      origen: "propio",
+      lineaPiso: Number(f.linea_piso),
+      usos: f.usos,
+      modelo: f.modelo ?? undefined,
+      prompt: f.prompt ?? undefined,
+    })),
+  };
+}
+
+export type NuevoShowroom = {
+  nombre: string;
+  url: string;
+  proveedor: string;
+  modelo: string;
+  prompt: string;
+  semilla?: number;
+  lineaPiso: number;
+  ancho: number;
+  alto: number;
+};
+
+export async function crearShowroom(datos: NuevoShowroom): Promise<string> {
+  const filas = await consultar<{ id: string }>(
+    ORG_UUID,
+    `insert into showroom
+       (organization_id, nombre, url, proveedor, modelo, prompt, semilla, linea_piso, ancho, alto)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+     returning id`,
+    [
+      ORG_UUID, datos.nombre, datos.url, datos.proveedor, datos.modelo,
+      datos.prompt, datos.semilla ?? null, datos.lineaPiso, datos.ancho, datos.alto,
+    ],
+  );
+  return filas[0].id;
 }

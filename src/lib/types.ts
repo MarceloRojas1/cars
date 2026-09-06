@@ -215,3 +215,23 @@ export type Integration = {
   /** Solo para las de IA: qué modelo quedó elegido. */
   modelo?: string;
 };
+
+/**
+ * Fondo del Estudio sobre el que se monta el vehículo recortado.
+ *
+ * `biblioteca` = generado y costeado por la plataforma, visible para todas las
+ * automotoras. `propio` = lo pidió esta automotora y se guarda solo para ella.
+ */
+export type Showroom = {
+  id: string;
+  nombre: string;
+  /** null cuando la escena está en el catálogo pero su imagen aún no se generó. */
+  url: string | null;
+  origen: "biblioteca" | "propio";
+  /** Dónde se apoya el vehículo, 0-1 desde arriba. */
+  lineaPiso: number;
+  usos: number;
+  /** Con qué se generó, para poder reproducirlo. */
+  modelo?: string;
+  prompt?: string;
+};

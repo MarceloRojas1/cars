@@ -27,6 +27,7 @@ services:
       - ./supabase/migrations/0009_conversation_unica.sql:/docker-entrypoint-initdb.d/10-conversacion.sql:ro
       - ./supabase/migrations/0010_lead_notas.sql:/docker-entrypoint-initdb.d/11-notas.sql:ro
       - ./supabase/migrations/0011_integracion_unica.sql:/docker-entrypoint-initdb.d/12-integracion.sql:ro
+      - ./supabase/migrations/0012_showrooms.sql:/docker-entrypoint-initdb.d/13-showrooms.sql:ro
       - ./docker/initdb/06-rol-app.sql:/docker-entrypoint-initdb.d/06-rol-app.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U velie -d velie"]
