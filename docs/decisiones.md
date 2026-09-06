@@ -879,6 +879,21 @@ sigue siendo el modo por defecto y es gratis.
 **La versión armonizada se descarta al mover el vehículo o cambiar el fondo**,
 porque dejaría de corresponder al montaje. Mover un texto no la invalida.
 
+## 2026-09-06 — Arrastrar limita el centro del elemento, no su ancla
+
+Se podía arrastrar un texto fuera del lienzo y perderlo. La posición se limitaba
+al rango 0-1, pero eso limita el **ancla**: un texto centrado se ancla en su
+medio y el vehículo en su línea de apoyo, así que con el ancla en el borde el
+elemento entero ya estaba afuera.
+
+**Ahora se limita la caja visible, y la regla es que su centro no salga del
+lienzo.** Sacar medio auto por el borde es una decisión de diseño válida; que
+quede reducido a una esquina, no. Se probó primero dejar salir hasta un 80% y
+con dos bordes a la vez el elemento desaparecía de hecho.
+
+**Este bug apareció recién al poder interactuar con la pantalla.** Compilaba,
+pasaba lint y la captura estática se veía bien: solo se ve arrastrando.
+
 ## Decisiones pendientes
 
 - [ ] **¿Conectar Supabase antes de la Fase 2 o seguir con semilla?**

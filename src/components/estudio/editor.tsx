@@ -119,10 +119,31 @@ export function EditorCreativo({
     if (!arrastre.current) return;
     const p = posicionEnLienzo(e);
     const { id, dx, dy } = arrastre.current;
-    actualizar(id, {
-      x: Math.min(1, Math.max(0, (p.x - dx) / ANCHO)),
-      y: Math.min(1, Math.max(0, (p.y - dy) / ALTO)),
-    } as Partial<Elemento>);
+    const el = creativo.elementos.find((x) => x.id === id);
+    if (!el) return;
+
+    let x = p.x - dx;
+    let y = p.y - dy;
+
+    /*
+     * Se limita la CAJA visible, no el ancla: un texto centrado se ancla en su
+     * medio y el vehículo en su línea de apoyo, así que limitar el ancla igual
+     * deja arrastrar el elemento entero fuera del borde y perderlo.
+     *
+     * La regla es que el CENTRO del elemento no salga del lienzo. Sacar medio
+     * auto por el borde es una decisión de diseño válida; que quede reducido a
+     * una esquina, no. Se probó dejar salir hasta un 80% y con dos bordes a la
+     * vez el elemento desaparecía de hecho.
+     */
+    const caja = cajas.current.find((c) => c.id === id);
+    if (caja) {
+      const centroX = caja.x - el.x * ANCHO + caja.ancho / 2;
+      const centroY = caja.y - el.y * ALTO + caja.alto / 2;
+      x = Math.min(ANCHO - centroX, Math.max(-centroX, x));
+      y = Math.min(ALTO - centroY, Math.max(-centroY, y));
+    }
+
+    actualizar(id, { x: x / ANCHO, y: y / ALTO } as Partial<Elemento>);
   }
 
   function alSoltar(e: React.PointerEvent<HTMLCanvasElement>) {
