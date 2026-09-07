@@ -122,7 +122,54 @@ badges        pill 11px: Disponible, Activo, Owner, Vendedor, entry/progress/exi
 
 ## 7. Huecos (no hay captura)
 
-- Recordatorios · detalle de vehículo · detalle/ficha de lead · bandeja de conversaciones (icono topbar) · sub-tabs de Control de Ventas (Compras / Consignaciones / Notas de Venta) · Estudio IA > Creativos y Contenido · Mi Plan > Facturación/Addons · catálogo público (`venpu.cl/{slug}`) · login/onboarding.
+- Bandeja de conversaciones (icono topbar) · onboarding.
+
+Los demás se cerraron el 2026-09-06 entrando al panel con una cuenta real (ver
+sección 9).
+
+## 9. Rutas reales y hallazgos del panel (2026-09-06)
+
+Hasta acá el análisis se hizo con capturas sueltas y las rutas estaban
+**inferidas**. Entrando al panel, las reales son:
+
+| Nuestra ruta | Ruta real | Etiqueta en el menú |
+|---|---|---|
+| `/dashboard` | `/` | Dashboard |
+| `/vehiculos/[uuid]` | `/vehiculos/COD920816` | — (por **código**, no uuid) |
+| `/control-de-ventas` | `/control-ventas` | Control de Ventas |
+| `/embudo` | `/leads/pipeline` | Embudo |
+| `/recordatorios` | `/leads/recordatorios` | Recordatorios |
+| `/mi-plan` | `/suscripcion` | Mi Plan |
+| `/mi-sitio-web` | `/configuracion/sitio-web` | Mi sitio web |
+| `/asistente-ia` | `/configuracion/asistente` | Asistente IA |
+| `/automatizacion` | `/configuracion/pipeline` | Automatización |
+| `/asignacion-de-leads` | `/configuracion/routing` | Asignación de leads |
+
+Las etiquetas del menú coinciden con las nuestras; lo que difiere es la URL. El
+original agrupa por dominio (`leads/*`, `configuracion/*`) y usa el **código del
+vehículo** en la URL, que es legible y estable — mejor que nuestro uuid para el
+día que estas fichas se compartan por WhatsApp.
+
+### Estudio IA
+
+**No existe una biblioteca de fondos compartida.** Cada automotora genera los
+suyos: esta cuenta tiene 21, casi todos llamados "Custom". Se generan desde
+**siete presets** —Showroom (concesionaria real, piso reflectante), Premium
+Luxury (mármol, chandelier), Montaña (carretera, cordillera, atardecer), Ciudad
+Nocturna (calle mojada, neón), Campo Rural (golden hour), Playa (costa,
+carretera costera), Minimalista (fondo limpio, gradiente)— o escribiendo un
+prompt propio. **También se puede subir una imagen propia como showroom.**
+
+Cada fondo muestra su contador de usos (hasta 17), o sea que el uso se registra.
+
+**Creativos**: 79 piezas guardadas, con estado ("Listo"), filtro Todos /
+Imágenes / Videos, y dos acciones: "Nuevo creativo" y "Subir video". Las piezas
+llevan precio, año, km, transmisión, **etiquetas libres** ("Facturable",
+"Suspensión FOX", "VENTA"), comuna y **marca de agua del sitio**
+(`www.marketcar.cl`).
+
+**Contenido**: biblioteca de archivos **sin vehículo** —imágenes y videos— para
+campañas de consignación o branding. Solo subir y listar.
 
 ## 8. Plan de recreación sugerido
 
