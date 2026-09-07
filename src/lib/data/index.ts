@@ -19,7 +19,8 @@ import { MODELOS_SEMILLA } from "@/lib/catalogos";
 import { ESCENAS, promptDe } from "@/lib/ia/imagenes/escenas";
 import { imagenLocalExiste } from "@/lib/storage";
 import type {
-  AppUser, Branch, Combustible, Integration, Lead, Showroom, Stage, Vehicle,
+  AppUser, AssistantConfig, Branch, Combustible, Integration, KnowledgeItem,
+  Lead, Showroom, Stage, Vehicle,
 } from "@/lib/types";
 
 /** Fila de `vehicle` tal como vuelve de Postgres. */
@@ -335,6 +336,158 @@ export async function getIntegrations(): Promise<Integration[]> {
 }
 export async function getMetricas() {
   return seed.metricas;
+}
+
+/** Fila de `assistant_config` tal como vuelve de Postgres. */
+type FilaAssistantConfig = {
+  trigger_ctwa: boolean; trigger_contactos_nuevos: boolean;
+  trigger_contactos_existentes: boolean; svc_consignacion: boolean;
+  svc_compra_directa: boolean; svc_financiamiento: boolean; modo_consultor: boolean;
+  antiguedad_max_financiamiento: number; nombre_agente: string;
+  saludo: string | null; tono: string | null; instrucciones: string | null;
+  prohibiciones: string | null;
+};
+
+function aAssistantConfig(f: FilaAssistantConfig): AssistantConfig {
+  return {
+    triggerCtwa: f.trigger_ctwa,
+    triggerContactosNuevos: f.trigger_contactos_nuevos,
+    triggerContactosExistentes: f.trigger_contactos_existentes,
+    servicioConsignacion: f.svc_consignacion,
+    servicioCompraDirecta: f.svc_compra_directa,
+    servicioFinanciamiento: f.svc_financiamiento,
+    modoConsultor: f.modo_consultor,
+    antiguedadMaxFinanciamiento: f.antiguedad_max_financiamiento,
+    nombreAgente: f.nombre_agente,
+    saludo: f.saludo ?? "",
+    tono: f.tono ?? "",
+    instrucciones: f.instrucciones ?? "",
+    prohibiciones: f.prohibiciones ?? "",
+  };
+}
+
+/** Si la organización nunca guardó su config, no hay fila: se devuelven los valores por defecto. */
+export async function getAssistantConfig(): Promise<AssistantConfig> {
+  if (!dbConfigurada()) return seed.assistantConfig;
+
+  const filas = await consultar<FilaAssistantConfig>(
+    ORG_UUID,
+    `select * from assistant_config where organization_id = $1`,
+    [ORG_UUID],
+  );
+  return filas[0] ? aAssistantConfig(filas[0]) : seed.assistantConfig;
+}
+
+export async function guardarAssistantConfig(datos: AssistantConfig) {
+  await consultar(
+    ORG_UUID,
+    `insert into assistant_config (
+       organization_id, trigger_ctwa, trigger_contactos_nuevos,
+       trigger_contactos_existentes, svc_consignacion, svc_compra_directa,
+       svc_financiamiento, modo_consultor, antiguedad_max_financiamiento,
+       nombre_agente, saludo, tono, instrucciones, prohibiciones)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+     on conflict (organization_id) do update set
+       trigger_ctwa = excluded.trigger_ctwa,
+       trigger_contactos_nuevos = excluded.trigger_contactos_nuevos,
+       trigger_contactos_existentes = excluded.trigger_contactos_existentes,
+       svc_consignacion = excluded.svc_consignacion,
+       svc_compra_directa = excluded.svc_compra_directa,
+       svc_financiamiento = excluded.svc_financiamiento,
+       modo_consultor = excluded.modo_consultor,
+       antiguedad_max_financiamiento = excluded.antiguedad_max_financiamiento,
+       nombre_agente = excluded.nombre_agente,
+       saludo = excluded.saludo, tono = excluded.tono,
+       instrucciones = excluded.instrucciones, prohibiciones = excluded.prohibiciones`,
+    [
+      ORG_UUID, datos.triggerCtwa, datos.triggerContactosNuevos,
+      datos.triggerContactosExistentes, datos.servicioConsignacion,
+      datos.servicioCompraDirecta, datos.servicioFinanciamiento, datos.modoConsultor,
+      datos.antiguedadMaxFinanciamiento, datos.nombreAgente,
+      datos.saludo || null, datos.tono || null, datos.instrucciones || null,
+      datos.prohibiciones || null,
+    ],
+  );
+}
+
+export async function getKnowledgeItems(): Promise<KnowledgeItem[]> {
+  if (!dbConfigurada()) return seed.knowledgeItems;
+
+  return consultar<KnowledgeItem>(
+    ORG_UUID,
+    `select id, titulo, contenido, tipo from knowledge_item
+      where organization_id = $1 order by titulo`,
+    [ORG_UUID],
+  );
+}
+
+export async function crearKnowledgeItem(datos: {
+  titulo: string; contenido: string; tipo: string;
+}): Promise<KnowledgeItem> {
+  const filas = await consultar<KnowledgeItem>(
+    ORG_UUID,
+    `insert into knowledge_item (organization_id, titulo, contenido, tipo)
+     values ($1,$2,$3,$4)
+     returning id, titulo, contenido, tipo`,
+    [ORG_UUID, datos.titulo, datos.contenido, datos.tipo],
+  );
+  return filas[0];
+}
+
+export async function eliminarKnowledgeItem(id: string) {
+  await consultar(
+    ORG_UUID,
+    `delete from knowledge_item where id = $1 and organization_id = $2`,
+    [id, ORG_UUID],
+  );
+}
+
+/* --- Canal de WhatsApp --- */
+
+/**
+ * El lead más nuevo con ese teléfono. No hay índice único sobre `telefono`
+ * a propósito: dos personas de la misma familia pueden escribir por el mismo
+ * número en momentos distintos y son leads separados; acá solo evitamos
+ * abrir un lead nuevo por cada mensaje de una conversación ya en curso.
+ */
+export async function buscarLeadPorTelefono(
+  telefono: string,
+): Promise<{ id: string } | null> {
+  if (!dbConfigurada()) return null;
+
+  const filas = await consultar<{ id: string }>(
+    ORG_UUID,
+    `select id from lead where organization_id = $1 and telefono = $2
+      order by created_at desc limit 1`,
+    [ORG_UUID, telefono],
+  );
+  return filas[0] ?? null;
+}
+
+/**
+ * Dos escrituras por mensaje: la bitácora del lead (para el historial) y el
+ * contador de `conversation` (lo que ya lee el panel del lead). No existe
+ * todavía una tabla de mensajes con el texto buscable — ver decisiones.md.
+ */
+export async function registrarMensajeWhatsapp(
+  leadId: string,
+  datos: { direccion: "entrante" | "saliente"; cuerpo: string; externalId?: string },
+) {
+  await enTransaccion(ORG_UUID, async (cliente) => {
+    await cliente.query(
+      `insert into lead_activity (lead_id, tipo, payload)
+       values ($1, 'mensaje', $2)`,
+      [leadId, JSON.stringify(datos)],
+    );
+    await cliente.query(
+      `insert into conversation (organization_id, lead_id, canal, mensajes_count, last_message_at)
+       values ($1, $2, 'whatsapp', 1, now())
+       on conflict (lead_id, canal) do update set
+         mensajes_count = conversation.mensajes_count + 1,
+         last_message_at = now()`,
+      [ORG_UUID, leadId],
+    );
+  });
 }
 
 /* --- derivados: en producción son vistas agregadas, no columnas --- */

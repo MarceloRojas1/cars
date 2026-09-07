@@ -894,6 +894,81 @@ con dos bordes a la vez el elemento desaparecía de hecho.
 **Este bug apareció recién al poder interactuar con la pantalla.** Compilaba,
 pasaba lint y la captura estática se veía bien: solo se ve arrastrando.
 
+## 2026-09-07 — Panel de control del bot en Asistente IA
+
+Primer paso hacia que el bot atienda Nuevo, Calificando y Sin Respuesta
+(ver [[stage.responsable]] en la sección "El embudo"): una pantalla real en
+`/asistente-ia` para configurar su comportamiento, en vez del placeholder
+"Pendiente" que había.
+
+**No hubo que construir "conectar con Claude": ya existía.** La integración en
+`/integraciones` (`IntegracionClaude`) ya prueba la clave contra Anthropic antes
+de guardarla y la cifra con AES-256-GCM — es exactamente el flujo BYOK que se
+pidió. Lo que faltaba era la otra mitad: qué hacer con esa conexión.
+
+**`assistant_config` y `knowledge_item` ya estaban en el esquema desde
+`0001_init.sql`, sin ninguna pantalla que los tocara.** Se agregó la capa de
+datos (`getAssistantConfig`/`guardarAssistantConfig`, con upsert por ser una
+fila única por organización; `getKnowledgeItems`/`crearKnowledgeItem`/
+`eliminarKnowledgeItem`) y el formulario. Probado contra la base real, no solo
+compilado.
+
+**El panel guarda comportamiento; todavía no hay quién lo ejecute.** Guardar
+`instrucciones`, `tono` o una FAQ no hace responder al bot: falta el webhook de
+WhatsApp (ninguno conectado, ver la sección "El embudo") y el código que arme el
+prompt con `assistant_config` + `knowledge_item` y llame a `clienteClaude()` por
+cada mensaje entrante. Ese es el siguiente paso, no este.
+
+**La descripción de la integración de Claude cambió** de "Pregúntale a tus datos
+en lenguaje natural" (una función que no existe) a explicar que es el motor del
+bot de WhatsApp, que es para lo que de verdad se está usando.
+
+## 2026-09-07 — Webhook de WhatsApp: recibir y guardar, todavía no responder
+
+El cliente ya paga por WhatsApp Business, pero el número de su empresa está
+conectado a otro software (que lo usa para bot propio y derivación a una
+página). Un número solo puede estar suscrito a un webhook a la vez, así que se
+construyó el receptor **antes** de tener número real, para probarlo con el
+número de prueba gratis que da Meta sin arriesgar el canal que ya funciona.
+
+**Un lead por conversación, no por mensaje.** `registrarLeadEntrante()`
+deduplica por `external_id`, que es el id del evento — en WhatsApp, el `wamid`
+de cada mensaje es distinto siempre. Sin un chequeo aparte, el segundo mensaje
+de un chat en curso abriría un lead nuevo cada vez. `procesarMensajeWhatsapp()`
+(`src/lib/leads/canales/whatsapp.ts`) primero busca un lead con ese teléfono;
+si existe, solo agrega a la bitácora. Probado con dos mensajes seguidos del
+mismo número contra la base real: un lead, dos entradas en `lead_activity`.
+
+**Los mensajes se guardan en `lead_activity` (tipo `mensaje`), no en una tabla
+nueva.** No existe todavía una tabla de mensajes con el texto indexado para
+mostrar un chat completo — sigue pendiente (ver "El embudo: tubería de
+eventos"). `lead_activity.payload` ya es jsonb y ya se lee en el panel del
+lead, así que por ahora alcanza para no perder el contenido, aunque la UI del
+panel todavía no distingue `tipo = 'mensaje'` al dibujar la bitácora.
+
+**Credenciales por variable de entorno, no por `integration` como Claude.**
+Sería inconsistente hoy: `ORG_UUID` está hardcodeado en toda la capa de datos
+(`src/lib/data/ids.ts`) porque la app entera corre para una sola organización
+todavía — no hay resolución de organización por sesión. Meta ya manda
+`phone_number_id` en cada webhook, que es la llave para resolver la
+organización el día que haya más de un cliente real; ese día esto migra al
+mismo patrón BYOK cifrado, y el env var se reemplaza por una fila en
+`integration`.
+
+**Verificación de firma (`X-Hub-Signature-256`) sobre el cuerpo crudo, nunca
+sobre el JSON re-serializado.** `JSON.stringify(JSON.parse(x))` no reproduce
+los mismos bytes que mandó Meta — la comparación fallaría siempre. El handler
+lee `request.text()` antes de parsear.
+
+**200 ante cualquier error de procesamiento, después de validar la firma.**
+Meta reintenta agresivamente si no recibe 200 rápido. Un error nuestro
+procesando un mensaje no debería convertirse en una tormenta de reintentos;
+queda solo un `console.error` con el `wamid` para poder rastrearlo.
+
+**El envío saliente (`enviarTextoWhatsapp`) existe pero nadie lo llama
+todavía.** El webhook solo recibe. Conectarlo a una respuesta automática
+espera a la lógica del agente (Fase 7, ver la sección anterior).
+
 ## Decisiones pendientes
 
 - [ ] **¿Conectar Supabase antes de la Fase 2 o seguir con semilla?**
@@ -908,3 +983,13 @@ pasaba lint y la captura estática se veía bien: solo se ve arrastrando.
 - [ ] Guardar la pieza armada por vehículo, para reabrirla y reeditarla.
 - [ ] Si la línea de piso alcanza para montar el auto o hace falta ajustarla por
       foto: la altura de cámara del recorte no siempre calza con la del fondo.
+- [ ] El webhook de WhatsApp ya recibe y guarda (`/api/webhooks/whatsapp`),
+      probado con el número de prueba de Meta. Falta: conseguir el número real
+      (el de la empresa está tomado por otro software) y escribir la lógica que
+      arma el prompt con `assistant_config` + `knowledge_item` y llama a
+      `clienteClaude()` por cada mensaje — sin eso el bot recibe pero no
+      contesta, y el panel de Asistente IA guarda comportamiento que nadie
+      ejecuta todavía.
+- [ ] Tabla de mensajes de verdad (hoy viven como `lead_activity` tipo
+      `mensaje`) para poder mostrar el historial completo del chat en el panel
+      del lead — ver "Webhook de WhatsApp".

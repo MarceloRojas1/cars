@@ -217,6 +217,37 @@ export type Integration = {
 };
 
 /**
+ * Comportamiento del bot que atiende Nuevo, Calificando y Sin Respuesta
+ * (ver `stage.responsable` en docs/decisiones.md). Una fila por organización.
+ */
+export type AssistantConfig = {
+  /** Cuándo entra a responder. */
+  triggerCtwa: boolean;
+  triggerContactosNuevos: boolean;
+  triggerContactosExistentes: boolean;
+  /** Qué puede ofrecer. */
+  servicioConsignacion: boolean;
+  servicioCompraDirecta: boolean;
+  servicioFinanciamiento: boolean;
+  /** Responde dudas generales aunque el lead no muestre intención de compra. */
+  modoConsultor: boolean;
+  antiguedadMaxFinanciamiento: number;
+  nombreAgente: string;
+  saludo: string;
+  tono: string;
+  instrucciones: string;
+  prohibiciones: string;
+};
+
+/** Item de la base de conocimiento (FAQ) que el bot puede citar. */
+export type KnowledgeItem = {
+  id: string;
+  titulo: string;
+  contenido: string;
+  tipo: string;
+};
+
+/**
  * Fondo del Estudio sobre el que se monta el vehículo recortado.
  *
  * `biblioteca` = generado y costeado por la plataforma, visible para todas las

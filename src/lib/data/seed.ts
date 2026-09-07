@@ -4,8 +4,8 @@
  * esos valores son estimados y están marcados con `estimado: true`.
  */
 import type {
-  AppUser, Branch, Campaign, Client, Integration, Lead, Operation,
-  Organization, Stage, Vehicle,
+  AppUser, AssistantConfig, Branch, Campaign, Client, Integration,
+  KnowledgeItem, Lead, Operation, Organization, Stage, Vehicle,
 } from "@/lib/types";
 
 export const organization: Organization = {
@@ -192,12 +192,34 @@ export const campaigns: Campaign[] = [
 export const integrations: Integration[] = [
   { id: "int_meta", grupo: "comunicacion", nombre: "Meta Business", descripcion: "Messenger, Instagram y Lead Ads", estado: "conectado", detalle: "Marketcar · Messenger · Instagram" },
   { id: "int_wa", grupo: "comunicacion", nombre: "WhatsApp", descripcion: "Atiende a tus clientes por WhatsApp con tu propio número", estado: "conectado", detalle: "+56 9 •••• ••••" },
-  { id: "int_claude", grupo: "asistente", nombre: "Claude", descripcion: "Pregúntale a tus datos en lenguaje natural", estado: "incluido" },
+  { id: "int_claude", grupo: "asistente", nombre: "Claude", descripcion: "El bot que califica leads nuevos por WhatsApp usa tu propia cuenta", estado: "incluido" },
   { id: "int_ml", grupo: "marketplaces", nombre: "MercadoLibre", descripcion: "Tus vehículos se publican en la cuenta de la plataforma", estado: "incluido" },
   { id: "int_ml_own", grupo: "marketplaces", nombre: "MercadoLibre cuenta propia", descripcion: "Publica con tu propia cuenta, en paralelo", estado: "no_conectado" },
   { id: "int_yapo", grupo: "marketplaces", nombre: "Yapo.cl", descripcion: "Marketplace de vehículos de Yapo", estado: "no_conectado" },
   { id: "int_ca", grupo: "marketplaces", nombre: "Chile Autos", descripcion: "Publica tu inventario y recibe leads automáticamente", estado: "no_conectado" },
   { id: "int_zernio", grupo: "social", nombre: "Zernio", descripcion: "Conecta Facebook e Instagram para publicar y hacer campañas", estado: "no_conectado" },
+];
+
+/** Valores por defecto: los mismos que trae la columna en `assistant_config`. */
+export const assistantConfig: AssistantConfig = {
+  triggerCtwa: true,
+  triggerContactosNuevos: true,
+  triggerContactosExistentes: false,
+  servicioConsignacion: true,
+  servicioCompraDirecta: true,
+  servicioFinanciamiento: true,
+  modoConsultor: false,
+  antiguedadMaxFinanciamiento: 10,
+  nombreAgente: "Ben",
+  saludo: "",
+  tono: "",
+  instrucciones: "",
+  prohibiciones: "",
+};
+
+export const knowledgeItems: KnowledgeItem[] = [
+  { id: "ki_horario", titulo: "Horario de atención", contenido: "Lunes a viernes de 9:30 a 19:00, sábado de 10:00 a 14:00.", tipo: "faq" },
+  { id: "ki_garantia", titulo: "Garantía de los vehículos", contenido: "Todos los vehículos usados salen con 3 meses de garantía mecánica.", tipo: "faq" },
 ];
 
 /** Métricas del mes que en el producto real son agregaciones (ver docs, sección 4). */
