@@ -124,13 +124,21 @@ export async function getBranches(): Promise<Branch[]> {
     creadaHace: "",
   }));
 }
-export async function getUsers(): Promise<AppUser[]> {
+/**
+ * `incluirInactivos` solo lo usa la pantalla de Equipo, que administra el
+ * equipo y tiene que poder reactivar a alguien. El resto —asignar un lead,
+ * elegir vendedor de un vehículo— solo debe ver a los activos: ofrecer a
+ * alguien que ya no trabaja ahí es un error silencioso.
+ */
+export async function getUsers(incluirInactivos = false): Promise<AppUser[]> {
   if (!dbConfigurada()) return seed.users;
 
   const rows = await consultar<FilaUsuario>(
     ORG_UUID,
-    `select * from app_user where organization_id = $1 and activo order by nombre`,
-    [ORG_UUID],
+    `select * from app_user
+      where organization_id = $1 and ($2::boolean or activo)
+      order by nombre`,
+    [ORG_UUID, incluirInactivos],
   );
   return rows.map((u) => ({
     id: idSemilla(u.id)!,
@@ -170,6 +178,15 @@ export async function getVehicles(archivados = false): Promise<Vehicle[]> {
 }
 
 const ES_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Id de la interfaz → uuid de la base.
+ *
+ * Al leer, los ids se traducen a los legibles de la semilla ("usr_juan"), así
+ * que lo que vuelve en un formulario puede ser cualquiera de los dos. `uuidDe`
+ * aplicado a un uuid lo convertiría en otro distinto, de ahí el guardia.
+ */
+const aUuid = (id: string) => (ES_UUID.test(id) ? id : uuidDe(id));
 
 /** Una ficha con sus fotos, para la pantalla de edición. */
 export async function getVehiculo(id: string): Promise<Vehicle | null> {
@@ -1173,4 +1190,219 @@ export async function crearShowroom(datos: NuevoShowroom): Promise<string> {
     ],
   );
   return filas[0].id;
+}
+
+/* --- Sucursales y equipo: escritura --- */
+
+/**
+ * El código de la sucursal se calcula, no se pide.
+ *
+ * Es visible y ordenado (SUC-001, SUC-002), y dejarlo escribir a mano invita a
+ * duplicados — la base tiene `unique (organization_id, codigo)` y el error de
+ * restricción no le dice nada a quien está creando una sucursal.
+ */
+async function siguienteCodigoSucursal(): Promise<string> {
+  const filas = await consultar<{ codigo: string }>(
+    ORG_UUID,
+    `select codigo from branch where organization_id = $1 order by codigo desc limit 1`,
+    [ORG_UUID],
+  );
+  const ultimo = Number(filas[0]?.codigo?.replace(/\D/g, "") ?? 0);
+  return `SUC-${String(ultimo + 1).padStart(3, "0")}`;
+}
+
+export type DatosSucursal = {
+  nombre: string;
+  direccion?: string;
+  comuna?: string;
+  region?: string;
+  telefono?: string;
+  email?: string;
+  esPrincipal?: boolean;
+};
+
+export type ResultadoEscritura =
+  | { ok: true; id: string }
+  | { ok: false; mensaje: string };
+
+export async function crearSucursal(datos: DatosSucursal): Promise<ResultadoEscritura> {
+  if (!dbConfigurada()) return { ok: false, mensaje: "Sin base de datos no se pueden crear sucursales." };
+
+  const organizacion = await getOrganization();
+  const existentes = await consultar<{ n: string }>(
+    ORG_UUID,
+    `select count(*)::int as n from branch where organization_id = $1`,
+    [ORG_UUID],
+  );
+  // El límite del plan se muestra en pantalla, así que también se respeta acá:
+  // si solo viviera en la interfaz, bastaría una segunda pestaña para saltarlo.
+  if (Number(existentes[0].n) >= organizacion.limiteSucursales) {
+    return {
+      ok: false,
+      mensaje: `Tu plan ${organizacion.plan} permite ${organizacion.limiteSucursales} sucursales.`,
+    };
+  }
+
+  return enTransaccion(ORG_UUID, async (cliente) => {
+    if (datos.esPrincipal) {
+      await cliente.query(
+        `update branch set es_principal = false where organization_id = $1`, [ORG_UUID],
+      );
+    }
+    const { rows } = await cliente.query<{ id: string }>(
+      `insert into branch
+         (organization_id, codigo, nombre, direccion, comuna, region, telefono, email, es_principal)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id`,
+      [
+        ORG_UUID, await siguienteCodigoSucursal(), datos.nombre,
+        datos.direccion ?? null, datos.comuna ?? null, datos.region ?? null,
+        datos.telefono ?? null, datos.email ?? null, datos.esPrincipal ?? false,
+      ],
+    );
+    return { ok: true as const, id: rows[0].id };
+  });
+}
+
+export async function actualizarSucursal(idInterfaz: string, datos: DatosSucursal): Promise<ResultadoEscritura> {
+  if (!dbConfigurada()) return { ok: false, mensaje: "Sin base de datos no se pueden editar sucursales." };
+
+  const id = aUuid(idInterfaz);
+  return enTransaccion(ORG_UUID, async (cliente) => {
+    // Una sola principal por organización: marcar una desmarca la anterior.
+    if (datos.esPrincipal) {
+      await cliente.query(
+        `update branch set es_principal = false where organization_id = $1 and id <> $2`,
+        [ORG_UUID, id],
+      );
+    }
+    await cliente.query(
+      `update branch set nombre = $3, direccion = $4, comuna = $5, region = $6,
+                         telefono = $7, email = $8, es_principal = $9
+        where organization_id = $1 and id = $2`,
+      [
+        ORG_UUID, id, datos.nombre, datos.direccion ?? null, datos.comuna ?? null,
+        datos.region ?? null, datos.telefono ?? null, datos.email ?? null,
+        datos.esPrincipal ?? false,
+      ],
+    );
+    return { ok: true as const, id };
+  });
+}
+
+/**
+ * Las sucursales no se borran, se desactivan.
+ *
+ * Tienen vehículos, ventas y leads colgando: borrarlas dejaría el historial sin
+ * dónde apoyarse. La principal no se puede desactivar, porque es la que hereda
+ * lo que no tiene sucursal asignada.
+ */
+export async function cambiarEstadoSucursal(idInterfaz: string, activa: boolean): Promise<ResultadoEscritura> {
+  if (!dbConfigurada()) return { ok: false, mensaje: "Sin base de datos no se puede cambiar el estado." };
+
+  const id = aUuid(idInterfaz);
+  const filas = await consultar<{ es_principal: boolean }>(
+    ORG_UUID,
+    `select es_principal from branch where organization_id = $1 and id = $2`,
+    [ORG_UUID, id],
+  );
+  if (!filas[0]) return { ok: false, mensaje: "No se encontró la sucursal." };
+  if (filas[0].es_principal && !activa) {
+    return { ok: false, mensaje: "La sucursal principal no se puede desactivar. Marca otra como principal primero." };
+  }
+
+  await consultar(
+    ORG_UUID,
+    `update branch set activa = $3 where organization_id = $1 and id = $2`,
+    [ORG_UUID, id, activa],
+  );
+  return { ok: true, id };
+}
+
+export type DatosMiembro = {
+  nombre: string;
+  email: string;
+  telefono?: string;
+  rol: AppUser["rol"];
+  branchId?: string;
+};
+
+export async function crearMiembro(datos: DatosMiembro): Promise<ResultadoEscritura> {
+  if (!dbConfigurada()) return { ok: false, mensaje: "Sin base de datos no se pueden invitar miembros." };
+
+  const organizacion = await getOrganization();
+  const existentes = await consultar<{ n: string }>(
+    ORG_UUID, `select count(*)::int as n from app_user where organization_id = $1`, [ORG_UUID],
+  );
+  if (Number(existentes[0].n) >= organizacion.limiteUsuarios) {
+    return {
+      ok: false,
+      mensaje: `Tu plan ${organizacion.plan} permite ${organizacion.limiteUsuarios} usuarios. Libera uno o cambia de plan.`,
+    };
+  }
+
+  try {
+    const filas = await consultar<{ id: string }>(
+      ORG_UUID,
+      `insert into app_user (organization_id, branch_id, nombre, email, telefono, rol)
+       values ($1,$2,$3,$4,$5,$6) returning id`,
+      [
+        ORG_UUID, datos.branchId ? aUuid(datos.branchId) : null,
+        datos.nombre, datos.email, datos.telefono ?? null, datos.rol,
+      ],
+    );
+    return { ok: true, id: filas[0].id };
+  } catch (e) {
+    // `unique (organization_id, email)`: el correo ya está en el equipo.
+    const detalle = e instanceof Error ? e.message : "";
+    return {
+      ok: false,
+      mensaje: detalle.includes("app_user_organization_id_email_key") || detalle.includes("duplicate key")
+        ? `${datos.email} ya es parte del equipo.`
+        : "No se pudo agregar el miembro.",
+    };
+  }
+}
+
+export async function actualizarMiembro(idInterfaz: string, datos: DatosMiembro): Promise<ResultadoEscritura> {
+  if (!dbConfigurada()) return { ok: false, mensaje: "Sin base de datos no se pueden editar miembros." };
+
+  const id = aUuid(idInterfaz);
+  await consultar(
+    ORG_UUID,
+    `update app_user set nombre = $3, email = $4, telefono = $5, rol = $6, branch_id = $7
+      where organization_id = $1 and id = $2`,
+    [
+      ORG_UUID, id, datos.nombre, datos.email, datos.telefono ?? null, datos.rol,
+      datos.branchId ? aUuid(datos.branchId) : null,
+    ],
+  );
+  return { ok: true, id };
+}
+
+/**
+ * Desactivar en vez de borrar: un vendedor tiene leads y ventas a su nombre.
+ * La organización no puede quedarse sin ningún dueño activo.
+ */
+export async function cambiarEstadoMiembro(idInterfaz: string, activo: boolean): Promise<ResultadoEscritura> {
+  if (!dbConfigurada()) return { ok: false, mensaje: "Sin base de datos no se puede cambiar el estado." };
+
+  const id = aUuid(idInterfaz);
+  if (!activo) {
+    const duenos = await consultar<{ n: string }>(
+      ORG_UUID,
+      `select count(*)::int as n from app_user
+        where organization_id = $1 and rol = 'owner' and activo and id <> $2`,
+      [ORG_UUID, id],
+    );
+    if (Number(duenos[0].n) === 0) {
+      return { ok: false, mensaje: "Tiene que quedar al menos un dueño activo en la organización." };
+    }
+  }
+
+  await consultar(
+    ORG_UUID,
+    `update app_user set activo = $3 where organization_id = $1 and id = $2`,
+    [ORG_UUID, id, activo],
+  );
+  return { ok: true, id };
 }

@@ -969,6 +969,48 @@ queda solo un `console.error` con el `wamid` para poder rastrearlo.
 todavía.** El webhook solo recibe. Conectarlo a una respuesta automática
 espera a la lógica del agente (Fase 7, ver la sección anterior).
 
+## 2026-09-07 — Sucursales y Equipo dejan de ser maquetas
+
+Las dos pantallas ya calcaban al original en columnas y datos, pero **ningún
+botón hacía nada**: crear, editar, filtrar y el menú de acciones estaban puestos
+y muertos. Ahora escriben en la base.
+
+**No se borra, se desactiva.** Una sucursal tiene vehículos, ventas y leads
+colgando, y un vendedor tiene leads a su nombre: borrarlos dejaría el historial
+sin dónde apoyarse. Dos reglas más, que la base no puede expresar sola y viven
+en la capa de datos: **la sucursal principal no se puede desactivar** —es la que
+hereda lo que no tiene sucursal asignada— y **tiene que quedar al menos un dueño
+activo**.
+
+**Los límites del plan se validan en el servidor, no solo en pantalla.** El
+encabezado muestra "2/10 usuarios"; si esa fuera la única barrera, bastaría una
+segunda pestaña para saltarla.
+
+**El código de sucursal (SUC-001) se calcula, no se pide.** La base tiene
+`unique (organization_id, codigo)` y el error de restricción no le dice nada a
+quien está creando una sucursal.
+
+**Los filtros de Equipo viven en la URL.** Se puede compartir el enlace, el botón
+de atrás funciona y recargar no pierde el filtro.
+
+### Tres bugs que solo aparecieron al hacerlo funcionar
+
+**`getUsers()` filtraba `and activo`.** Al desactivar a alguien desaparecía de la
+tabla y no se podía reactivar nunca — con una columna "Estado" y una acción
+"Desactivar" en pantalla. Ahora acepta `incluirInactivos`, que solo usa Equipo:
+el resto —asignar un lead, elegir vendedor— debe seguir viendo solo a los
+activos, porque ofrecer a alguien que ya no trabaja ahí es un error silencioso.
+
+**Los ids de la interfaz no siempre son uuid.** Al leer se traducen a los
+legibles de la semilla (`usr_juan`), así que un formulario puede devolver
+cualquiera de los dos. Se agregó `aUuid()`, con guardia: `uuidDe` aplicado a un
+uuid lo convertiría en otro distinto.
+
+**El menú de fila congelaba la página.** Su capa de clics a pantalla completa
+quedaba encima al abrir el diálogo de edición. Y al cerrarlo se llevaba el
+diálogo, porque estaba dentro del bloque condicional del menú: ahora el diálogo
+vive fuera y el menú solo lo abre.
+
 ## Decisiones pendientes
 
 - [ ] **¿Conectar Supabase antes de la Fase 2 o seguir con semilla?**

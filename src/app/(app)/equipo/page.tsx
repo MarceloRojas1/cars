@@ -1,8 +1,9 @@
-import { Plus, Mail, Phone, Building2, MoreHorizontal } from "lucide-react";
+import { Mail, Phone, Building2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getBranches, getOrganization, getUsers } from "@/lib/data";
+import { AccionesMiembro, DialogoMiembro } from "@/components/equipo/dialogo";
+import { FiltrosEquipo } from "@/components/equipo/filtros";
 
 export const metadata = { title: "Equipo" };
 
@@ -13,8 +14,21 @@ const ROL_ESTILO: Record<string, string> = {
   vendedor: "text-muted-foreground",
 };
 
-export default async function EquipoPage() {
-  const [users, branches, org] = await Promise.all([getUsers(), getBranches(), getOrganization()]);
+export default async function EquipoPage({ searchParams }: PageProps<"/equipo">) {
+  const sp = await searchParams;
+  const sucursalFiltro = typeof sp.sucursal === "string" ? sp.sucursal : "";
+  const rolFiltro = typeof sp.rol === "string" ? sp.rol : "";
+
+  const [todos, branches, org] = await Promise.all([getUsers(true), getBranches(), getOrganization()]);
+
+  // El filtro vive en la URL: así se puede compartir el enlace y el botón de
+  // atrás del navegador funciona, en vez de perderse el estado al recargar.
+  const users = todos.filter(
+    (u) =>
+      (!sucursalFiltro || u.branchId === sucursalFiltro) &&
+      (!rolFiltro || u.rol === rolFiltro),
+  );
+  const cupoLleno = todos.length >= org.limiteUsuarios;
 
   return (
     <>
@@ -23,17 +37,20 @@ export default async function EquipoPage() {
         descripcion="Administra los miembros de tu equipo"
         meta={
           <>
-            <span className="tabular font-medium text-foreground">{users.length}/{org.limiteUsuarios}</span>{" "}
-            usuarios en tu plan {org.plan} · {org.limiteUsuarios - users.length} disponibles
+            <span className="tabular font-medium text-foreground">{todos.length}/{org.limiteUsuarios}</span>{" "}
+            usuarios en tu plan {org.plan} · {org.limiteUsuarios - todos.length} disponibles
           </>
         }
-        accion={<Button className="gap-2"><Plus className="size-4" /> Nuevo miembro</Button>}
+        accion={<DialogoMiembro sucursales={branches} cupoLleno={cupoLleno} />}
       />
 
-      <div className="mb-4 flex gap-2">
-        <Button variant="outline" size="sm" className="h-9">Todas las sucursales</Button>
-        <Button variant="outline" size="sm" className="h-9">Todos los roles</Button>
-      </div>
+      <FiltrosEquipo
+        sucursales={branches}
+        sucursal={sucursalFiltro}
+        rol={rolFiltro}
+        mostrando={users.length}
+        total={todos.length}
+      />
 
       <div className="overflow-x-auto border-t border-border">
         <Table>
@@ -71,16 +88,14 @@ export default async function EquipoPage() {
                   ) : "Sin asignar"}
                 </TableCell>
                 <TableCell>
-                  <span className="inline-flex items-center gap-2 text-[12.5px] text-ok">
+                  <span className={`inline-flex items-center gap-2 text-[12.5px] ${u.activo ? "text-ok" : "text-muted-foreground"}`}>
                     <span className="size-[5px] rounded-full bg-current opacity-70" />
                     {u.activo ? "Activo" : "Inactivo"}
                   </span>
                 </TableCell>
                 <TableCell className="text-right text-[12.5px] text-muted-foreground">{u.ultimoAcceso}</TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="icon" className="size-7" aria-label="Acciones">
-                    <MoreHorizontal className="size-4" />
-                  </Button>
+                  <AccionesMiembro miembro={u} sucursales={branches} />
                 </TableCell>
               </TableRow>
             ))}

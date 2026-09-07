@@ -1,8 +1,8 @@
-import { Plus, MapPin, Phone, Mail, Users, MoreHorizontal } from "lucide-react";
+import { MapPin, Phone, Mail, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getBranches, getUsers } from "@/lib/data";
+import { AccionesSucursal, DialogoSucursal } from "@/components/sucursales/dialogo";
 
 export const metadata = { title: "Sucursales" };
 
@@ -14,7 +14,7 @@ export default async function SucursalesPage() {
       <PageHeader
         titulo="Sucursales"
         descripcion="Administra las sucursales de tu organización"
-        accion={<Button className="gap-2"><Plus className="size-4" /> Crear sucursal</Button>}
+        accion={<DialogoSucursal />}
       />
 
       <div className="overflow-x-auto border-t border-border">
@@ -50,14 +50,16 @@ export default async function SucursalesPage() {
                   <TableCell className="text-[12.5px] text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Users className="size-3.5" />
-                      {equipo.length} {equipo.length === 1 ? "vendedor" : "vendedores"}
+                      {equipo.length === 0
+                        ? "Sin asignar"
+                        : `${equipo.length} ${equipo.length === 1 ? "persona" : "personas"}`}
                     </span>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1.5">
-                      <span className="inline-flex items-center gap-2 text-[12.5px] text-ok">
+                      <span className={`inline-flex items-center gap-2 text-[12.5px] ${b.activa ? "text-ok" : "text-muted-foreground"}`}>
                         <span className="size-[5px] rounded-full bg-current opacity-70" />
-                        Activa
+                        {b.activa ? "Activa" : "Inactiva"}
                       </span>
                       {b.esPrincipal && (
                         <span className="overline">Principal</span>
@@ -66,9 +68,7 @@ export default async function SucursalesPage() {
                   </TableCell>
                   <TableCell className="text-right text-[12.5px] text-muted-foreground">{b.creadaHace}</TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" className="size-7" aria-label="Acciones">
-                      <MoreHorizontal className="size-4" />
-                    </Button>
+                    <AccionesSucursal sucursal={b} />
                   </TableCell>
                 </TableRow>
               );
