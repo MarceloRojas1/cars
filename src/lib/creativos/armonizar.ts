@@ -13,23 +13,26 @@ import { guardarImagenGenerada } from "@/lib/storage";
  * del piso, la sombra de contacto y la luz del auto ajustada a la del lugar.
  *
  * Se le manda el montaje ya hecho, no el recorte y el fondo por separado. Con
- * dos imágenes sueltas el modelo recompone la escena a su gusto: en la prueba
- * dio vuelta el auto y lo redibujó. Editando una imagen existente conserva pose,
- * tamaño y vehículo.
+ * dos imágenes sueltas el modelo ubica el auto donde quiere: se le pidió al 86%
+ * del ancho apoyado al 70% de altura y lo puso al 72% y al 62%. Eso rompe la
+ * pieza, porque el precio y los datos se posicionan respecto del vehículo.
+ * Editando una imagen existente respeta posición, tamaño y pose.
+ *
+ * El reflejo va condicionado al material —"solo si la superficie es
+ * reflectante"—, que es lo que ninguna fórmula nuestra sabía hacer: aplicábamos
+ * el mismo reflejo sobre mármol que sobre adoquín mojado.
  *
  * Los textos nunca se mandan: se dibujan encima del resultado.
  */
-const PRESERVAR =
-  "Keep the vehicle exactly as it is: same model, same body shape and proportions, " +
-  "same wheels and rims, same paint color, same badges and details, same position and size. " +
-  "Do not redraw, restyle or replace the car.";
-
 const INSTRUCCION =
-  `This image is a photo composite: a real car photo was pasted onto a background. ${PRESERVAR} ` +
-  "Integrate it into the scene photorealistically: match the lighting direction, color temperature " +
-  "and contrast of the environment on the car body, add a realistic contact shadow under the tires " +
-  "where they touch the floor, and a reflection on the floor consistent with that surface material. " +
-  "Keep the background as it is.";
+  "This image is a photo composite: a real car photo was pasted onto a background, flat and unlit. " +
+  "Keep the vehicle EXACTLY as it is — same model, body shape, proportions, wheels and rims, paint colour, " +
+  "badges, trim, and above all the SAME POSITION AND SIZE in the frame. Do not move it, do not resize it, " +
+  "do not mirror it, do not redraw it.\n\n" +
+  "Only integrate it into the scene: match the lighting direction, colour temperature, contrast and exposure " +
+  "of the environment onto the car body; add a realistic contact shadow under the tyres where they touch the " +
+  "ground; add a reflection on the ground ONLY if that surface is reflective, and none if it is matte. " +
+  "Leave the background unchanged. Photorealistic.";
 
 export type Montaje = {
   fondoUrl: string;

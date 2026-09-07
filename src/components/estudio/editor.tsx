@@ -83,10 +83,14 @@ export function EditorCreativo({
   function actualizar(id: string, cambios: Partial<Elemento>) {
     setCreativo((c) => ({
       ...c,
-      // Mover o cambiar el vehículo invalida la versión armonizada: la imagen
-      // integrada dejaría de corresponder al montaje. Los textos no la afectan,
-      // porque se dibujan encima.
-      armonizadoUrl: id === "auto" ? null : c.armonizadoUrl,
+      // Solo mover, redimensionar o cambiar el vehículo invalida la versión
+      // armonizada: ahí la imagen integrada deja de corresponder al montaje.
+      // La sombra y el reflejo NO la invalidan — en modo armonizado los pone el
+      // modelo, y descartar por eso tiraba a la basura una imagen ya pagada.
+      armonizadoUrl:
+        id === "auto" && ["x", "y", "ancho", "url"].some((k) => k in cambios)
+          ? null
+          : c.armonizadoUrl,
       elementos: c.elementos.map((e) => (e.id === id ? ({ ...e, ...cambios } as Elemento) : e)),
     }));
   }
@@ -233,37 +237,47 @@ export function EditorCreativo({
           style={{ aspectRatio: `${ANCHO}/${ALTO}` }}
         />
         <p className="text-[11.5px] text-muted-foreground">
-          Arrastra cualquier elemento. Se descarga en {ANCHO}×{ALTO}.
+          {creativo.armonizadoUrl
+            ? `Arrastra los textos para acomodarlos. Se descarga en ${ANCHO}×${ALTO}.`
+            : `Arrastra cualquier elemento. Se descarga en ${ANCHO}×${ALTO}.`}
         </p>
       </div>
 
       {/* panel */}
       <aside className="space-y-5">
+        {/*
+          El orden cuenta el flujo: primero la IA mete el auto en la escena,
+          después se acomodan los textos encima. Por eso poner el auto es la
+          acción principal y descargar queda al final, no arriba.
+        */}
+        <div>
+          <p className="overline mb-1.5">1 · El auto en la escena</p>
+          <Button
+            onClick={armonizar}
+            disabled={armonizando}
+            variant={creativo.armonizadoUrl ? "outline" : "default"}
+            className="h-9 w-full gap-2"
+          >
+            {armonizando ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+            {armonizando
+              ? "Poniendo el auto…"
+              : creativo.armonizadoUrl ? "Volver al montaje manual" : "Poner el auto con IA"}
+          </Button>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+            {creativo.armonizadoUrl
+              ? "Listo. Ahora mueve los textos: siguen siendo editables porque se dibujan encima."
+              : "Lo funde con el fondo —luz, sombra y reflejo según el piso—. Repinta el vehículo, tarda ~20 s y tiene costo."}
+          </p>
+        </div>
+
         <div className="flex gap-2">
           <Button onClick={recortar} disabled={recortando} variant="outline" className="h-9 flex-1 gap-2">
             {recortando ? <Loader2 className="size-3.5 animate-spin" /> : <Scissors className="size-3.5" />}
             {recortando ? "Recortando…" : "Recortar"}
           </Button>
-          <Button onClick={descargar} className="h-9 gap-2">
+          <Button onClick={descargar} variant="outline" className="h-9 flex-1 gap-2">
             <Download className="size-3.5" /> Descargar
           </Button>
-        </div>
-
-        <div>
-          <Button
-            onClick={armonizar} disabled={armonizando} variant="outline"
-            className="h-9 w-full gap-2"
-          >
-            {armonizando ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
-            {armonizando
-              ? "Armonizando…"
-              : creativo.armonizadoUrl ? "Volver al montaje" : "Armonizar con IA"}
-          </Button>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-            {creativo.armonizadoUrl
-              ? "El vehículo está integrado en la imagen. Los textos siguen siendo editables."
-              : "Funde el auto con el fondo: luz, sombra y reflejo reales. Repinta el vehículo, tarda ~15 s y tiene costo."}
-          </p>
         </div>
 
         {/* Cambiar de auto o de fondo se hace mirando, no leyendo una lista. */}
@@ -316,7 +330,9 @@ export function EditorCreativo({
         </div>
 
         <div>
-          <p className="overline mb-2">Capas</p>
+          <p className="overline mb-2">
+            {creativo.armonizadoUrl ? "2 · Textos" : "Capas"}
+          </p>
           <ul className="divide-y border border-border">
             {[...creativo.elementos].reverse().map((el) => (
               <li key={el.id}>
@@ -426,16 +442,25 @@ export function EditorCreativo({
               formato={(v) => `${Math.round(v * 100)} %`}
               alCambiar={(v) => actualizar(elemento.id, { ancho: v })}
             />
-            <Deslizador
-              etiqueta="Sombra" valor={elemento.sombra} min={0} max={1} paso={0.05}
-              formato={(v) => `${Math.round(v * 100)} %`}
-              alCambiar={(v) => actualizar(elemento.id, { sombra: v })}
-            />
-            <Deslizador
-              etiqueta="Reflejo" valor={elemento.reflejo} min={0} max={1} paso={0.02}
-              formato={(v) => `${Math.round(v * 100)} %`}
-              alCambiar={(v) => actualizar(elemento.id, { reflejo: v })}
-            />
+            {creativo.armonizadoUrl ? (
+              <p className="text-[11.5px] leading-relaxed text-muted-foreground">
+                La sombra y el reflejo los puso la IA según el material del piso.
+                Vuelve al montaje para ajustarlos a mano.
+              </p>
+            ) : (
+              <>
+                <Deslizador
+                  etiqueta="Sombra" valor={elemento.sombra} min={0} max={1} paso={0.05}
+                  formato={(v) => `${Math.round(v * 100)} %`}
+                  alCambiar={(v) => actualizar(elemento.id, { sombra: v })}
+                />
+                <Deslizador
+                  etiqueta="Reflejo" valor={elemento.reflejo} min={0} max={1} paso={0.02}
+                  formato={(v) => `${Math.round(v * 100)} %`}
+                  alCambiar={(v) => actualizar(elemento.id, { reflejo: v })}
+                />
+              </>
+            )}
           </div>
         )}
       </aside>
