@@ -1011,6 +1011,25 @@ quedaba encima al abrir el diálogo de edición. Y al cerrarlo se llevaba el
 diálogo, porque estaba dentro del bloque condicional del menú: ahora el diálogo
 vive fuera y el menú solo lo abre.
 
+## 2026-09-07 — El menú de acciones se monta en un portal
+
+El menú que había escrito a mano vivía **dentro** del contenedor con
+`overflow-x-auto` de la tabla. Al desplegarlo, el contenedor le hacía scroll:
+aparecían barras y el menú quedaba recortado y difícil de clickear.
+
+Se reemplazó por el `DropdownMenu` del proyecto, que se monta en un portal
+fuera de la tabla — el mismo que ya usaba `vehiculo-acciones.tsx`. De paso trae
+teclado, Escape y cierre al hacer clic fuera, que el menú a mano no tenía.
+
+**Las tablas de Sucursales y Equipo se paginan** con el `Paginacion` que ya
+existía, de a 10 como el inventario. El corte se hace en memoria a propósito: el
+plan más grande son decenas de usuarios, no miles; si algún día lo son, se mueve
+a la consulta.
+
+**Los cupos del plan no muestran negativos.** Si una organización baja de plan
+puede quedar con más usuarios que cupos: dice "sin cupos disponibles" y marca el
+contador en ámbar, en vez de "-2 disponibles".
+
 ## Decisiones pendientes
 
 - [ ] **¿Conectar Supabase antes de la Fase 2 o seguir con semilla?**

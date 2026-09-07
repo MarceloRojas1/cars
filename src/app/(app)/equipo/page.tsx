@@ -1,7 +1,8 @@
 import { Mail, Phone, Building2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getBranches, getOrganization, getUsers } from "@/lib/data";
+import { getBranches, getOrganization, getUsers, POR_PAGINA } from "@/lib/data";
+import { Paginacion } from "@/components/paginacion";
 import { AccionesMiembro, DialogoMiembro } from "@/components/equipo/dialogo";
 import { FiltrosEquipo } from "@/components/equipo/filtros";
 
@@ -23,12 +24,20 @@ export default async function EquipoPage({ searchParams }: PageProps<"/equipo">)
 
   // El filtro vive en la URL: así se puede compartir el enlace y el botón de
   // atrás del navegador funciona, en vez de perderse el estado al recargar.
-  const users = todos.filter(
+  const filtrados = todos.filter(
     (u) =>
       (!sucursalFiltro || u.branchId === sucursalFiltro) &&
       (!rolFiltro || u.rol === rolFiltro),
   );
   const cupoLleno = todos.length >= org.limiteUsuarios;
+  // Puede haber más usuarios que cupos si la organización bajó de plan: se
+  // muestra "sin cupos", no un número negativo.
+  const disponibles = Math.max(0, org.limiteUsuarios - todos.length);
+
+  // La paginación se hace en memoria a propósito: el plan más grande son
+  // decenas de usuarios, no miles. Si algún día lo son, se mueve a la consulta.
+  const pagina = Math.max(1, Number(sp.pagina) || 1);
+  const users = filtrados.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
 
   return (
     <>
@@ -37,8 +46,13 @@ export default async function EquipoPage({ searchParams }: PageProps<"/equipo">)
         descripcion="Administra los miembros de tu equipo"
         meta={
           <>
-            <span className="tabular font-medium text-foreground">{todos.length}/{org.limiteUsuarios}</span>{" "}
-            usuarios en tu plan {org.plan} · {org.limiteUsuarios - todos.length} disponibles
+            <span className={`tabular font-medium ${cupoLleno ? "text-warn" : "text-foreground"}`}>
+              {todos.length}/{org.limiteUsuarios}
+            </span>{" "}
+            usuarios en tu plan {org.plan} ·{" "}
+            {disponibles === 0
+              ? "sin cupos disponibles"
+              : `${disponibles} ${disponibles === 1 ? "disponible" : "disponibles"}`}
           </>
         }
         accion={<DialogoMiembro sucursales={branches} cupoLleno={cupoLleno} />}
@@ -48,7 +62,7 @@ export default async function EquipoPage({ searchParams }: PageProps<"/equipo">)
         sucursales={branches}
         sucursal={sucursalFiltro}
         rol={rolFiltro}
-        mostrando={users.length}
+        mostrando={filtrados.length}
         total={todos.length}
       />
 
@@ -102,6 +116,14 @@ export default async function EquipoPage({ searchParams }: PageProps<"/equipo">)
           </TableBody>
         </Table>
       </div>
+
+      <Paginacion
+        pagina={pagina}
+        total={filtrados.length}
+        porPagina={POR_PAGINA}
+        base="/equipo"
+        params={{ sucursal: sucursalFiltro || undefined, rol: rolFiltro || undefined }}
+      />
     </>
   );
 }

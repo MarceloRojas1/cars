@@ -1,13 +1,18 @@
 import { MapPin, Phone, Mail, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getBranches, getUsers } from "@/lib/data";
+import { getBranches, getUsers, POR_PAGINA } from "@/lib/data";
+import { Paginacion } from "@/components/paginacion";
 import { AccionesSucursal, DialogoSucursal } from "@/components/sucursales/dialogo";
 
 export const metadata = { title: "Sucursales" };
 
-export default async function SucursalesPage() {
-  const [branches, users] = await Promise.all([getBranches(), getUsers()]);
+export default async function SucursalesPage({ searchParams }: PageProps<"/sucursales">) {
+  const sp = await searchParams;
+  const pagina = Math.max(1, Number(sp.pagina) || 1);
+
+  const [todas, users] = await Promise.all([getBranches(), getUsers()]);
+  const branches = todas.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
 
   return (
     <>
@@ -76,6 +81,14 @@ export default async function SucursalesPage() {
           </TableBody>
         </Table>
       </div>
+
+      <Paginacion
+        pagina={pagina}
+        total={todas.length}
+        porPagina={POR_PAGINA}
+        base="/sucursales"
+        params={{}}
+      />
     </>
   );
 }

@@ -8,6 +8,9 @@ import {
 } from "@/app/(app)/sucursales/acciones";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Campo, Select, controlBase } from "@/components/form/campos";
@@ -151,48 +154,34 @@ export function DialogoSucursal({
 
 /** Menú de fila: editar y activar/desactivar. No hay borrar, a propósito. */
 export function AccionesSucursal({ sucursal }: { sucursal: Branch }) {
-  const [menu, setMenu] = useState(false);
   const [editando, setEditando] = useState(false);
   const [pendiente, iniciar] = useTransition();
 
   function cambiarEstado() {
     iniciar(async () => {
       const r = await cambiarEstadoSucursalAction(sucursal.id, !sucursal.activa);
-      setMenu(false);
       if (!r.ok) { toast.error("No se pudo cambiar el estado", { description: r.mensaje }); return; }
       toast.success(sucursal.activa ? "Sucursal desactivada" : "Sucursal activada");
     });
   }
 
   return (
-    <div className="relative">
-      <Button
-        variant="ghost" size="icon" className="size-7"
-        aria-label={`Acciones de ${sucursal.nombre}`}
-        onClick={() => setMenu((v) => !v)}
-      >
-        <MoreHorizontal className="size-4" />
-      </Button>
-
-      {menu && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setMenu(false)} />
-          <div className="absolute right-0 z-20 mt-1 w-40 border border-border bg-card py-1">
-            <button
-              onClick={() => { setMenu(false); setEditando(true); }}
-              className="w-full px-3 py-1.5 text-left text-[12.5px] hover:bg-accent/40"
-            >
-              Editar
-            </button>
-            <button
-              onClick={cambiarEstado} disabled={pendiente}
-              className="w-full px-3 py-1.5 text-left text-[12.5px] hover:bg-accent/40 disabled:opacity-50"
-            >
-              {sucursal.activa ? "Desactivar" : "Activar"}
-            </button>
-          </div>
-        </>
-      )}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button variant="ghost" size="icon" className="size-7" aria-label={`Acciones de ${sucursal.nombre}`}>
+              <MoreHorizontal className="size-4" />
+            </Button>
+          }
+        />
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuItem onClick={() => setEditando(true)}>Editar</DropdownMenuItem>
+          <DropdownMenuItem onClick={cambiarEstado} disabled={pendiente}>
+            {sucursal.activa ? "Desactivar" : "Activar"}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       {/* Fuera del menú: cerrarlo no debe desmontar el diálogo. */}
       <DialogoSucursal
@@ -200,6 +189,6 @@ export function AccionesSucursal({ sucursal }: { sucursal: Branch }) {
         abierto={editando}
         alCerrar={() => setEditando(false)}
       />
-    </div>
+    </>
   );
 }
