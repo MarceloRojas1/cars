@@ -44,7 +44,17 @@ export async function procesarMensajeWhatsapp(
     // El campo `referral` es lo que distingue un lead de campaña de uno
     // espontáneo (ver docs/decisiones.md, sección "El embudo").
     source: mensaje.referral ? "meta_ads" : "whatsapp",
-    externalId: mensaje.referral?.source_id ?? mensaje.id,
+    /*
+     * SIEMPRE el id del mensaje. `referral.source_id` es el id del ANUNCIO, o
+     * sea el mismo para todas las personas que hacen clic en él: usarlo como
+     * clave de idempotencia hacía que la primera persona creara el lead y
+     * todas las demás se descartaran como duplicadas — y sin registrar su
+     * mensaje. Un aviso que trae cincuenta leads dejaba uno.
+     *
+     * La atribución de campaña no se pierde: `referral` viaja completo dentro
+     * de `payload`, y `source` ya distingue meta_ads de whatsapp.
+     */
+    externalId: mensaje.id,
     nombre: contacto?.profile?.name,
     telefono,
     payload: mensaje,

@@ -1079,6 +1079,31 @@ perder algo que ya funcionaba.
 **La grilla pagina de a 12 y la tabla de a 10**: doce llenan tres o cuatro
 columnas sin dejar una fila coja.
 
+## 2026-09-08 — WhatsApp: la clave de idempotencia es el mensaje, no el anuncio
+
+Al conectar el número de prueba salió a la luz un bug que habría costado leads
+en silencio. El canal usaba `referral.source_id` como `externalId` cuando el chat
+nacía de un anuncio, y **ese id es el del ANUNCIO, no el del mensaje**: es el
+mismo para todas las personas que hacen clic en él.
+
+`registrarLeadEntrante` deduplica por `(source, external_id)`, así que **la
+primera persona creaba el lead y todas las demás se descartaban como
+duplicadas** — y sin registrar siquiera su mensaje, porque la bitácora solo se
+escribía cuando el estado era `creado`. Un aviso que trae cincuenta leads dejaba
+uno, sin ningún error visible.
+
+Ahora la clave es siempre `mensaje.id`. La atribución de campaña no se pierde:
+`referral` viaja completo en `payload` y `source` ya distingue `meta_ads`.
+
+**Y los reintentos ya no duplican mensajes.** Meta reentrega el webhook si no
+recibe 200 rápido; en un chat con lead existente eso insertaba la misma línea dos
+veces en la bitácora y subía el contador de la conversación de a dos. Se
+comprueba el `externalId` antes de insertar.
+
+Verificado simulando el webhook con firma HMAC válida: dos personas desde el
+mismo anuncio crean dos leads, el reintento del mismo mensaje no duplica, y una
+firma inválida recibe 401.
+
 ## Decisiones pendientes
 
 - [ ] **¿Conectar Supabase antes de la Fase 2 o seguir con semilla?**

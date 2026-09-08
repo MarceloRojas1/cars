@@ -491,6 +491,21 @@ export async function registrarMensajeWhatsapp(
   datos: { direccion: "entrante" | "saliente"; cuerpo: string; externalId?: string },
 ) {
   await enTransaccion(ORG_UUID, async (cliente) => {
+    /*
+     * Meta reentrega un webhook si no recibe 200 rápido, así que el mismo
+     * mensaje puede llegar dos veces. Sin este chequeo se duplicaba en la
+     * bitácora y el contador de la conversación subía de a dos.
+     */
+    if (datos.externalId) {
+      const { rows } = await cliente.query(
+        `select 1 from lead_activity
+          where lead_id = $1 and tipo = 'mensaje' and payload->>'externalId' = $2
+          limit 1`,
+        [leadId, datos.externalId],
+      );
+      if (rows.length) return;
+    }
+
     await cliente.query(
       `insert into lead_activity (lead_id, tipo, payload)
        values ($1, 'mensaje', $2)`,

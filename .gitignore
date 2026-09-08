@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# La plantilla SÍ va al repositorio: es la única referencia de qué
+# variables necesita el proyecto. No lleva valores, solo nombres.
+!.env.example
 
 # vercel
 .vercel
