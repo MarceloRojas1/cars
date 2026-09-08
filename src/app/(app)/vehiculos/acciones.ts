@@ -9,6 +9,7 @@ import {
 } from "@/lib/data";
 import { COMBUSTIBLES } from "@/lib/catalogos";
 import { consultarPatente } from "@/lib/patente";
+import { revalidarCatalogo } from "@/lib/catalogo/revalidar";
 
 /** Vacío en un formulario es "no informado", no cero ni cadena vacía. */
 const opcional = (v: unknown) => (v === "" || v === null ? undefined : v);
@@ -107,6 +108,7 @@ export async function crearVehiculoAction(
 
   revalidatePath("/vehiculos");
   revalidatePath("/dashboard");
+  await revalidarCatalogo();
   redirect("/vehiculos");
 }
 
@@ -114,9 +116,11 @@ export async function crearVehiculoAction(
 
 const ESTADOS = ["disponible", "pendiente", "reservado", "vendido"] as const;
 
-function revalidar() {
+async function revalidar(vehiculoId?: string) {
   revalidatePath("/vehiculos");
   revalidatePath("/dashboard");
+  // El catálogo público también: es lo que ve el comprador.
+  await revalidarCatalogo(vehiculoId);
 }
 
 export async function actualizarVehiculoAction(
@@ -143,7 +147,7 @@ export async function actualizarVehiculoAction(
     return { mensaje: e instanceof Error ? e.message : "No se pudo guardar." };
   }
 
-  revalidar();
+  await revalidar(id);
   redirect("/vehiculos");
 }
 
@@ -152,19 +156,22 @@ export async function cambiarEstadoAction(id: string, estado: string) {
   if (!valido.success) return { error: "Estado desconocido." };
 
   await cambiarEstadoVehiculo(id, valido.data);
-  revalidar();
+  await revalidar(id);
   return { ok: true };
 }
 
 export async function archivarAction(id: string, archivar: boolean) {
   await archivarVehiculo(id, archivar);
-  revalidar();
+  await revalidar(id);
   return { ok: true };
 }
 
 export async function eliminarAction(id: string) {
+  // El código se resuelve ANTES de borrar: después ya no hay fila que consultar.
+  await revalidarCatalogo(id);
   await eliminarVehiculo(id);
-  revalidar();
+  revalidatePath("/vehiculos");
+  revalidatePath("/dashboard");
   return { ok: true };
 }
 

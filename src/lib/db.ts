@@ -37,8 +37,15 @@ import type { PoolClient, QueryResultRow } from "pg";
  * que fijarla a nivel de conexión haría que una petición heredara la
  * organización de otra — exactamente la filtración que estamos evitando.
  *
- * El orgId siempre viene del servidor después de autenticar. Nunca de la URL,
- * de un formulario ni de una cabecera.
+ * El orgId siempre viene del servidor después de autenticar. Nunca de un
+ * formulario ni de una cabecera.
+ *
+ * ÚNICA EXCEPCIÓN: el catálogo público (`data/catalogo.ts`). Ahí no hay sesión
+ * —el visitante es un comprador anónimo— y la organización sale del slug de la
+ * URL. Es aceptable porque ese camino solo lee lo que una publicación muestra
+ * de todas formas: autos disponibles, no archivados y con fotos, y únicamente
+ * los campos de la lista blanca de `VehiculoPublico`. Ninguna otra consulta
+ * puede tomar la organización de la URL.
  */
 export async function consultar<T extends QueryResultRow>(
   orgId: string,

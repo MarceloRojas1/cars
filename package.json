@@ -10,7 +10,10 @@
     "db:seed": "tsx scripts/seed-db.ts",
     "test:aislamiento": "tsx --test tests/aislamiento.test.ts",
     "db:seed-sql": "tsx scripts/generar-seed-sql.ts",
-    "showrooms": "tsx scripts/generar-showrooms.ts"
+    "showrooms": "tsx scripts/generar-showrooms.ts",
+    "whatsapp:probar": "tsx scripts/probar-whatsapp.ts",
+    "alta": "tsx scripts/alta-automotora.ts",
+    "catalogo:probar": "tsx scripts/probar-catalogo.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",

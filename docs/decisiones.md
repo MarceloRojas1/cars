@@ -1172,6 +1172,61 @@ desarrollo local siga andando sin login. Con la aplicación pública, eso
 significaría que cualquiera ve esos datos. El salto es cambiar ese respaldo por
 un error.
 
+## 2026-09-08 — Catálogo público: la única parte abierta a internet
+
+La automotora publica su inventario en `{dominio}/{slug}`: listado en `/{slug}`
+y ficha en `/{slug}/vehiculos/{codigo}`. Se identifica por código y no por id
+porque el código es lo que la automotora dice por teléfono, lo que va en el
+anuncio y lo que el comprador copia — un uuid en la URL no le sirve a nadie.
+
+**La organización sale del slug de la URL, y esto contradice a propósito la
+regla de `db.ts`.** Ahí dice, con razón, que el orgId nunca viene de la URL: en
+el panel eso sería suplantación. Acá no hay sesión que consultar — el visitante
+es un comprador anónimo — así que el camino es otro y vive aparte, en
+`data/catalogo.ts`, para que la excepción sea visible en vez de estar escondida
+entre las consultas del panel. Es aceptable porque ese archivo solo puede leer
+lo que una publicación muestra igual: disponible, sin archivar, con al menos una
+foto, y únicamente los campos de `VehiculoPublico`. Es la misma técnica que
+`FichaPublica` usa con el bot: una lista blanca sostenida por el tipo.
+
+**Un auto sin fotos no sale, y eso se avisa en el panel.** La regla es del
+producto, no técnica: una publicación sin fotos no la mira nadie. Pero
+silenciarla sería peor, así que `/mi-sitio-web` dice cuántos vehículos
+disponibles quedaron fuera por eso y enlaza al inventario. En la base de
+desarrollo son 23 de 28.
+
+**`generateStaticParams` no es opcional aunque exista `revalidate`.** Sin él,
+Next trata la ruta dinámica como dinámica de verdad y la vuelve a renderizar en
+cada visita. Se descubrió midiéndolo contra el build de producción: se cambió el
+precio en la base y la ficha lo mostró al instante, mientras el listado —que sí
+es estático— seguía sirviendo el anterior. Se hornean las 50 fichas más
+recientes por automotora; el resto igual se guarda, pero al primer visitante,
+gracias a `dynamicParams`. El tope existe para que el despliegue no crezca con
+el inventario acumulado de todos los clientes.
+
+**El ciclo de actualización se probó completo, no solo compilado**: editar el
+precio en el panel de producción caducó la ficha y el listado públicos, y ambos
+mostraron el precio nuevo en la siguiente visita (`revalidarCatalogo()`, que
+traduce el id del vehículo a su código porque la ficha se dirige por código).
+
+**El número de WhatsApp va en `organization`, no en una variable de entorno.**
+Es distinto para cada automotora, y el teléfono de la sucursal no sirve: puede
+ser un fijo y el botón abre un chat. El mensaje precargado lleva el código del
+vehículo, que es exactamente lo que `identificarVehiculo()` busca primero: el
+comprador toca el botón y el bot ya sabe de qué auto se habla. El botón de
+copiar el código de la ficha cierra el mismo círculo por la vía manual.
+
+**El simulador de crédito muestra un rango y lo declara referencial.** No
+conocemos la tasa que le darán a esa persona. Una cuota exacta que después no se
+cumple es peor que no mostrar nada, así que se publica una banda de 1,7 %–1,9 %
+mensual con la advertencia de que no es una oferta de crédito.
+
+**La ficha usa una grilla de dos columnas y dos filas en vez de dos columnas
+sueltas.** En móvil el orden del DOM manda, y el botón de consultar tiene que ir
+antes de la ficha técnica. El primer intento duplicaba el encabezado y escondía
+uno con CSS: dejaba dos `<h1>` en el documento y el botón enterrado bajo las
+especificaciones.
+
 ## Decisiones pendientes
 
 - [ ] **¿Conectar Supabase antes de la Fase 2 o seguir con semilla?**
