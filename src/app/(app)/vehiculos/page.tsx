@@ -13,6 +13,8 @@ import {
 } from "@/lib/data";
 import { VehiculosFiltros } from "@/components/vehiculos-filtros";
 import { Paginacion } from "@/components/paginacion";
+import { VehiculosGrilla } from "@/components/vehiculos-grilla";
+import { LayoutGrid, Rows3 } from "lucide-react";
 
 export const metadata = { title: "Vehículos" };
 
@@ -31,6 +33,11 @@ export default async function VehiculosPage({ searchParams }: PageProps<"/vehicu
   const verArchivados = texto("vista") === "archivados";
   const pagina = entero("pagina") ?? 1;
 
+  // La grilla pide más por página: doce llenan tres o cuatro columnas sin
+  // dejar una fila coja; la tabla se lee mejor de a diez.
+  const enTabla = texto("modo") === "tabla";
+  const porPagina = enTabla ? POR_PAGINA : 12;
+
   const filtros = {
     q: texto("q"),
     marca: texto("marca"),
@@ -45,6 +52,7 @@ export default async function VehiculosPage({ searchParams }: PageProps<"/vehicu
     soloIncompletas: texto("incompletas") === "1",
     archivados: verArchivados,
     pagina,
+    porPagina,
   };
 
   const [{ vehiculos: vehicles, total }, cuentaArchivados, marcas, branches, users, org] =
@@ -106,13 +114,59 @@ export default async function VehiculosPage({ searchParams }: PageProps<"/vehicu
         ))}
       </nav>
 
-      <VehiculosFiltros
-        marcas={marcas}
-        sucursales={branches}
-        vendedores={users.filter((u) => u.rol === "vendedor" || u.rol === "owner")}
-      />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <VehiculosFiltros
+          marcas={marcas}
+          sucursales={branches}
+          vendedores={users.filter((u) => u.rol === "vendedor" || u.rol === "owner")}
+        />
+
+        {/*
+          Las dos vistas se quedan: la grilla para mirar el inventario, la tabla
+          para compararlo. Con cien autos y una columna de precios, una tabla
+          sigue siendo más rápida de barrer que cualquier grilla.
+        */}
+        <div className="flex overflow-hidden rounded-lg border border-border" role="group" aria-label="Vista">
+          {[
+            { modo: "grilla", etiqueta: "Grilla", Icono: LayoutGrid, activo: !enTabla },
+            { modo: "tabla", etiqueta: "Tabla", Icono: Rows3, activo: enTabla },
+          ].map(({ modo, etiqueta, Icono, activo }) => {
+            const q = new URLSearchParams(
+              Object.entries(sp).filter(([, v]) => typeof v === "string") as [string, string][],
+            );
+            q.delete("pagina");
+            if (modo === "tabla") q.set("modo", "tabla");
+            else q.delete("modo");
+            const cadena = q.toString();
+
+            return (
+              <Link
+                key={modo}
+                href={cadena ? `/vehiculos?${cadena}` : "/vehiculos"}
+                aria-current={activo ? "true" : undefined}
+                title={etiqueta}
+                className={`flex h-9 items-center gap-1.5 px-3 text-[12.5px] transition-colors ${
+                  activo ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icono className="size-3.5" strokeWidth={1.5} />
+                {etiqueta}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
 
 
+      {vehicles.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border px-6 py-16 text-center text-[13px] text-muted-foreground">
+          {verArchivados
+            ? "No hay vehículos archivados."
+            : total === 0 && Object.keys(sp).length > 0
+              ? "Ningún vehículo coincide con los filtros."
+              : "Todavía no cargas ningún vehículo."}
+        </p>
+      ) : enTabla ? (
       <div className="overflow-x-auto border-t border-border">
         <Table>
           <TableHeader>
@@ -201,11 +255,14 @@ export default async function VehiculosPage({ searchParams }: PageProps<"/vehicu
           </TableBody>
         </Table>
       </div>
+      ) : (
+        <VehiculosGrilla vehiculos={vehicles} sucursales={branches} />
+      )}
 
       <Paginacion
         pagina={pagina}
         total={total}
-        porPagina={POR_PAGINA}
+        porPagina={porPagina}
         base="/vehiculos"
         params={Object.fromEntries(
           Object.entries(sp).filter(([, v]) => typeof v === "string"),

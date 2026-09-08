@@ -1063,6 +1063,22 @@ salía como cuadrado vacío — y venía calcado del original.
 **Lo que NO se tocó:** las funcionalidades, las rutas, la capa de datos y la regla
 de que el color significa estado. El rediseño es de superficie a propósito.
 
+## 2026-09-08 — El inventario se ve en grilla, y la tabla se queda
+
+**La foto pasa a mandar.** Es el dato que más pesa al vender un auto y en una
+fila de tabla cabía en 52 píxeles. En tarjetas de 4:3 se ve el vehículo, y la
+**ausencia** de foto también: antes era un iconito gris fácil de pasar por alto,
+ahora es una tarjeta vacía que dice "Sin fotos" — y una publicación sin fotos no
+la ve nadie.
+
+**Las dos vistas conviven** (`?modo=tabla`). Con cien autos y una columna de
+precios, una tabla sigue siendo más rápida de barrer que cualquier grilla:
+comparar es su trabajo, mirar es el de la grilla. Borrar la tabla habría sido
+perder algo que ya funcionaba.
+
+**La grilla pagina de a 12 y la tabla de a 10**: doce llenan tres o cuatro
+columnas sin dejar una fila coja.
+
 ## Decisiones pendientes
 
 - [ ] **¿Conectar Supabase antes de la Fase 2 o seguir con semilla?**
