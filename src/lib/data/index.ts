@@ -13,7 +13,8 @@
  */
 import * as seed from "./seed";
 import { consultar, dbConfigurada, enTransaccion } from "@/lib/db";
-import { idSemilla, uuidDe, ORG_UUID, SUCURSAL_POR_DEFECTO } from "./ids";
+import { idSemilla, uuidDe, SUCURSAL_POR_DEFECTO } from "./ids";
+import { orgActual } from "@/lib/auth/sesion";
 import { calcularCompletitud } from "./completitud";
 import { MODELOS_SEMILLA } from "@/lib/catalogos";
 import { ESCENAS, promptDe } from "@/lib/ia/imagenes/escenas";
@@ -106,9 +107,9 @@ export async function getBranches(): Promise<Branch[]> {
   if (!dbConfigurada()) return seed.branches;
 
   const rows = await consultar<FilaSucursal>(
-    ORG_UUID,
+    (await orgActual()),
     `select * from branch where organization_id = $1 order by es_principal desc, nombre`,
-    [ORG_UUID],
+    [(await orgActual())],
   );
   return rows.map((b) => ({
     id: idSemilla(b.id)!,
@@ -134,11 +135,11 @@ export async function getUsers(incluirInactivos = false): Promise<AppUser[]> {
   if (!dbConfigurada()) return seed.users;
 
   const rows = await consultar<FilaUsuario>(
-    ORG_UUID,
+    (await orgActual()),
     `select * from app_user
       where organization_id = $1 and ($2::boolean or activo)
       order by nombre`,
-    [ORG_UUID, incluirInactivos],
+    [(await orgActual()), incluirInactivos],
   );
   return rows.map((u) => ({
     id: idSemilla(u.id)!,
@@ -160,7 +161,7 @@ export async function getVehicles(archivados = false): Promise<Vehicle[]> {
   if (!dbConfigurada()) return archivados ? [] : seed.vehicles;
 
   const rows = await consultar<FilaVehiculo>(
-    ORG_UUID,
+    (await orgActual()),
     `select v.*, p.url as foto_principal
        from vehicle v
        left join lateral (
@@ -172,7 +173,7 @@ export async function getVehicles(archivados = false): Promise<Vehicle[]> {
       where v.organization_id = $1
         and case when $2::boolean then v.archivado_at is not null else v.archivado_at is null end
       order by v.publicado_at desc nulls last`,
-    [ORG_UUID, archivados],
+    [(await orgActual()), archivados],
   );
   return rows.map(aVehiculo);
 }
@@ -195,14 +196,14 @@ export async function getVehiculo(id: string): Promise<Vehicle | null> {
   if (!ES_UUID.test(id)) return null;
 
   const rows = await consultar<FilaVehiculo>(
-    ORG_UUID,
+    (await orgActual()),
     `select * from vehicle where id = $1 and organization_id = $2`,
-    [id, ORG_UUID],
+    [id, (await orgActual())],
   );
   if (!rows[0]) return null;
 
   const fotos = await consultar<{ id: string; url: string; orden: number; es_principal: boolean }>(
-    ORG_UUID,
+    (await orgActual()),
     `select id, url, orden, es_principal from vehicle_photo
       where vehicle_id = $1 order by orden`,
     [id],
@@ -224,11 +225,11 @@ export async function getModelosDe(marca: string): Promise<string[]> {
   if (!dbConfigurada()) return semilla;
 
   const rows = await consultar<{ modelo: string }>(
-    ORG_UUID,
+    (await orgActual()),
     `select distinct modelo from vehicle
       where organization_id = $1 and marca = $2 and modelo is not null and modelo <> ''
       order by modelo`,
-    [ORG_UUID, marca],
+    [(await orgActual()), marca],
   );
   return [...new Set([...rows.map((r) => r.modelo), ...semilla])].sort((a, b) =>
     a.localeCompare(b, "es"),
@@ -243,9 +244,9 @@ export async function getStages(): Promise<Stage[]> {
   if (!dbConfigurada()) return [...seed.stages].sort((a, b) => a.orden - b.orden);
 
   const filas = await consultar<FilaEtapa>(
-    ORG_UUID,
+    (await orgActual()),
     `select * from stage where organization_id = $1 order by orden`,
-    [ORG_UUID],
+    [(await orgActual())],
   );
   return filas.map((f) => ({
     id: f.id, nombre: f.nombre, kind: f.kind, color: f.color ?? "#8A8A8E",
@@ -300,7 +301,7 @@ export async function getLeads(): Promise<Lead[]> {
   if (!dbConfigurada()) return seed.leads;
 
   const filas = await consultar<FilaLead>(
-    ORG_UUID,
+    (await orgActual()),
     // Lateral con límite y no un join directo: si un lead tuviera más de una
     // conversación, un join multiplicaría sus filas.
     `select l.*, coalesce(c.mensajes_count, 0) as mensajes
@@ -311,7 +312,7 @@ export async function getLeads(): Promise<Lead[]> {
        ) c on true
       where l.organization_id = $1
       order by l.created_at desc`,
-    [ORG_UUID],
+    [(await orgActual())],
   );
   return filas.map(aLead);
 }
@@ -331,10 +332,10 @@ export async function getIntegrations(): Promise<Integration[]> {
     proveedor: string; estado: string; cuenta: string | null;
     credenciales: { modelo?: string; pista?: string } | null;
   }>(
-    ORG_UUID,
+    (await orgActual()),
     `select proveedor, estado, cuenta, credenciales from integration
       where organization_id = $1`,
-    [ORG_UUID],
+    [(await orgActual())],
   );
   const porProveedor = new Map(filas.map((f) => [f.proveedor, f]));
 
@@ -388,16 +389,16 @@ export async function getAssistantConfig(): Promise<AssistantConfig> {
   if (!dbConfigurada()) return seed.assistantConfig;
 
   const filas = await consultar<FilaAssistantConfig>(
-    ORG_UUID,
+    (await orgActual()),
     `select * from assistant_config where organization_id = $1`,
-    [ORG_UUID],
+    [(await orgActual())],
   );
   return filas[0] ? aAssistantConfig(filas[0]) : seed.assistantConfig;
 }
 
 export async function guardarAssistantConfig(datos: AssistantConfig) {
   await consultar(
-    ORG_UUID,
+    (await orgActual()),
     `insert into assistant_config (
        organization_id, trigger_ctwa, trigger_contactos_nuevos,
        trigger_contactos_existentes, svc_consignacion, svc_compra_directa,
@@ -417,7 +418,7 @@ export async function guardarAssistantConfig(datos: AssistantConfig) {
        saludo = excluded.saludo, tono = excluded.tono,
        instrucciones = excluded.instrucciones, prohibiciones = excluded.prohibiciones`,
     [
-      ORG_UUID, datos.triggerCtwa, datos.triggerContactosNuevos,
+      (await orgActual()), datos.triggerCtwa, datos.triggerContactosNuevos,
       datos.triggerContactosExistentes, datos.servicioConsignacion,
       datos.servicioCompraDirecta, datos.servicioFinanciamiento, datos.modoConsultor,
       datos.antiguedadMaxFinanciamiento, datos.nombreAgente,
@@ -431,10 +432,10 @@ export async function getKnowledgeItems(): Promise<KnowledgeItem[]> {
   if (!dbConfigurada()) return seed.knowledgeItems;
 
   return consultar<KnowledgeItem>(
-    ORG_UUID,
+    (await orgActual()),
     `select id, titulo, contenido, tipo from knowledge_item
       where organization_id = $1 order by titulo`,
-    [ORG_UUID],
+    [(await orgActual())],
   );
 }
 
@@ -442,20 +443,20 @@ export async function crearKnowledgeItem(datos: {
   titulo: string; contenido: string; tipo: string;
 }): Promise<KnowledgeItem> {
   const filas = await consultar<KnowledgeItem>(
-    ORG_UUID,
+    (await orgActual()),
     `insert into knowledge_item (organization_id, titulo, contenido, tipo)
      values ($1,$2,$3,$4)
      returning id, titulo, contenido, tipo`,
-    [ORG_UUID, datos.titulo, datos.contenido, datos.tipo],
+    [(await orgActual()), datos.titulo, datos.contenido, datos.tipo],
   );
   return filas[0];
 }
 
 export async function eliminarKnowledgeItem(id: string) {
   await consultar(
-    ORG_UUID,
+    (await orgActual()),
     `delete from knowledge_item where id = $1 and organization_id = $2`,
-    [id, ORG_UUID],
+    [id, (await orgActual())],
   );
 }
 
@@ -473,10 +474,10 @@ export async function buscarLeadPorTelefono(
   if (!dbConfigurada()) return null;
 
   const filas = await consultar<{ id: string }>(
-    ORG_UUID,
+    (await orgActual()),
     `select id from lead where organization_id = $1 and telefono = $2
       order by created_at desc limit 1`,
-    [ORG_UUID, telefono],
+    [(await orgActual()), telefono],
   );
   return filas[0] ?? null;
 }
@@ -490,7 +491,7 @@ export async function registrarMensajeWhatsapp(
   leadId: string,
   datos: { direccion: "entrante" | "saliente"; cuerpo: string; externalId?: string },
 ) {
-  await enTransaccion(ORG_UUID, async (cliente) => {
+  await enTransaccion((await orgActual()), async (cliente) => {
     /*
      * Meta reentrega un webhook si no recibe 200 rápido, así que el mismo
      * mensaje puede llegar dos veces. Sin este chequeo se duplicaba en la
@@ -517,7 +518,7 @@ export async function registrarMensajeWhatsapp(
        on conflict (lead_id, canal) do update set
          mensajes_count = conversation.mensajes_count + 1,
          last_message_at = now()`,
-      [ORG_UUID, leadId],
+      [(await orgActual()), leadId],
     );
   });
 }
@@ -599,10 +600,10 @@ export type NuevoVehiculo = {
 /** Correlativo con el formato del producto: COD9xxxxx. */
 async function siguienteCodigo(): Promise<string> {
   const rows = await consultar<{ max: string | null }>(
-    ORG_UUID,
+    (await orgActual()),
     `select max(substring(codigo from 4)::bigint)::text as max
        from vehicle where organization_id = $1 and codigo ~ '^COD[0-9]+$'`,
-    [ORG_UUID],
+    [(await orgActual())],
   );
   const ultimo = rows[0]?.max ? Number(rows[0].max) : 922_000;
   return `COD${ultimo + 1}`;
@@ -612,7 +613,7 @@ export async function crearVehiculo(datos: NuevoVehiculo): Promise<Vehicle> {
   const codigo = await siguienteCodigo();
   const { fotos = [], ...escalares } = datos;
   const completitud = calcularCompletitud(escalares);
-  return enTransaccion(ORG_UUID, async (cliente) => {
+  return enTransaccion((await orgActual()), async (cliente) => {
     const { rows } = await cliente.query<FilaVehiculo>(
       `insert into vehicle (
          organization_id, branch_id, vendedor_id, codigo, titulo, marca, modelo,
@@ -624,7 +625,7 @@ export async function crearVehiculo(datos: NuevoVehiculo): Promise<Vehicle> {
                $20,$21,$22,$23,$24,$25,$26,$27,$29,$30,$31,'disponible',$28, now())
        returning *`,
       [
-        ORG_UUID,
+        (await orgActual()),
         datos.branchId ? uuidDe(datos.branchId) : SUCURSAL_POR_DEFECTO,
         datos.vendedorId ? uuidDe(datos.vendedorId) : null,
         codigo, datos.titulo, datos.marca, datos.modelo, datos.version ?? null,
@@ -661,10 +662,10 @@ export async function getCatalogoModelos(): Promise<Record<string, string[]>> {
   }
   if (dbConfigurada()) {
     const rows = await consultar<{ marca: string; modelo: string }>(
-      ORG_UUID,
+      (await orgActual()),
       `select distinct marca, modelo from vehicle
         where organization_id = $1 and marca is not null and modelo is not null and modelo <> ''`,
-      [ORG_UUID],
+      [(await orgActual())],
     );
     for (const { marca, modelo } of rows) {
       (catalogo[marca] ??= new Set()).add(modelo);
@@ -681,7 +682,7 @@ export async function getCatalogoModelos(): Promise<Record<string, string[]>> {
 export async function actualizarVehiculo(id: string, datos: NuevoVehiculo): Promise<void> {
   const { fotos = [], ...escalares } = datos;
   const completitud = calcularCompletitud(escalares);
-  await enTransaccion(ORG_UUID, async (cliente) => {
+  await enTransaccion((await orgActual()), async (cliente) => {
     const { rowCount } = await cliente.query(
       `update vehicle set
          branch_id = $2, vendedor_id = $3, titulo = $4, marca = $5, modelo = $6,
@@ -704,7 +705,7 @@ export async function actualizarVehiculo(id: string, datos: NuevoVehiculo): Prom
         datos.pieFinanciamiento ?? null, datos.permisoCirculacionVence || null,
         datos.revisionTecnicaVence || null, datos.cantidadDuenos ?? null,
         datos.tags, datos.equipamiento ?? null, datos.descripcion ?? null,
-        datos.region ?? null, datos.comuna ?? null, completitud, ORG_UUID,
+        datos.region ?? null, datos.comuna ?? null, completitud, (await orgActual()),
         datos.vin ?? null, datos.numeroMotor ?? null, datos.cilindrada ?? null,
       ],
     );
@@ -723,19 +724,19 @@ export async function actualizarVehiculo(id: string, datos: NuevoVehiculo): Prom
 }
 
 export async function cambiarEstadoVehiculo(id: string, estado: Vehicle["estado"]) {
-  await consultar(ORG_UUID,
+  await consultar((await orgActual()),
     `update vehicle set estado = $3, actualizado_at = now()
       where id = $1 and organization_id = $2`,
-    [id, ORG_UUID, estado],
+    [id, (await orgActual()), estado],
   );
 }
 
 /** Archivar no borra: saca del listado activo y se puede revertir. */
 export async function archivarVehiculo(id: string, archivar = true) {
-  await consultar(ORG_UUID,
+  await consultar((await orgActual()),
     `update vehicle set archivado_at = $3, actualizado_at = now()
       where id = $1 and organization_id = $2`,
-    [id, ORG_UUID, archivar ? new Date() : null],
+    [id, (await orgActual()), archivar ? new Date() : null],
   );
 }
 
@@ -745,7 +746,7 @@ export async function archivarVehiculo(id: string, archivar = true) {
  * contactos — pero la ficha no vuelve.
  */
 export async function eliminarVehiculo(id: string) {
-  await consultar(ORG_UUID, `delete from vehicle where id = $1 and organization_id = $2`, [id, ORG_UUID]);
+  await consultar((await orgActual()), `delete from vehicle where id = $1 and organization_id = $2`, [id, (await orgActual())]);
 }
 
 /* --- búsqueda con filtros y paginación --- */
@@ -793,7 +794,7 @@ export async function buscarVehiculos(
     "v.organization_id = $1",
     f.archivados ? "v.archivado_at is not null" : "v.archivado_at is null",
   ];
-  const params: unknown[] = [ORG_UUID];
+  const params: unknown[] = [(await orgActual())];
   const agregar = (sql: string, valor: unknown) => {
     params.push(valor);
     // replaceAll y no replace: la búsqueda usa el mismo parámetro varias veces.
@@ -816,7 +817,7 @@ export async function buscarVehiculos(
 
   params.push(porPagina, (pagina - 1) * porPagina);
   const filas = await consultar<FilaVehiculo & { total: string }>(
-    ORG_UUID,
+    (await orgActual()),
     `select v.*, p.url as foto_principal, count(*) over() as total
        from vehicle v
        left join lateral (
@@ -841,10 +842,10 @@ export async function getMarcasEnInventario(): Promise<string[]> {
     return [...new Set(seed.vehicles.map((v) => v.marca))].sort((a, b) => a.localeCompare(b, "es"));
   }
   const filas = await consultar<{ marca: string }>(
-    ORG_UUID,
+    (await orgActual()),
     `select distinct marca from vehicle
       where organization_id = $1 and marca is not null and marca <> '' order by marca`,
-    [ORG_UUID],
+    [(await orgActual())],
   );
   return filas.map((f) => f.marca);
 }
@@ -877,12 +878,12 @@ export async function moverLead(
 ): Promise<ResultadoMovimiento> {
   const { elegirVendedor } = await import("@/lib/leads/routing");
 
-  return enTransaccion(ORG_UUID, async (cliente) => {
+  return enTransaccion((await orgActual()), async (cliente) => {
     const { rows: leads } = await cliente.query(
       `select l.*, e.responsable as etapa_responsable
          from lead l join stage e on e.id = l.stage_id
         where l.id = $1 and l.organization_id = $2`,
-      [leadId, ORG_UUID],
+      [leadId, (await orgActual())],
     );
     if (!leads[0]) return { ok: false, error: "El lead no existe." };
     const lead = leads[0];
@@ -890,7 +891,7 @@ export async function moverLead(
 
     const { rows: etapas } = await cliente.query(
       `select * from stage where id = $1 and organization_id = $2`,
-      [stageId, ORG_UUID],
+      [stageId, (await orgActual())],
     );
     if (!etapas[0]) return { ok: false, error: "La etapa no existe." };
     const destino = etapas[0];
@@ -910,7 +911,7 @@ export async function moverLead(
          traspasado_at = case when $5 then now() else traspasado_at end,
          perdido = ($6 = 'exit_lost')
        where id = $1 and organization_id = $2`,
-      [leadId, ORG_UUID, stageId, vendedorId ?? null, traspasado, destino.kind],
+      [leadId, (await orgActual()), stageId, vendedorId ?? null, traspasado, destino.kind],
     );
 
     await cliente.query(
@@ -928,7 +929,7 @@ export async function moverLead(
       const { rows } = await cliente.query(
         `update vehicle set estado = 'vendido', actualizado_at = now()
           where id = $1 and organization_id = $2 returning id, titulo`,
-        [lead.vehicle_id, ORG_UUID],
+        [lead.vehicle_id, (await orgActual())],
       );
       if (rows[0]) vehiculoGanado = { id: rows[0].id, titulo: rows[0].titulo };
     }
@@ -939,9 +940,9 @@ export async function moverLead(
 
 export async function asignarLead(leadId: string, vendedorId: string | null) {
   await consultar(
-    ORG_UUID,
+    (await orgActual()),
     `update lead set vendedor_id = $3 where id = $1 and organization_id = $2`,
-    [leadId, ORG_UUID, vendedorId ? uuidDe(vendedorId) : null],
+    [leadId, (await orgActual()), vendedorId ? uuidDe(vendedorId) : null],
   );
 }
 
@@ -959,19 +960,19 @@ export type NuevoLead = {
 /** Alta manual, la del botón "Añadir lead". Entra por la misma puerta. */
 export async function crearLead(datos: NuevoLead): Promise<string> {
   const etapas = await consultar<{ id: string }>(
-    ORG_UUID,
+    (await orgActual()),
     `select id from stage where organization_id = $1 and kind = 'entry' order by orden limit 1`,
-    [ORG_UUID],
+    [(await orgActual())],
   );
   if (!etapas[0]) throw new Error("El embudo no tiene etapa de entrada.");
 
-  return enTransaccion(ORG_UUID, async (cliente) => {
+  return enTransaccion((await orgActual()), async (cliente) => {
     const { rows } = await cliente.query<{ id: string }>(
       `insert into lead (organization_id, stage_id, vehicle_id, vendedor_id,
          nombre, telefono, email, source, tipo, temperatura, notas)
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,'warm',$10) returning id`,
       [
-        ORG_UUID, etapas[0].id, datos.vehicleId ?? null,
+        (await orgActual()), etapas[0].id, datos.vehicleId ?? null,
         datos.vendedorId ? uuidDe(datos.vendedorId) : null,
         datos.nombre, datos.telefono, datos.email ?? null,
         datos.source, datos.tipo ?? null, datos.notas ?? null,
@@ -1016,7 +1017,7 @@ export async function getDetalleLead(leadId: string): Promise<DetalleLead | null
   if (!ES_UUID.test(leadId)) return null;
 
   const leads = await consultar<FilaLead>(
-    ORG_UUID,
+    (await orgActual()),
     `select l.*, coalesce(c.mensajes_count, 0) as mensajes
        from lead l
        left join lateral (
@@ -1024,7 +1025,7 @@ export async function getDetalleLead(leadId: string): Promise<DetalleLead | null
           where lead_id = l.id order by last_message_at desc nulls last limit 1
        ) c on true
       where l.id = $1 and l.organization_id = $2`,
-    [leadId, ORG_UUID],
+    [leadId, (await orgActual())],
   );
   if (!leads[0]) return null;
 
@@ -1032,7 +1033,7 @@ export async function getDetalleLead(leadId: string): Promise<DetalleLead | null
     id: string; tipo: string; desde: string | null; hasta: string | null;
     actor: string | null; created_at: Date; payload: { traspaso?: boolean } | null;
   }>(
-    ORG_UUID,
+    (await orgActual()),
     `select a.id, a.tipo, d.nombre as desde, h.nombre as hasta,
             u.nombre as actor, a.created_at, a.payload
        from lead_activity a
@@ -1046,12 +1047,12 @@ export async function getDetalleLead(leadId: string): Promise<DetalleLead | null
   );
 
   const notas = await consultar<{ id: string; texto: string; autor: string | null; created_at: Date }>(
-    ORG_UUID,
+    (await orgActual()),
     `select n.id, n.texto, u.nombre as autor, n.created_at
        from lead_note n left join app_user u on u.id = n.autor_id
       where n.lead_id = $1 and n.organization_id = $2
       order by n.created_at desc`,
-    [leadId, ORG_UUID],
+    [leadId, (await orgActual())],
   );
 
   const fecha = (d: Date) =>
@@ -1077,18 +1078,18 @@ export async function getDetalleLead(leadId: string): Promise<DetalleLead | null
 
 export async function agregarNotaLead(leadId: string, texto: string, autorId?: string) {
   await consultar(
-    ORG_UUID,
+    (await orgActual()),
     `insert into lead_note (organization_id, lead_id, autor_id, texto)
      values ($1, $2, $3, $4)`,
-    [ORG_UUID, leadId, autorId ? uuidDe(autorId) : null, texto],
+    [(await orgActual()), leadId, autorId ? uuidDe(autorId) : null, texto],
   );
 }
 
 export async function cambiarVehiculoLead(leadId: string, vehicleId: string | null) {
   await consultar(
-    ORG_UUID,
+    (await orgActual()),
     `update lead set vehicle_id = $3 where id = $1 and organization_id = $2`,
-    [leadId, ORG_UUID, vehicleId],
+    [leadId, (await orgActual()), vehicleId],
   );
 }
 
@@ -1101,7 +1102,7 @@ export async function guardarIntegracion(
   datos: { estado: string; cuenta?: string; credenciales?: Record<string, unknown> },
 ) {
   await consultar(
-    ORG_UUID,
+    (await orgActual()),
     `insert into integration (organization_id, proveedor, estado, cuenta, credenciales)
      values ($1,$2,$3,$4,$5)
      on conflict (organization_id, proveedor)
@@ -1109,7 +1110,7 @@ export async function guardarIntegracion(
                    cuenta = excluded.cuenta,
                    credenciales = excluded.credenciales`,
     [
-      ORG_UUID, proveedor, datos.estado, datos.cuenta ?? null,
+      (await orgActual()), proveedor, datos.estado, datos.cuenta ?? null,
       datos.credenciales ? JSON.stringify(datos.credenciales) : null,
     ],
   );
@@ -1117,10 +1118,10 @@ export async function guardarIntegracion(
 
 export async function desconectarIntegracion(proveedor: string) {
   await consultar(
-    ORG_UUID,
+    (await orgActual()),
     `update integration set estado = 'no_conectado', cuenta = null, credenciales = null
       where organization_id = $1 and proveedor = $2`,
-    [ORG_UUID, proveedor],
+    [(await orgActual()), proveedor],
   );
 }
 
@@ -1158,11 +1159,11 @@ export async function getShowrooms(): Promise<{ biblioteca: Showroom[]; propios:
     id: string; nombre: string; url: string; linea_piso: number;
     usos: number; modelo: string | null; prompt: string | null;
   }>(
-    ORG_UUID,
+    (await orgActual()),
     `select id, nombre, url, linea_piso, usos, modelo, prompt from showroom
       where organization_id = $1
       order by created_at desc`,
-    [ORG_UUID],
+    [(await orgActual())],
   );
 
   return {
@@ -1194,13 +1195,13 @@ export type NuevoShowroom = {
 
 export async function crearShowroom(datos: NuevoShowroom): Promise<string> {
   const filas = await consultar<{ id: string }>(
-    ORG_UUID,
+    (await orgActual()),
     `insert into showroom
        (organization_id, nombre, url, proveedor, modelo, prompt, semilla, linea_piso, ancho, alto)
      values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
      returning id`,
     [
-      ORG_UUID, datos.nombre, datos.url, datos.proveedor, datos.modelo,
+      (await orgActual()), datos.nombre, datos.url, datos.proveedor, datos.modelo,
       datos.prompt, datos.semilla ?? null, datos.lineaPiso, datos.ancho, datos.alto,
     ],
   );
@@ -1218,9 +1219,9 @@ export async function crearShowroom(datos: NuevoShowroom): Promise<string> {
  */
 async function siguienteCodigoSucursal(): Promise<string> {
   const filas = await consultar<{ codigo: string }>(
-    ORG_UUID,
+    (await orgActual()),
     `select codigo from branch where organization_id = $1 order by codigo desc limit 1`,
-    [ORG_UUID],
+    [(await orgActual())],
   );
   const ultimo = Number(filas[0]?.codigo?.replace(/\D/g, "") ?? 0);
   return `SUC-${String(ultimo + 1).padStart(3, "0")}`;
@@ -1245,9 +1246,9 @@ export async function crearSucursal(datos: DatosSucursal): Promise<ResultadoEscr
 
   const organizacion = await getOrganization();
   const existentes = await consultar<{ n: string }>(
-    ORG_UUID,
+    (await orgActual()),
     `select count(*)::int as n from branch where organization_id = $1`,
-    [ORG_UUID],
+    [(await orgActual())],
   );
   // El límite del plan se muestra en pantalla, así que también se respeta acá:
   // si solo viviera en la interfaz, bastaría una segunda pestaña para saltarlo.
@@ -1258,10 +1259,10 @@ export async function crearSucursal(datos: DatosSucursal): Promise<ResultadoEscr
     };
   }
 
-  return enTransaccion(ORG_UUID, async (cliente) => {
+  return enTransaccion((await orgActual()), async (cliente) => {
     if (datos.esPrincipal) {
       await cliente.query(
-        `update branch set es_principal = false where organization_id = $1`, [ORG_UUID],
+        `update branch set es_principal = false where organization_id = $1`, [(await orgActual())],
       );
     }
     const { rows } = await cliente.query<{ id: string }>(
@@ -1269,7 +1270,7 @@ export async function crearSucursal(datos: DatosSucursal): Promise<ResultadoEscr
          (organization_id, codigo, nombre, direccion, comuna, region, telefono, email, es_principal)
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id`,
       [
-        ORG_UUID, await siguienteCodigoSucursal(), datos.nombre,
+        (await orgActual()), await siguienteCodigoSucursal(), datos.nombre,
         datos.direccion ?? null, datos.comuna ?? null, datos.region ?? null,
         datos.telefono ?? null, datos.email ?? null, datos.esPrincipal ?? false,
       ],
@@ -1282,12 +1283,12 @@ export async function actualizarSucursal(idInterfaz: string, datos: DatosSucursa
   if (!dbConfigurada()) return { ok: false, mensaje: "Sin base de datos no se pueden editar sucursales." };
 
   const id = aUuid(idInterfaz);
-  return enTransaccion(ORG_UUID, async (cliente) => {
+  return enTransaccion((await orgActual()), async (cliente) => {
     // Una sola principal por organización: marcar una desmarca la anterior.
     if (datos.esPrincipal) {
       await cliente.query(
         `update branch set es_principal = false where organization_id = $1 and id <> $2`,
-        [ORG_UUID, id],
+        [(await orgActual()), id],
       );
     }
     await cliente.query(
@@ -1295,7 +1296,7 @@ export async function actualizarSucursal(idInterfaz: string, datos: DatosSucursa
                          telefono = $7, email = $8, es_principal = $9
         where organization_id = $1 and id = $2`,
       [
-        ORG_UUID, id, datos.nombre, datos.direccion ?? null, datos.comuna ?? null,
+        (await orgActual()), id, datos.nombre, datos.direccion ?? null, datos.comuna ?? null,
         datos.region ?? null, datos.telefono ?? null, datos.email ?? null,
         datos.esPrincipal ?? false,
       ],
@@ -1316,9 +1317,9 @@ export async function cambiarEstadoSucursal(idInterfaz: string, activa: boolean)
 
   const id = aUuid(idInterfaz);
   const filas = await consultar<{ es_principal: boolean }>(
-    ORG_UUID,
+    (await orgActual()),
     `select es_principal from branch where organization_id = $1 and id = $2`,
-    [ORG_UUID, id],
+    [(await orgActual()), id],
   );
   if (!filas[0]) return { ok: false, mensaje: "No se encontró la sucursal." };
   if (filas[0].es_principal && !activa) {
@@ -1326,9 +1327,9 @@ export async function cambiarEstadoSucursal(idInterfaz: string, activa: boolean)
   }
 
   await consultar(
-    ORG_UUID,
+    (await orgActual()),
     `update branch set activa = $3 where organization_id = $1 and id = $2`,
-    [ORG_UUID, id, activa],
+    [(await orgActual()), id, activa],
   );
   return { ok: true, id };
 }
@@ -1346,7 +1347,7 @@ export async function crearMiembro(datos: DatosMiembro): Promise<ResultadoEscrit
 
   const organizacion = await getOrganization();
   const existentes = await consultar<{ n: string }>(
-    ORG_UUID, `select count(*)::int as n from app_user where organization_id = $1`, [ORG_UUID],
+    (await orgActual()), `select count(*)::int as n from app_user where organization_id = $1`, [(await orgActual())],
   );
   if (Number(existentes[0].n) >= organizacion.limiteUsuarios) {
     return {
@@ -1357,11 +1358,11 @@ export async function crearMiembro(datos: DatosMiembro): Promise<ResultadoEscrit
 
   try {
     const filas = await consultar<{ id: string }>(
-      ORG_UUID,
+      (await orgActual()),
       `insert into app_user (organization_id, branch_id, nombre, email, telefono, rol)
        values ($1,$2,$3,$4,$5,$6) returning id`,
       [
-        ORG_UUID, datos.branchId ? aUuid(datos.branchId) : null,
+        (await orgActual()), datos.branchId ? aUuid(datos.branchId) : null,
         datos.nombre, datos.email, datos.telefono ?? null, datos.rol,
       ],
     );
@@ -1383,11 +1384,11 @@ export async function actualizarMiembro(idInterfaz: string, datos: DatosMiembro)
 
   const id = aUuid(idInterfaz);
   await consultar(
-    ORG_UUID,
+    (await orgActual()),
     `update app_user set nombre = $3, email = $4, telefono = $5, rol = $6, branch_id = $7
       where organization_id = $1 and id = $2`,
     [
-      ORG_UUID, id, datos.nombre, datos.email, datos.telefono ?? null, datos.rol,
+      (await orgActual()), id, datos.nombre, datos.email, datos.telefono ?? null, datos.rol,
       datos.branchId ? aUuid(datos.branchId) : null,
     ],
   );
@@ -1404,10 +1405,10 @@ export async function cambiarEstadoMiembro(idInterfaz: string, activo: boolean):
   const id = aUuid(idInterfaz);
   if (!activo) {
     const duenos = await consultar<{ n: string }>(
-      ORG_UUID,
+      (await orgActual()),
       `select count(*)::int as n from app_user
         where organization_id = $1 and rol = 'owner' and activo and id <> $2`,
-      [ORG_UUID, id],
+      [(await orgActual()), id],
     );
     if (Number(duenos[0].n) === 0) {
       return { ok: false, mensaje: "Tiene que quedar al menos un dueño activo en la organización." };
@@ -1415,9 +1416,9 @@ export async function cambiarEstadoMiembro(idInterfaz: string, activo: boolean):
   }
 
   await consultar(
-    ORG_UUID,
+    (await orgActual()),
     `update app_user set activo = $3 where organization_id = $1 and id = $2`,
-    [ORG_UUID, id, activo],
+    [(await orgActual()), id, activo],
   );
   return { ok: true, id };
 }
@@ -1440,16 +1441,16 @@ export async function contextoDelBot(leadId: string): Promise<{
   const filas = await consultar<{
     stage_id: string; responsable: "ia" | "humano"; vehicle_id: string | null;
   }>(
-    ORG_UUID,
+    (await orgActual()),
     `select l.stage_id, e.responsable, l.vehicle_id
        from lead l join stage e on e.id = l.stage_id
       where l.id = $1 and l.organization_id = $2`,
-    [leadId, ORG_UUID],
+    [leadId, (await orgActual())],
   );
   if (!filas[0]) return null;
 
   const mensajes = await consultar<{ direccion: string; cuerpo: string }>(
-    ORG_UUID,
+    (await orgActual()),
     `select a.payload->>'direccion' as direccion, a.payload->>'cuerpo' as cuerpo
        from lead_activity a
       where a.lead_id = $1 and a.tipo = 'mensaje'
@@ -1477,11 +1478,11 @@ export async function contextoDelBot(leadId: string): Promise<{
 export async function primeraEtapaHumana(): Promise<{ id: string; nombre: string } | null> {
   if (!dbConfigurada()) return null;
   const filas = await consultar<{ id: string; nombre: string }>(
-    ORG_UUID,
+    (await orgActual()),
     `select id, nombre from stage
       where organization_id = $1 and responsable = 'humano' and kind = 'progress'
       order by orden limit 1`,
-    [ORG_UUID],
+    [(await orgActual())],
   );
   return filas[0] ?? null;
 }

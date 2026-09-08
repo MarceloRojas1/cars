@@ -1,5 +1,5 @@
 import { consultar, enTransaccion } from "@/lib/db";
-import { ORG_UUID } from "@/lib/data/ids";
+import { orgActual } from "@/lib/auth/sesion";
 import { elegirVendedor } from "./routing";
 
 /**
@@ -43,20 +43,20 @@ export async function registrarLeadEntrante(
   // 1. Idempotencia: si ya se procesó este evento, no se crea otro lead.
   if (entrada.externalId) {
     const previos = await consultar<{ id: string }>(
-      ORG_UUID,
+      (await orgActual()),
       `select id from lead
         where organization_id = $1 and source = $2 and external_id = $3`,
-      [ORG_UUID, entrada.source, entrada.externalId],
+      [(await orgActual()), entrada.source, entrada.externalId],
     );
     if (previos[0]) return { estado: "duplicado", leadId: previos[0].id };
   }
 
   // 2. Etapa de entrada del embudo de esta organización.
   const etapas = await consultar<{ id: string; responsable: string }>(
-    ORG_UUID,
+    (await orgActual()),
     `select id, responsable from stage
       where organization_id = $1 and kind = 'entry' order by orden limit 1`,
-    [ORG_UUID],
+    [(await orgActual())],
   );
   if (!etapas[0]) return { estado: "rechazado", motivo: "El embudo no tiene etapa de entrada." };
   const etapa = etapas[0];
@@ -66,9 +66,9 @@ export async function registrarLeadEntrante(
   let branchId: string | undefined;
   if (entrada.vehiculoCodigo) {
     const v = await consultar<{ id: string; branch_id: string | null }>(
-      ORG_UUID,
+      (await orgActual()),
       `select id, branch_id from vehicle where organization_id = $1 and codigo = $2`,
-      [ORG_UUID, entrada.vehiculoCodigo],
+      [(await orgActual()), entrada.vehiculoCodigo],
     );
     vehicleId = v[0]?.id;
     branchId = v[0]?.branch_id ?? undefined;
@@ -85,14 +85,14 @@ export async function registrarLeadEntrante(
       ? await elegirVendedor({ source: entrada.source, tipo: entrada.tipo, branchId })
       : undefined;
 
-  return enTransaccion(ORG_UUID, async (cliente) => {
+  return enTransaccion((await orgActual()), async (cliente) => {
     const { rows } = await cliente.query<{ id: string }>(
       `insert into lead (organization_id, stage_id, vehicle_id, vendedor_id,
          nombre, telefono, email, source, tipo, temperatura, external_id, canal_payload)
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,'warm',$10,$11)
        returning id`,
       [
-        ORG_UUID, etapa.id, vehicleId ?? null, vendedorId ?? null,
+        (await orgActual()), etapa.id, vehicleId ?? null, vendedorId ?? null,
         entrada.nombre ?? null, entrada.telefono ?? null, entrada.email ?? null,
         entrada.source, entrada.tipo ?? null, entrada.externalId ?? null,
         entrada.payload ? JSON.stringify(entrada.payload) : null,

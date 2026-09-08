@@ -3,6 +3,7 @@ import {
   getOrganization, getVehiculo, moverLead, primeraEtapaHumana, registrarMensajeWhatsapp,
 } from "@/lib/data";
 import { decidirRespuesta } from "@/lib/ia/asistente";
+import { fichaParaElBot } from "@/lib/ia/ficha-publica";
 import { ORG_UUID } from "@/lib/data/ids";
 import { registrarLeadEntrante, type ResultadoEntrada } from "@/lib/leads/entrada";
 import {
@@ -142,7 +143,9 @@ async function atenderConversacion(leadId: string, telefono: string) {
     ]);
 
     const decision = await decidirRespuesta(ORG_UUID, {
-      organizacion, config, vehiculo, historial: contexto.historial,
+      organizacion, config,
+      vehiculo: vehiculo ? fichaParaElBot(vehiculo) : null,
+      historial: contexto.historial,
     });
     if ("error" in decision) {
       console.error("[whatsapp] el asistente no pudo responder al lead", leadId, decision.error);

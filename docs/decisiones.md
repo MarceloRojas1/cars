@@ -1141,6 +1141,37 @@ cuenta paga ella, si no se usa la clave de la plataforma. El asistente es el
 corazón del producto y no puede depender de que cada cliente abra una cuenta en
 Anthropic — en el original figura como "incluido" en el plan.
 
+## 2026-09-08 — Cuentas: la organización deja de estar escrita en el código
+
+**Es la pieza de seguridad que faltaba.** El aislamiento por RLS funcionaba y
+sus nueve tests pasaban, pero la organización venía de `ORG_UUID`, una constante
+— Postgres servía fielmente los datos de la organización que le pidiéramos. Si
+esa constante hubiera estado mal, el aislamiento habría sido perfecto y los datos
+igualmente equivocados.
+
+**Ahora sale de la sesión**: `orgActual()` la resuelve desde `membership`, que es
+lo que ya leía `current_org_ids()`. Se reemplazó en las 105 consultas de la capa
+de datos; hoy no queda ninguna referencia a la constante ahí.
+
+**El esquema ya estaba preparado** — quien escribió `0001_init.sql` dejó
+`membership` y una `current_org_ids()` que acepta las dos vías: `auth.uid()` de
+la sesión de Supabase, o la variable de transacción que fija nuestro servidor.
+Como el servidor habla con Postgres por `pg` y no por PostgREST, no hay JWT en
+esa conexión: seguimos fijando la variable, pero su valor ahora viene de quién
+inició sesión y no de una constante.
+
+**`membership` y `app_user` se mantienen separadas.** La primera responde "¿a qué
+organización pertenece esta cuenta?" y es lo que exige Postgres; la segunda,
+"¿quién es esta persona en la automotora?" — nombre, teléfono, sucursal. Un
+invitado que aún no acepta existe en `app_user` sin cuenta, por eso
+`auth_user_id` acepta nulos.
+
+**Queda un respaldo peligroso a propósito y hay que sacarlo antes de producción**:
+sin sesión, `orgActual()` cae a la organización de la semilla para que el
+desarrollo local siga andando sin login. Con la aplicación pública, eso
+significaría que cualquiera ve esos datos. El salto es cambiar ese respaldo por
+un error.
+
 ## Decisiones pendientes
 
 - [ ] **¿Conectar Supabase antes de la Fase 2 o seguir con semilla?**
@@ -1149,7 +1180,10 @@ Anthropic — en el original figura como "incluido" en el plan.
 - [ ] Qué entra exactamente en `gastos` (define el cálculo de utilidad, hoy en $0).
 - [ ] Modelo de comisión de consignación.
 - [ ] Proveedor de datos para Consultar patente.
-- [ ] Permisos del rol vendedor (¿ve precios de compra y utilidad?).
+- [ ] Permisos del rol vendedor (¿ve precios de compra y utilidad?). Ahora bloquea:
+      con cuentas reales hay que decidir qué ve cada rol.
+- [ ] Sacar el respaldo a la organización de la semilla en `orgActual()` antes de
+      exponer la aplicación.
 - [ ] Cómo se despliega el recorte: `rembg` es una dependencia de python que hoy
       no está en el Dockerfile. ¿Se agrega a la imagen o va como servicio aparte?
 - [ ] Guardar la pieza armada por vehículo, para reabrirla y reeditarla.

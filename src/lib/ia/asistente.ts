@@ -1,5 +1,6 @@
 import { clienteClaude } from "./claude";
-import type { AssistantConfig, Organization, Vehicle } from "@/lib/types";
+import { fichaEnTexto, type FichaPublica } from "./ficha-publica";
+import type { AssistantConfig, Organization } from "@/lib/types";
 
 /**
  * El agente que atiende WhatsApp.
@@ -25,7 +26,11 @@ export type DecisionAsistente = {
 export type ContextoAsistente = {
   organizacion: Organization;
   config: AssistantConfig;
-  vehiculo: Vehicle | null;
+  /**
+   * Ficha filtrada, NO el vehículo completo. El tipo es la garantía: lo que no
+   * esté en `FichaPublica` no puede llegar al modelo aunque exista en la base.
+   */
+  vehiculo: FichaPublica | null;
   /** Del más viejo al más nuevo. */
   historial: { direccion: "entrante" | "saliente"; cuerpo: string }[];
 };
@@ -55,8 +60,11 @@ function instruccionesDelSistema(ctx: ContextoAsistente): string {
     "que un ejecutivo lo vea.",
     "",
     vehiculo
-      ? `El cliente consulta por: ${vehiculo.titulo}, año ${vehiculo.anio}, ${vehiculo.km.toLocaleString("es-CL")} km, ${vehiculo.combustible}, precio ${new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(vehiculo.precio)}.`
+      ? `El cliente consulta por este vehículo:\n${fichaEnTexto(vehiculo)}`
       : "Todavía no sabes por cuál vehículo consulta. Pregúntaselo antes de dar precios.",
+    vehiculo
+      ? "Esa ficha es TODO lo que sabes del vehículo. Si preguntan por algo que no está ahí, dilo y ofrece que un ejecutivo lo confirme."
+      : "",
     "",
     "NUNCA inventes datos del vehículo, precios, descuentos, plazos ni disponibilidad.",
     "Si no tienes el dato, dilo y ofrece que un ejecutivo lo confirme.",

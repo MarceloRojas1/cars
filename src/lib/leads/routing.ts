@@ -1,5 +1,5 @@
 import { consultar } from "@/lib/db";
-import { ORG_UUID } from "@/lib/data/ids";
+import { orgActual } from "@/lib/auth/sesion";
 
 /**
  * Motor de asignación.
@@ -28,7 +28,7 @@ export async function elegirVendedor(
 
   // Rotación: el vendedor activo con menos leads abiertos.
   const filas = await consultar<{ id: string }>(
-    ORG_UUID,
+    (await orgActual()),
     `select u.id
        from app_user u
        left join lead l
@@ -39,7 +39,7 @@ export async function elegirVendedor(
       group by u.id
       order by count(l.id), u.id
       limit 1`,
-    [ORG_UUID],
+    [(await orgActual())],
   );
   return filas[0]?.id;
 }
