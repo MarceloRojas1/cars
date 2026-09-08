@@ -14,10 +14,13 @@ import { ORG_UUID } from "@/lib/data/ids";
  * consulta y sería absurdo ir a la base a preguntar quién es cada vez.
  *
  * ────────────────────────────────────────────────────────────────────────────
- * MIENTRAS NO HAY SESIÓN cae a `ORG_UUID`, que es la organización de la semilla.
- * Eso mantiene el desarrollo local andando sin login, pero NO puede llegar así a
- * producción: sin sesión, cualquiera vería los datos de esa organización. El
- * salto a producción es cambiar este `?? ORG_UUID` por un error.
+ * EN PRODUCCIÓN, sin sesión no hay organización: `orgActual()` lanza. En
+ * desarrollo cae a la organización de la semilla para poder trabajar sin login.
+ *
+ * La condición es `NODE_ENV === "production"` y no "¿está Supabase
+ * configurado?" a propósito: con la segunda, olvidar una variable de entorno en
+ * el despliegue abriría el panel entero en silencio. Con esta, olvidarla rompe
+ * ruidosamente, que es lo correcto para un fallo de autenticación.
  * ────────────────────────────────────────────────────────────────────────────
  */
 export type Sesion = {
@@ -70,12 +73,26 @@ export const sesionActual = cache(async (): Promise<Sesion | null> => {
   };
 });
 
+/** ¿Corremos con el respaldo de desarrollo, sin login? */
+export const enDesarrolloSinLogin = () => process.env.NODE_ENV !== "production";
+
 /**
- * La organización para la que se consulta. Toda consulta pasa por acá.
+ * La organización para la que se consulta. Toda consulta del panel pasa por acá.
  *
- * Ver la advertencia de arriba sobre el respaldo a `ORG_UUID`.
+ * El catálogo público NO la usa: ahí no hay sesión y la organización sale del
+ * slug de la URL (ver `data/catalogo.ts`).
  */
 export const orgActual = cache(async (): Promise<string> => {
   const sesion = await sesionActual();
-  return sesion?.organizacionId ?? ORG_UUID;
+  if (sesion) return sesion.organizacionId;
+
+  if (enDesarrolloSinLogin()) return ORG_UUID;
+
+  /*
+   * En producción esto no debería ocurrir nunca: el middleware manda a /login
+   * antes de que se renderice cualquier página del panel. Si igual llega acá
+   * —una acción de servidor invocada directamente, una ruta nueva fuera del
+   * middleware— es un fallo de autenticación y se corta.
+   */
+  throw new Error("Sin sesión: no hay organización para consultar.");
 });

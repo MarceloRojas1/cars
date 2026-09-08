@@ -55,10 +55,36 @@ export function recorteExistente(urlFoto: string | undefined | null): string | n
 }
 
 /**
+ * ¿Puede este servidor recortar?
+ *
+ * El recorte es un proceso hijo de python3 con rembg y el modelo U²-Net, y eso
+ * no existe en una función de Vercel: no hay intérprete de Python y el límite
+ * de tamaño de la función no daría para el modelo. En vez de reventar con un
+ * ENOENT incomprensible a mitad del Estudio, se declara indisponible y la
+ * pantalla lo dice.
+ *
+ * `RECORTE_LOCAL=1` lo fuerza — sirve para un contenedor propio que sí tenga
+ * Python instalado, como el Dockerfile de este repo.
+ */
+export function recorteDisponible() {
+  if (process.env.RECORTE_LOCAL === "1") return true;
+  // Vercel marca sus ejecuciones con esta variable.
+  return !process.env.VERCEL;
+}
+
+/**
  * El resultado se guarda con el hash de la foto de origen: la misma foto no se
  * vuelve a recortar nunca, ni siquiera entre vehículos que compartan imagen.
  */
 export async function recortarVehiculo(urlFoto: string): Promise<ResultadoRecorte> {
+  if (!recorteDisponible()) {
+    return {
+      ok: false,
+      mensaje:
+        "El recorte automático no está disponible en este servidor. El Estudio " +
+        "necesita python3 con rembg, que no corre en las funciones de Vercel.",
+    };
+  }
   if (!urlFoto.startsWith("/uploads/")) {
     return { ok: false, mensaje: "La foto tiene que estar subida al inventario." };
   }

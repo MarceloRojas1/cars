@@ -5,6 +5,7 @@ import { TarjetaFondo } from "@/components/estudio/tarjeta-fondo";
 import { GenerarFondo } from "@/components/estudio/generar-fondo";
 import { getShowrooms } from "@/lib/data";
 import { proveedorImagenActivo } from "@/lib/ia/imagenes";
+import { recorteDisponible } from "@/lib/ia/imagenes/recorte";
 
 export const metadata = { title: "Estudio IA" };
 
@@ -25,6 +26,19 @@ export default async function EstudioPage() {
           </>
         }
       />
+
+      {/* Se avisa ANTES de que elija un vehículo: descubrir que el recorte no
+          funciona a mitad del flujo es peor que saberlo al entrar. */}
+      {!recorteDisponible() && (
+        <p className="mb-6 border-l-2 border-l-warn bg-warn/[0.06] px-4 py-3 text-[12.5px] leading-relaxed">
+          <span className="text-warn">El recorte automático no está disponible acá.</span>{" "}
+          <span className="text-muted-foreground">
+            Necesita python3 con rembg, que no corre en las funciones de Vercel.
+            Los fondos se pueden generar y mirar; el montaje de un vehículo sobre
+            un fondo solo funciona en un servidor con Python instalado.
+          </span>
+        </p>
+      )}
 
       {/* Las dos cosas que se pueden hacer acá, dichas como acciones. */}
       <div className="mb-9 grid gap-3 sm:grid-cols-2">

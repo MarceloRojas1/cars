@@ -13,13 +13,16 @@
     "showrooms": "tsx scripts/generar-showrooms.ts",
     "whatsapp:probar": "tsx scripts/probar-whatsapp.ts",
     "alta": "tsx scripts/alta-automotora.ts",
-    "catalogo:probar": "tsx scripts/probar-catalogo.ts"
+    "catalogo:probar": "tsx scripts/probar-catalogo.ts",
+    "migrar": "tsx scripts/migrar.ts",
+    "revisar-despliegue": "tsx scripts/revisar-despliegue.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",
     "@base-ui/react": "^1.7.0",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
+    "@vercel/blob": "^2.8.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.38.0",

@@ -14,14 +14,14 @@
 import * as seed from "./seed";
 import { consultar, dbConfigurada, enTransaccion } from "@/lib/db";
 import { idSemilla, uuidDe, SUCURSAL_POR_DEFECTO } from "./ids";
-import { orgActual } from "@/lib/auth/sesion";
+import { orgActual, sesionActual } from "@/lib/auth/sesion";
 import { calcularCompletitud } from "./completitud";
 import { MODELOS_SEMILLA } from "@/lib/catalogos";
 import { ESCENAS, promptDe } from "@/lib/ia/imagenes/escenas";
 import { imagenLocalExiste } from "@/lib/storage";
 import type {
   AppUser, AssistantConfig, Branch, Combustible, Integration, KnowledgeItem,
-  Lead, Showroom, Stage, Vehicle,
+  Lead, Organization, Showroom, Stage, Vehicle,
 } from "@/lib/types";
 
 /** Fila de `vehicle` tal como vuelve de Postgres. */
@@ -100,8 +100,38 @@ function aVehiculo(f: FilaVehiculo): Vehicle {
   };
 }
 
-export async function getOrganization() {
-  return seed.organization;
+/**
+ * La automotora que está mirando.
+ *
+ * Devolvía siempre la semilla, lo que con un solo cliente no se notaba y con
+ * dos habría dicho el nombre equivocado — incluido el que el bot usa para
+ * presentarse por WhatsApp.
+ */
+export async function getOrganization(): Promise<Organization> {
+  if (!dbConfigurada()) return seed.organization;
+
+  const orgId = await orgActual();
+  const filas = await consultar<{
+    id: string; nombre: string; slug: string; plan: string;
+    limite_usuarios: number; limite_sucursales: number;
+    limite_vehiculos: number; limite_conversaciones_ia: number;
+    proximo_cobro: Date | null;
+  }>(orgId, "select * from organization where id = $1", [orgId]);
+
+  const o = filas[0];
+  if (!o) return seed.organization;
+
+  return {
+    id: idSemilla(o.id) ?? o.id,
+    nombre: o.nombre,
+    slug: o.slug,
+    plan: o.plan,
+    limiteUsuarios: o.limite_usuarios,
+    limiteSucursales: o.limite_sucursales,
+    limiteVehiculos: o.limite_vehiculos,
+    limiteConversacionesIa: o.limite_conversaciones_ia,
+    proximoCobro: o.proximo_cobro ? o.proximo_cobro.toISOString().slice(0, 10) : "",
+  };
 }
 export async function getBranches(): Promise<Branch[]> {
   if (!dbConfigurada()) return seed.branches;
@@ -154,8 +184,24 @@ export async function getUsers(incluirInactivos = false): Promise<AppUser[]> {
     chatsActivos: 0,
   }));
 }
-export async function getCurrentUser() {
-  return seed.users[0];
+/**
+ * Quién está usando el panel. Sale de la sesión; la semilla es solo el respaldo
+ * de desarrollo, cuando todavía no hay login.
+ */
+export async function getCurrentUser(): Promise<AppUser> {
+  const sesion = await sesionActual();
+  if (!sesion) return seed.users[0];
+
+  const usuarios = await getUsers(true);
+  return (
+    usuarios.find((u) => u.email === sesion.email) ?? {
+      ...seed.users[0],
+      id: sesion.usuarioId,
+      nombre: sesion.nombre,
+      email: sesion.email,
+      rol: sesion.rol,
+    }
+  );
 }
 export async function getVehicles(archivados = false): Promise<Vehicle[]> {
   if (!dbConfigurada()) return archivados ? [] : seed.vehicles;

@@ -4,16 +4,19 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 /**
- * Adaptador de almacenamiento de imágenes.
+ * Adaptador de almacenamiento de imágenes: Vercel Blob o disco local.
  *
- * ────────────────────────────────────────────────────────────────────────────
- * ATENCIÓN antes de desplegar: esta implementación escribe en el disco local y
- * SOLO SIRVE EN DESARROLLO. En Vercel el sistema de archivos es efímero y de
- * solo lectura, así que las fotos subidas se perderían en cada despliegue.
+ * Elige según haya token de Blob configurado, no según `NODE_ENV`: así el mismo
+ * código sirve para desarrollar sin cuenta de Vercel y para producción, y de
+ * paso se puede probar Blob en local exportando el token.
  *
- * Para producción hay que reemplazar `guardarImagen` por Supabase Storage o
- * Vercel Blob. Es lo único que cambia: el resto de la app solo conoce la URL.
- * ────────────────────────────────────────────────────────────────────────────
+ * En Vercel el disco es de solo lectura y efímero — sin Blob, cada foto que
+ * suba una automotora falla al guardarse, y las que ya estuvieran subidas
+ * desaparecen en el siguiente despliegue. Por eso `blobConfigurado()` es lo
+ * primero que revisa el chequeo de despliegue.
+ *
+ * El resto de la aplicación solo conoce la URL: no sabe ni le importa de dónde
+ * salió.
  */
 
 export const MAX_FOTOS = 50;
@@ -23,6 +26,29 @@ export const TIPOS_ACEPTADOS = ["image/jpeg", "image/png", "image/webp", "image/
 const DIRECTORIO = path.join(process.cwd(), "public", "uploads", "vehiculos");
 
 export type ResultadoSubida = { url: string; nombre: string };
+
+/** ¿Hay almacenamiento de objetos? Si no, se escribe en el disco local. */
+export function blobConfigurado() {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+}
+
+/** Sube a Vercel Blob y devuelve la URL pública definitiva. */
+async function subirABlob(
+  datos: Buffer | File, ruta: string, tipo?: string,
+): Promise<string> {
+  const { put } = await import("@vercel/blob");
+  const { url } = await put(ruta, datos, {
+    access: "public",
+    contentType: tipo,
+    /*
+     * El nombre ya lleva un uuid, así que no hace falta que Blob le agregue su
+     * propio sufijo aleatorio: con él la URL sería impredecible y no se podría
+     * reconstruir la ruta de un recorte a partir de su hash.
+     */
+    addRandomSuffix: false,
+  });
+  return url;
+}
 
 export async function guardarImagen(archivo: File): Promise<ResultadoSubida> {
   if (!TIPOS_ACEPTADOS.includes(archivo.type)) {
@@ -34,6 +60,11 @@ export async function guardarImagen(archivo: File): Promise<ResultadoSubida> {
 
   const extension = archivo.type.split("/")[1].replace("jpeg", "jpg");
   const nombre = `${randomUUID()}.${extension}`;
+
+  if (blobConfigurado()) {
+    const url = await subirABlob(archivo, `vehiculos/${nombre}`, archivo.type);
+    return { url, nombre: archivo.name };
+  }
 
   await mkdir(DIRECTORIO, { recursive: true });
   await writeFile(
@@ -62,6 +93,11 @@ export async function guardarImagenGenerada(
   const extension = (tipo.split("/")[1] ?? "png").replace("jpeg", "jpg");
   const nombre = `${nombreBase}.${extension}`;
 
+  if (blobConfigurado()) {
+    const url = await subirABlob(datos, `${carpeta}/${nombre}`, tipo);
+    return { url, nombre };
+  }
+
   await mkdir(generados(carpeta), { recursive: true });
   await writeFile(path.join(generados(carpeta), nombre), datos);
 
@@ -76,5 +112,7 @@ export async function guardarImagenGenerada(
  * con el disco local cuando esto se mueva a almacenamiento de objetos.
  */
 export function imagenLocalExiste(url: string) {
+  // Una URL de Blob es absoluta y no vive en el disco: si está, existe.
+  if (url.startsWith("http")) return true;
   return existsSync(path.join(process.cwd(), "public", url.replace(/^\//, "")));
 }

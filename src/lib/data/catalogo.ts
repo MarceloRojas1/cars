@@ -1,4 +1,5 @@
 import { consultar, dbConfigurada } from "@/lib/db";
+import { SLUGS_RESERVADOS } from "@/lib/rutas";
 
 /**
  * Datos del catálogo público.
@@ -32,13 +33,6 @@ export type Automotora = {
  */
 const SIN_ORG = "00000000-0000-0000-0000-000000000000";
 
-/** Slugs que chocarían con rutas del panel. Ninguna automotora puede tomarlos. */
-export const SLUGS_RESERVADOS = new Set([
-  "api", "dashboard", "vehiculos", "leads", "embudo", "clientes", "campanas",
-  "equipo", "sucursales", "estudio", "integraciones", "mi-plan", "rendimiento",
-  "recordatorios", "consultar-patente", "control-de-ventas", "mi-sitio-web",
-  "asistente-ia", "automatizacion", "asignacion-de-leads", "login", "admin",
-]);
 
 /** La automotora dueña de ese slug, o null. */
 export async function getAutomotoraPorSlug(slug: string): Promise<Automotora | null> {
@@ -198,11 +192,21 @@ export async function getSimilares(
  */
 export async function getSlugsPublicos(): Promise<string[]> {
   if (!dbConfigurada()) return [];
-  const filas = await consultar<{ slug: string }>(
-    SIN_ORG,
-    "select slug from organization where catalogo_publico order by slug",
-  );
-  return filas.map((f) => f.slug).filter((s) => !SLUGS_RESERVADOS.has(s));
+  try {
+    const filas = await consultar<{ slug: string }>(
+      SIN_ORG,
+      "select slug from organization where catalogo_publico order by slug",
+    );
+    return filas.map((f) => f.slug).filter((s) => !SLUGS_RESERVADOS.has(s));
+  } catch (e) {
+    /*
+     * Un despliegue no puede caerse porque la base no contestó en ese instante.
+     * Sin lista, no se prerenderiza nada y `dynamicParams` genera cada página
+     * al primer visitante: el sitio queda más lento la primera vez, no caído.
+     */
+    console.error("[catalogo] no se pudo listar los slugs; se prerenderiza nada", e);
+    return [];
+  }
 }
 
 /**
@@ -218,20 +222,25 @@ export async function getFichasPublicas(): Promise<{ slug: string; codigo: strin
   const slugs = await getSlugsPublicos();
   const fichas: { slug: string; codigo: string }[] = [];
 
-  // Una consulta por automotora y no una sola con join: cada una tiene que
-  // declarar su organización para pasar por RLS.
-  for (const slug of slugs) {
-    const automotora = await getAutomotoraPorSlug(slug);
-    if (!automotora) continue;
-    const filas = await consultar<{ codigo: string }>(
-      automotora.id,
-      `select v.codigo from vehicle v
-        where ${PUBLICABLE}
-        order by v.publicado_at desc nulls last
-        limit $2`,
-      [automotora.id, FICHAS_PRERENDERIZADAS],
-    );
-    for (const f of filas) fichas.push({ slug, codigo: f.codigo });
+  // Igual que arriba: el despliegue no depende de que la base conteste.
+  try {
+    // Una consulta por automotora y no una sola con join: cada una tiene que
+    // declarar su organización para pasar por RLS.
+    for (const slug of slugs) {
+      const automotora = await getAutomotoraPorSlug(slug);
+      if (!automotora) continue;
+      const filas = await consultar<{ codigo: string }>(
+        automotora.id,
+        `select v.codigo from vehicle v
+          where ${PUBLICABLE}
+          order by v.publicado_at desc nulls last
+          limit $2`,
+        [automotora.id, FICHAS_PRERENDERIZADAS],
+      );
+      for (const f of filas) fichas.push({ slug, codigo: f.codigo });
+    }
+  } catch (e) {
+    console.error("[catalogo] no se pudieron listar las fichas a prerenderizar", e);
   }
   return fichas;
 }

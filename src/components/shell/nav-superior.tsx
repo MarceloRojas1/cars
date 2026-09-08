@@ -9,6 +9,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NAV_CUENTA, NAV_HERRAMIENTAS, NAV_PRINCIPAL, type NavItem } from "@/lib/nav";
+import { salirAction } from "@/app/login/acciones";
 import { cn } from "@/lib/utils";
 
 /**
@@ -83,7 +84,11 @@ export function NavSuperior({ usuario }: { usuario: { nombre: string; email: str
                 <p className="truncate text-[11.5px] text-muted-foreground">{usuario.email}</p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Cerrar sesión</DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => { void salirAction(); }}
+              >
+                Cerrar sesión
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

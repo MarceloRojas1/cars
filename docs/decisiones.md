@@ -1227,6 +1227,63 @@ antes de la ficha técnica. El primer intento duplicaba el encabezado y escondí
 uno con CSS: dejaba dos `<h1>` en el documento y el botón enterrado bajo las
 especificaciones.
 
+## 2026-09-08 — Preparación para Vercel: el panel deja de estar abierto
+
+Ver `docs/despliegue-vercel.md` para los pasos; acá va el porqué.
+
+**El respaldo de `orgActual()` se cortó, y la condición es `NODE_ENV` y no
+"¿está Supabase configurado?".** Con la segunda, olvidar una variable de entorno
+en el despliegue habría abierto el panel entero en silencio — el peor tipo de
+fallo, porque la pantalla se ve perfecta. Con esta, olvidarla rompe
+ruidosamente: `proxy.ts` responde 503 y `orgActual()` lanza. Un fallo de
+autenticación tiene que fallar cerrado.
+
+**El proxy no consulta a Supabase en el catálogo público, y eso es aislamiento,
+no rendimiento.** Si Supabase estuviera caído o lento, validar la sesión en cada
+visita al catálogo se llevaría puesto el sitio público de todas las automotoras
+por un problema del login que el comprador ni usa. Y cuando `getUser()` falla se
+trata como "no hay usuario": ante la duda, al login, nunca adentro.
+
+**La lista de rutas del panel vive en `lib/rutas.ts`, sola y sin importar
+nada.** La comparten dos mundos que no pueden compartir código pesado:
+`data/catalogo.ts`, que arrastra `pg`, y `proxy.ts`, que corre antes de
+renderizar. Es un solo hecho —`/{slug}` es el catálogo de una automotora— del
+que salen las dos reglas: qué nombres no puede tomar una automotora y qué
+caminos exigen sesión. Una ruta nueva del panel nace protegida por estar en esa
+lista, sin que nadie se acuerde de agregarle un chequeo.
+
+**`getOrganization()` y `getCurrentUser()` devolvían la semilla siempre.** Con un
+solo cliente no se notaba; con dos habrían mostrado el nombre equivocado —
+incluido el que el bot usa para presentarse por WhatsApp. Ahora salen de la base
+y de la sesión.
+
+**El webhook de WhatsApp responde antes de llamar a la IA.** Esperaba a Claude
+con `await`, lo que en una función de Vercel arriesga pasarse del tiempo límite;
+y un webhook que se pasa del límite es peor que uno lento, porque Meta lo
+reintenta y el reintento vuelve a llamar a la IA y manda la respuesta dos veces.
+Ahora el procesamiento va en `after()`: medido, 200 en 0,34 s y la respuesta del
+bot generada 5 s después.
+
+**Las consultas del build fallan blando.** `generateStaticParams` consulta la
+base al desplegar; si no contesta, ahora no se prerenderiza nada en vez de
+caerse el despliegue. El sitio queda más lento la primera vez, no caído.
+
+**`output: standalone` pasó a depender de `DOCKER_BUILD`.** Es para la imagen de
+Docker; Vercel arma sus propias funciones y esa salida no le sirve. Las dos vías
+siguen funcionando desde el mismo `next.config.ts`.
+
+**Las funciones van a `gru1` (São Paulo).** Por defecto Vercel corre en
+Washington, y con la base en Sudamérica cada consulta cruzaría el hemisferio dos
+veces. Solo sirve si la base se crea en la misma región.
+
+**El Estudio IA no funciona en Vercel y la pantalla lo dice.** El recorte es un
+proceso hijo de `python3` con `rembg`, y en una función de Vercel no hay
+intérprete de Python ni espacio para el modelo U²-Net. Se detecta por la
+variable `VERCEL` y se avisa al entrar al Estudio, no a mitad del flujo. Se
+eligió desactivarlo antes que retrasar el despliegue por él; las alternativas
+—API externa, WASM en el navegador, o un contenedor aparte con Python— están en
+la guía.
+
 ## Decisiones pendientes
 
 - [ ] **¿Conectar Supabase antes de la Fase 2 o seguir con semilla?**

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { firmaValida } from "@/lib/whatsapp/firma";
 import { procesarMensajeWhatsapp, type ContactoWhatsapp, type MensajeWhatsapp } from "@/lib/leads/canales/whatsapp";
 
@@ -6,10 +6,22 @@ import { procesarMensajeWhatsapp, type ContactoWhatsapp, type MensajeWhatsapp } 
  * Webhook único para toda la instancia (ver docs/decisiones.md, "El embudo":
  * WhatsApp, Meta, Zernio y el sitio propio entran por un punto único).
  *
- * Meta reintenta si no responde 200 rápido, así que el trabajo pesado no debe
- * bloquear la respuesta: acá se guarda el mensaje y se sale, nada de esperar
- * a que el agente de IA genere una respuesta.
+ * Meta reintenta si no responde 200 rápido, así que el trabajo pesado no
+ * bloquea la respuesta: se valida la firma, se responde 200 y el procesamiento
+ * —que incluye una llamada a Claude— corre en `after()`.
+ *
+ * Antes se hacía con `await` y la respuesta a Meta esperaba a la IA. En una
+ * función de Vercel eso arriesga pasarse del tiempo límite, y un webhook que se
+ * pasa del límite es peor que uno lento: Meta lo reintenta, y el reintento
+ * vuelve a llamar a la IA y manda la respuesta dos veces.
  */
+
+/*
+ * El procesamiento de `after()` corre después de la respuesta, pero sigue
+ * contando para el tiempo de la función. Una conversación con Claude son unos
+ * segundos; 60 da holgura sin dejar una función colgada indefinidamente.
+ */
+export const maxDuration = 60;
 
 /** Meta llama esto una vez, al configurar el webhook en el panel de desarrolladores. */
 export async function GET(request: Request) {
@@ -71,15 +83,20 @@ export async function POST(request: Request) {
     }
   }
 
-  // 200 apenas se valida la firma y se parsea: los errores de acá para abajo
-  // son de nuestro procesamiento, no algo que Meta deba reintentar a ciegas.
-  for (const { mensaje, contacto } of pendientes) {
-    try {
-      await procesarMensajeWhatsapp(mensaje, contacto);
-    } catch (e) {
-      console.error("[webhook whatsapp] no se pudo procesar un mensaje", mensaje.id, e);
+  /*
+   * 200 apenas se valida la firma y se parsea. Los errores de acá para abajo
+   * son de nuestro procesamiento, no algo que Meta deba reintentar a ciegas:
+   * reintentar un mensaje que ya guardamos duplicaría la respuesta del bot.
+   */
+  after(async () => {
+    for (const { mensaje, contacto } of pendientes) {
+      try {
+        await procesarMensajeWhatsapp(mensaje, contacto);
+      } catch (e) {
+        console.error("[webhook whatsapp] no se pudo procesar un mensaje", mensaje.id, e);
+      }
     }
-  }
+  });
 
   return NextResponse.json({ ok: true });
 }

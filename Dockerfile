@@ -31,6 +31,9 @@ FROM base AS builder
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Activa `output: standalone` en next.config.ts. Vercel construye sin esta
+# variable porque arma sus propias funciones y esa salida no le sirve.
+ENV DOCKER_BUILD=1
 RUN npm run build
 
 
