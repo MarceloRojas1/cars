@@ -110,20 +110,12 @@ HMAC de Meta, no una cookie.
 
 ---
 
-## Lo que NO funciona en Vercel
+## El Estudio IA corre entero en Vercel
 
-**El recorte del Estudio IA.** Usa `python3` con `rembg` y el modelo U²-Net como
-proceso hijo, y en una función de Vercel no hay intérprete de Python ni espacio
-para el modelo. `recorteDisponible()` lo detecta por la variable `VERCEL` y la
-pantalla del Estudio lo avisa antes de que alguien empiece una pieza.
-
-Los fondos sí se generan (eso es una llamada a Gemini). Lo que no se puede es
-montar un vehículo sobre un fondo.
-
-Para recuperarlo hay tres caminos, de menor a mayor trabajo: una API externa de
-recorte (se paga por imagen), mover la segmentación al navegador con WASM
-(gratis, más lento), o desplegar el contenedor de este repo —que sí trae
-Python— en otro lado y llamarlo desde Vercel.
+Antes no: el recorte del vehículo era `python3` con `rembg`, que no existe en
+una función de Vercel. Se reemplazó por hacer que Gemini meta el auto dentro del
+fondo, así que ya no hay dependencia de Python. Lo único que necesita es
+`GEMINI_API_KEY`.
 
 ## Después de desplegar, comprueba esto
 

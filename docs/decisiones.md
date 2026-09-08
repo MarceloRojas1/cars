@@ -1284,6 +1284,62 @@ eligió desactivarlo antes que retrasar el despliegue por él; las alternativas
 —API externa, WASM en el navegador, o un contenedor aparte con Python— están en
 la guía.
 
+## 2026-09-08 — El recorte se va: ahora la IA mete el auto en el fondo
+
+Se eliminó rembg (segmentación local con U²-Net y `scripts/recortar.py`). Era la
+única dependencia de `python3` del proyecto y por ella el Estudio no podía
+correr en Vercel. Ahora se pega la foto ORIGINAL —rectangular, con su
+estacionamiento y sus árboles— sobre la escena y el modelo borra el rectángulo y
+funde el auto.
+
+**Lo que NO se hizo: mandar el fondo y el auto como dos imágenes sueltas y
+pedirle que lo componga.** Eso ya se había probado y está anotado más arriba: el
+modelo ubica el vehículo donde quiere. Lo que funciona es pegarlo primero, para
+que el modelo EDITE en vez de componer.
+
+**Tres formulaciones, cuatro fondos, y ninguna obvia.** Se midió en vez de
+elegir:
+
+| | mármol | adoquín de noche | carretera | duna |
+|---|---|---|---|---|
+| Solo el montaje | limpio | queda una franja | limpio | rectángulo intacto |
+| Fondo limpio + montaje | auto encogido al fondo | limpio | auto más chico | limpio |
+| + geometría en porcentajes | limpio | limpio | limpio | limpio |
+
+La primera conserva el tamaño pero deja el rectángulo; la segunda lo borra pero
+manda el auto al fondo de la escena. Decirle el ancho y el punto de apoyo en
+porcentajes —"el auto mide el 86% del ancho y sus ruedas apoyan al 72% del
+alto"— es lo que evita que interprete "mete el auto en la escena" como
+"estacionalo al fondo".
+
+**Mandar dos imágenes trae su propio riesgo y apareció en el quinto fondo:** el
+modelo las apiló y devolvió la escena repetida, con un auto fantasma arriba. Por
+eso el prompt declara el formato de salida antes que nada —una sola fotografía,
+ni collage ni díptico— y ese fondo quedó en `scripts/probar-montaje-ia.ts` como
+caso de regresión. Con esa línea, 5 de 5 salen limpios.
+
+**Un acierto suelto no era evidencia.** El primer intento salió perfecto sobre
+mármol y el segundo devolvió el rectángulo intacto sobre otro fondo. El modelo
+no tiene semilla y falla distinto según la escena, así que la verificación son
+varios fondos y no uno; por eso el script existe y no se borró.
+
+**Lo que se pierde.** La vista previa antes de fundir muestra la foto entera,
+rectangular, en vez de un recorte con transparencia — es más fea, y el resultado
+final puede quedar de un tamaño algo distinto al del montaje. A cambio: el
+Estudio corre en Vercel, no hay proceso hijo de Python, y desaparece la espera
+de varios segundos del primer recorte de cada foto.
+
+**Sombra y reflejo dibujados por nosotros quedaron en 0.** Se calculaban
+recorriendo el contorno de un recorte con transparencia; sobre un rectángulo
+opaco el contorno es su borde inferior y la sombra sale como una barra — el
+mismo bug que costó arreglar en su momento. Los pone el modelo, que además los
+adapta al material del piso. El renderizador (`dibujar.ts`) se dejó intacto: la
+maquinaria está medida y funciona, solo dejó de usarse.
+
+**De paso, `estudio/acciones.ts` dejó de usar `ORG_UUID`.** Quedaban dos
+llamadas con la organización escrita en el código, de antes del sistema de
+cuentas.
+
 ## Decisiones pendientes
 
 - [ ] **¿Conectar Supabase antes de la Fase 2 o seguir con semilla?**

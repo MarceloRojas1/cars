@@ -3,7 +3,6 @@ import { ChevronLeft } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { EditorCreativo } from "@/components/estudio/editor";
 import { getOrganization, getShowrooms, getVehiculo, getVehicles } from "@/lib/data";
-import { recorteExistente } from "@/lib/ia/imagenes/recorte";
 
 export const metadata = { title: "Editor de piezas" };
 
@@ -19,7 +18,7 @@ export default async function EditorPage({ searchParams }: PageProps<"/estudio/e
   ]);
 
   // Sin vehículo elegido se toma el primero QUE TENGA FOTO: sin foto no hay
-  // recorte, y abrir el editor con un vehículo que no se puede montar recibe a
+  // foto, y abrir el editor con un vehículo que no se puede montar recibe a
   // quien entra con un error en vez de con una pieza.
   const id = pedido ?? (vehiculos.find((v) => v.fotoPrincipal) ?? vehiculos[0])?.id;
   const vehiculo = id ? await getVehiculo(id) : null;
@@ -55,7 +54,7 @@ export default async function EditorPage({ searchParams }: PageProps<"/estudio/e
           vehiculos={vehiculos.filter((v) => v.fotoPrincipal)}
           fondos={[...propios, ...biblioteca]}
           automotora={organizacion.nombre}
-          recorte={recorteExistente(vehiculo.fotoPrincipal ?? vehiculo.fotos?.[0]?.url)}
+          foto={vehiculo.fotoPrincipal ?? vehiculo.fotos?.[0]?.url ?? null}
           fondoInicial={fondoPedido ?? null}
         />
       )}

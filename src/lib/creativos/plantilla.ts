@@ -4,9 +4,9 @@ import type { Vehicle } from "@/lib/types";
 /**
  * Modelo de una pieza del Estudio.
  *
- * Lo único generado es el fondo. El recorte del vehículo sale de su propia foto
- * y todo lo demás —qué dice, dónde, con qué fuente y color— lo decide quien
- * arma la pieza. Este módulo define la posición de cada cosa y NADA la dibuja:
+ * Lo generado es el fondo, y la IA mete el vehículo dentro de él. Todo lo
+ * demás —qué dice, dónde, con qué fuente y color— lo decide quien arma la
+ * pieza. Este módulo define la posición de cada cosa y NADA la dibuja:
  * la vista previa y la exportación piden acá la geometría, así que no pueden
  * quedar desalineadas.
  *
@@ -50,6 +50,14 @@ export type ElementoAuto = {
   y: number;
   /** Ancho del vehículo como fracción del ancho del lienzo. */
   ancho: number;
+  /**
+   * Sombra y reflejo dibujados por nosotros. Quedaron en 0 desde que la IA mete
+   * el auto en la escena: se calculaban recorriendo el contorno de un recorte
+   * con transparencia, y ahora el elemento es la foto entera, rectangular. Sobre
+   * un rectángulo opaco el contorno es su borde inferior y la sombra sale como
+   * una barra. El modelo los pone mejor, además, porque los adapta al material
+   * del piso.
+   */
   sombra: number;
   reflejo: number;
 };
@@ -100,7 +108,8 @@ export const COLORES = [
 export function creativoInicial(
   vehiculo: Vehicle,
   fondoUrl: string | null,
-  recorteUrl: string | null,
+  /** La foto del vehículo tal cual, sin recortar. */
+  fotoUrl: string | null,
   automotora?: string,
 ): Creativo {
   const texto = (
@@ -119,8 +128,8 @@ export function creativoInicial(
 
   const auto: ElementoAuto = {
     tipo: "auto", id: "auto", etiqueta: "Vehículo",
-    url: recorteUrl ?? "", x: 0.5, y: 0.66, ancho: 0.88,
-    sombra: 0.55, reflejo: 0.25,
+    url: fotoUrl ?? "", x: 0.5, y: 0.66, ancho: 0.88,
+    sombra: 0, reflejo: 0,
   };
 
   const textos: ElementoTexto[] = [
@@ -151,7 +160,7 @@ export function geometriaTexto(el: ElementoTexto, ancho: number, alto: number) {
  * Cambia el vehículo de una pieza CONSERVANDO cómo quedó armada.
  *
  * Es lo que permite probar varios autos sobre el mismo diseño: se reemplaza el
- * recorte y el contenido de los textos que salen de la ficha —precio, título,
+ * foto y el contenido de los textos que salen de la ficha —precio, título,
  * año, detalle— y se respeta todo lo que se movió a mano: posición, fuente,
  * tamaño, color y alineación. Rehacer la disposición en cada cambio obligaría a
  * armar la pieza de nuevo para cada auto, que es justo lo que se quiere evitar.
@@ -159,10 +168,10 @@ export function geometriaTexto(el: ElementoTexto, ancho: number, alto: number) {
 export function cambiarVehiculo(
   creativo: Creativo,
   vehiculo: Vehicle,
-  recorteUrl: string | null,
+  fotoUrl: string | null,
   automotora?: string,
 ): Creativo {
-  const nuevo = creativoInicial(vehiculo, creativo.fondoUrl, recorteUrl, automotora);
+  const nuevo = creativoInicial(vehiculo, creativo.fondoUrl, fotoUrl, automotora);
 
   const actualizados = creativo.elementos.map((el) => {
     const equivalente = nuevo.elementos.find((n) => n.id === el.id);

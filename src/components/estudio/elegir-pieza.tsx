@@ -15,7 +15,7 @@ import type { Showroom, Vehicle } from "@/lib/types";
  * Se elige acá y no dentro del editor porque son las dos decisiones que definen
  * la pieza; verlas como imagen —la foto real del auto y el fondo— evita elegir
  * a ciegas desde una lista de texto. Los vehículos sin foto se muestran igual,
- * pero no se pueden elegir: sin foto no hay recorte que montar.
+ * pero no se pueden elegir: sin foto no hay nada que montar.
  */
 export function ElegirPieza({
   vehiculos, fondos,

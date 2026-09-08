@@ -3,13 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { crearShowroom, getVehiculo } from "@/lib/data";
-import { ORG_UUID } from "@/lib/data/ids";
+import { orgActual } from "@/lib/auth/sesion";
 import { armonizarMontaje, type Montaje, type ResultadoArmonizado } from "@/lib/creativos/armonizar";
 import { dbConfigurada } from "@/lib/db";
 import { claveDeImagenes, proveedorImagenActivo } from "@/lib/ia/imagenes";
 import { ALTO, ANCHO, promptDe } from "@/lib/ia/imagenes/escenas";
 import { guardarImagenGenerada } from "@/lib/storage";
-import { recortarVehiculo, type ResultadoRecorte } from "@/lib/ia/imagenes/recorte";
 import type { Vehicle } from "@/lib/types";
 
 const esquema = z.object({
@@ -49,7 +48,7 @@ export async function generarShowroomAction(
   const { nombre, escena, lineaPiso } = parseado.data;
 
   const proveedor = proveedorImagenActivo();
-  const clave = await claveDeImagenes(ORG_UUID, proveedor);
+  const clave = await claveDeImagenes(await orgActual(), proveedor);
   if (!clave) {
     return {
       ok: false,
@@ -83,54 +82,32 @@ export async function generarShowroomAction(
   };
 }
 
-/**
- * Recorta el vehículo de su foto principal para poder montarlo sobre un fondo.
- *
- * El resultado se guarda con el hash de la foto, así que apretar dos veces no
- * vuelve a gastar los segundos de CPU.
- */
-export async function recortarVehiculoAction(vehiculoId: string): Promise<ResultadoRecorte> {
-  const vehiculo = await getVehiculo(vehiculoId);
-  if (!vehiculo) return { ok: false, mensaje: "No se encontró el vehículo." };
-
-  const foto = vehiculo.fotoPrincipal ?? vehiculo.fotos?.[0]?.url;
-  if (!foto) {
-    return { ok: false, mensaje: `${vehiculo.titulo} no tiene fotos cargadas todavía.` };
-  }
-
-  return recortarVehiculo(foto);
-}
-
 export type VehiculoParaPieza =
-  | { ok: true; vehiculo: Vehicle; recorte: string | null; aviso?: string }
+  | { ok: true; vehiculo: Vehicle; foto: string | null; aviso?: string }
   | { ok: false; mensaje: string };
 
 /**
- * Trae un vehículo listo para montarlo, recortándolo si hace falta.
+ * Trae un vehículo listo para montarlo sobre un fondo.
  *
- * Lo usa el cambio de auto dentro del editor. El recorte está cacheado por foto,
- * así que volver a un auto ya usado es instantáneo; la primera vez son unos
- * segundos. Si el recorte falla, igual se devuelve el vehículo: se pueden
- * actualizar los textos aunque no haya imagen.
+ * Ya no hay paso de recorte: se devuelve su foto principal tal cual y el
+ * montaje lo hace la IA cuando se aprieta "Poner el auto". Antes esto llamaba a
+ * rembg y tardaba unos segundos la primera vez; ahora es inmediato.
  */
 export async function cargarVehiculoAction(vehiculoId: string): Promise<VehiculoParaPieza> {
   const vehiculo = await getVehiculo(vehiculoId);
   if (!vehiculo) return { ok: false, mensaje: "No se encontró el vehículo." };
 
-  const foto = vehiculo.fotoPrincipal ?? vehiculo.fotos?.[0]?.url;
-  if (!foto) return { ok: true, vehiculo, recorte: null, aviso: "No tiene fotos cargadas." };
-
-  const recorte = await recortarVehiculo(foto);
-  return recorte.ok
-    ? { ok: true, vehiculo, recorte: recorte.url }
-    : { ok: true, vehiculo, recorte: null, aviso: recorte.mensaje };
+  const foto = vehiculo.fotoPrincipal ?? vehiculo.fotos?.[0]?.url ?? null;
+  return foto
+    ? { ok: true, vehiculo, foto }
+    : { ok: true, vehiculo, foto: null, aviso: "No tiene fotos cargadas." };
 }
 
 /**
- * Integra el vehículo con el fondo usando IA. Devuelve una imagen nueva que
+ * Mete el vehículo dentro del fondo usando IA. Devuelve una imagen nueva que
  * reemplaza al par fondo+auto en el lienzo; los textos se siguen dibujando
  * encima en el navegador.
  */
 export async function armonizarPiezaAction(montaje: Montaje): Promise<ResultadoArmonizado> {
-  return armonizarMontaje(ORG_UUID, montaje);
+  return armonizarMontaje(await orgActual(), montaje);
 }

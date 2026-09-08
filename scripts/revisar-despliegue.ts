@@ -86,8 +86,10 @@ function revisar(): Chequeo[] {
 
   c.push({
     nombre: "Estudio IA",
-    nivel: "avisa",
-    detalle: "El recorte necesita python3 con rembg y NO corre en Vercel. La pantalla lo avisa sola.",
+    nivel: hay(e.GEMINI_API_KEY) ? "ok" : "avisa",
+    detalle: hay(e.GEMINI_API_KEY)
+      ? "Genera fondos y mete el vehículo dentro. Corre entero en Vercel."
+      : "Sin GEMINI_API_KEY no se generan fondos ni se puede poner el auto en la escena.",
   });
 
   return c;

@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Download, Loader2, Scissors, Sparkles } from "lucide-react";
+import { Download, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
-import { armonizarPiezaAction, cargarVehiculoAction, recortarVehiculoAction } from "@/app/(app)/estudio/acciones";
+import { armonizarPiezaAction, cargarVehiculoAction } from "@/app/(app)/estudio/acciones";
 import { Button } from "@/components/ui/button";
 import { Campo, Select, controlBase } from "@/components/form/campos";
 import { clp } from "@/lib/format";
@@ -19,7 +19,7 @@ import type { Showroom, Vehicle } from "@/lib/types";
 /**
  * Editor de piezas.
  *
- * Lo generado es solo el fondo: el vehículo sale recortado de su propia foto y
+ * Lo generado es solo el fondo; la IA mete el vehículo dentro de él y
  * los textos, de su ficha. Acá se mueve y se ajusta todo, que es la parte que
  * ninguna IA acierta sola — dónde va el precio depende del fondo y del auto.
  *
@@ -27,7 +27,7 @@ import type { Showroom, Vehicle } from "@/lib/types";
  * final, a menor escala. Lo que se ve arrastrando es lo que se descarga.
  */
 export function EditorCreativo({
-  vehiculo, vehiculos, fondos, automotora, recorte, fondoInicial,
+  vehiculo, vehiculos, fondos, automotora, foto, fondoInicial,
 }: {
   vehiculo: Vehicle;
   /** Los del inventario con foto, para cambiar de auto sin salir del editor. */
@@ -35,18 +35,18 @@ export function EditorCreativo({
   fondos: Showroom[];
   automotora: string;
   /** Recorte ya hecho de este vehículo, si lo hay. */
-  recorte: string | null;
+  /** Foto principal del vehículo, sin recortar. */
+  foto: string | null;
   fondoInicial: string | null;
 }) {
   const disponibles = fondos.filter((f) => f.url);
   const [actual, setActual] = useState(vehiculo);
   const [creativo, setCreativo] = useState<Creativo>(() =>
-    creativoInicial(vehiculo, fondoInicial ?? disponibles[0]?.url ?? null, recorte, automotora),
+    creativoInicial(vehiculo, fondoInicial ?? disponibles[0]?.url ?? null, foto, automotora),
   );
   const [cambiando, setCambiando] = useState<string | null>(null);
   const [armonizando, setArmonizando] = useState(false);
   const [seleccionado, setSeleccionado] = useState<string | null>("precio");
-  const [recortando, setRecortando] = useState(false);
   const [familias, setFamilias] = useState<Familias | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -155,21 +155,11 @@ export function EditorCreativo({
     e.currentTarget.releasePointerCapture(e.pointerId);
   }
 
-  /* --- recorte y descarga --- */
-
-  async function recortar() {
-    setRecortando(true);
-    const r = await recortarVehiculoAction(actual.id);
-    setRecortando(false);
-    if (!r.ok) { toast.error("No se pudo recortar", { description: r.mensaje }); return; }
-    await cargarImagen(r.url);
-    actualizar("auto", { url: r.url } as Partial<Elemento>);
-    toast.success("Vehículo recortado", { description: "Arrástralo para ubicarlo sobre el fondo." });
-  }
+  /* --- descarga --- */
 
   /**
    * Cambia el auto sin salir: se conserva la disposición y solo cambian el
-   * recorte y los textos que salen de la ficha. Así se prueba el mismo diseño
+   * foto y los textos que salen de la ficha. Así se prueba el mismo diseño
    * con varios vehículos en vez de rearmarlo cada vez.
    */
   async function cambiarAuto(id: string) {
@@ -179,9 +169,9 @@ export function EditorCreativo({
     setCambiando(null);
     if (!r.ok) { toast.error("No se pudo cambiar el vehículo", { description: r.mensaje }); return; }
 
-    if (r.recorte) await cargarImagen(r.recorte);
+    if (r.foto) await cargarImagen(r.foto);
     setActual(r.vehiculo);
-    setCreativo((c) => cambiarVehiculo(c, r.vehiculo, r.recorte, automotora));
+    setCreativo((c) => cambiarVehiculo(c, r.vehiculo, r.foto, automotora));
     if (r.aviso) toast.warning(r.vehiculo.titulo, { description: r.aviso });
   }
 
@@ -195,12 +185,12 @@ export function EditorCreativo({
       return;
     }
     if (!creativo.fondoUrl || auto?.tipo !== "auto" || !auto.url) {
-      toast.error("Falta el fondo o el recorte del vehículo.");
+      toast.error("Falta el fondo o la foto del vehículo.");
       return;
     }
     setArmonizando(true);
     const r = await armonizarPiezaAction({
-      fondoUrl: creativo.fondoUrl, recorteUrl: auto.url,
+      fondoUrl: creativo.fondoUrl, fotoUrl: auto.url,
       x: auto.x, y: auto.y, ancho: auto.ancho,
     });
     setArmonizando(false);
@@ -239,7 +229,7 @@ export function EditorCreativo({
         <p className="text-[11.5px] text-muted-foreground">
           {creativo.armonizadoUrl
             ? `Arrastra los textos para acomodarlos. Se descarga en ${ANCHO}×${ALTO}.`
-            : `Arrastra cualquier elemento. Se descarga en ${ANCHO}×${ALTO}.`}
+            : `Arrastra para ubicar. La foto se ve entera: su fondo lo quita la IA al poner el auto.`}
         </p>
       </div>
 
@@ -266,19 +256,13 @@ export function EditorCreativo({
           <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
             {creativo.armonizadoUrl
               ? "Listo. Ahora mueve los textos: siguen siendo editables porque se dibujan encima."
-              : "Lo funde con el fondo —luz, sombra y reflejo según el piso—. Repinta el vehículo, tarda ~20 s y tiene costo."}
+              : "Le quita el fondo a la foto y mete el auto en la escena, con la luz, la sombra y el reflejo del lugar. Tarda ~20 s y tiene costo."}
           </p>
         </div>
 
-        <div className="flex gap-2">
-          <Button onClick={recortar} disabled={recortando} variant="outline" className="h-9 flex-1 gap-2">
-            {recortando ? <Loader2 className="size-3.5 animate-spin" /> : <Scissors className="size-3.5" />}
-            {recortando ? "Recortando…" : "Recortar"}
-          </Button>
-          <Button onClick={descargar} variant="outline" className="h-9 flex-1 gap-2">
-            <Download className="size-3.5" /> Descargar
-          </Button>
-        </div>
+        <Button onClick={descargar} variant="outline" className="h-9 w-full gap-2">
+          <Download className="size-3.5" /> Descargar
+        </Button>
 
         {/* Cambiar de auto o de fondo se hace mirando, no leyendo una lista. */}
         <div>
@@ -345,7 +329,7 @@ export function EditorCreativo({
                 >
                   <span className="text-[12.5px]">{el.etiqueta}</span>
                   <span className="truncate text-[11px] text-muted-foreground">
-                    {el.tipo === "texto" ? el.texto : "recorte"}
+                    {el.tipo === "texto" ? el.texto : "vehículo"}
                   </span>
                 </button>
               </li>
@@ -433,8 +417,8 @@ export function EditorCreativo({
             <p className="etiqueta">Vehículo</p>
             {!elemento.url && (
               <p className="text-[12px] leading-relaxed text-muted-foreground">
-                Todavía no hay recorte. Usa <span className="text-foreground">Recortar vehículo</span>:
-                se toma su foto principal y se le quita el fondo.
+                Este vehículo no tiene fotos cargadas. Súbelas en su ficha del
+                inventario y vuelve.
               </p>
             )}
             <Deslizador
@@ -442,25 +426,11 @@ export function EditorCreativo({
               formato={(v) => `${Math.round(v * 100)} %`}
               alCambiar={(v) => actualizar(elemento.id, { ancho: v })}
             />
-            {creativo.armonizadoUrl ? (
-              <p className="text-[11.5px] leading-relaxed text-muted-foreground">
-                La sombra y el reflejo los puso la IA según el material del piso.
-                Vuelve al montaje para ajustarlos a mano.
-              </p>
-            ) : (
-              <>
-                <Deslizador
-                  etiqueta="Sombra" valor={elemento.sombra} min={0} max={1} paso={0.05}
-                  formato={(v) => `${Math.round(v * 100)} %`}
-                  alCambiar={(v) => actualizar(elemento.id, { sombra: v })}
-                />
-                <Deslizador
-                  etiqueta="Reflejo" valor={elemento.reflejo} min={0} max={1} paso={0.02}
-                  formato={(v) => `${Math.round(v * 100)} %`}
-                  alCambiar={(v) => actualizar(elemento.id, { reflejo: v })}
-                />
-              </>
-            )}
+            <p className="text-[11.5px] leading-relaxed text-muted-foreground">
+              {creativo.armonizadoUrl
+                ? "La sombra y el reflejo los puso la IA según el material del piso."
+                : "Ubícalo y ajusta el tamaño; al poner el auto con IA se recorta el fondo de la foto y se le agregan sombra y reflejo."}
+            </p>
           </div>
         )}
       </aside>
