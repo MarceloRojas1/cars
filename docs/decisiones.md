@@ -1030,6 +1030,39 @@ a la consulta.
 puede quedar con más usuarios que cupos: dice "sin cupos disponibles" y marca el
 contador en ámbar, en vez de "-2 disponibles".
 
+## 2026-09-07 — Rediseño: Grafito, y la navegación se va arriba
+
+**El parecido con el producto original no era visual, era estructural.** Velie ya
+era oscuro y monocromo contra un original claro con cápsulas de color; lo que se
+reconocía al segundo vistazo era la silueta —barra lateral con los mismos tres
+grupos, los mismos ítems y en el mismo orden— y la composición de cada pantalla.
+Por eso el cambio empieza por mover la navegación arriba, no por la paleta.
+
+**Diecinueve destinos no caben en una fila.** Se repartieron por para qué se
+entra: seis de trabajo diario visibles, cinco de consulta puntual en un menú
+"Más", y ocho de configuración en un menú de cuenta. **Las URL no cambian.**
+
+**El acento tuvo que irse al lado frío.** Se probó cobre y el validador de paleta
+lo midió a **ΔE 3.3 del rojo de `crit`**: un botón de acción se veía igual que una
+alerta. Verde, ámbar y rojo ocupan el lado cálido, así que el acento de marca es
+azul y no hay alternativa cálida mientras los estados sean esos.
+
+**Los colores de estado se re-escalonaron.** El par ámbar/rojo anterior estaba en
+ΔE 11.9, bajo el piso de 15 para visión normal — se veían casi iguales pegados en
+un gráfico. Los nuevos pasan separación CVD, piso de visión normal (18.5), croma y
+contraste contra el fondo nuevo.
+
+**Bug latente encontrado por el rediseño: `.overline` es una utilidad de
+Tailwind.** Nuestra clase del mismo nombre convivía con `text-decoration:
+overline`, y la utilidad gana: había una línea dibujada sobre cada etiqueta de
+sección del panel desde el primer día. Renombrada a `.etiqueta`.
+
+**El saludo del dashboard perdió el emoji.** No existe en la tipografía nueva y
+salía como cuadrado vacío — y venía calcado del original.
+
+**Lo que NO se tocó:** las funcionalidades, las rutas, la capa de datos y la regla
+de que el color significa estado. El rediseño es de superficie a propósito.
+
 ## Decisiones pendientes
 
 - [ ] **¿Conectar Supabase antes de la Fase 2 o seguir con semilla?**

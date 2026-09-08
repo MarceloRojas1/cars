@@ -45,11 +45,11 @@ export default async function MiPlanPage() {
       <div className="max-w-2xl space-y-3">
         <div className="flex items-center justify-between border border-border bg-card p-5">
           <div>
-            <p className="overline">Estado</p>
+            <p className="etiqueta">Estado</p>
             <p className="text-[17px] font-semibold text-ok">Activo</p>
           </div>
           <div className="text-right">
-            <p className="overline">Próximo cobro</p>
+            <p className="etiqueta">Próximo cobro</p>
             <p className="text-[17px] font-semibold">4 de agosto de 2026</p>
           </div>
         </div>

@@ -118,7 +118,7 @@ export function VehiculosFiltros({
             onDesde={(v) => aplicar({ precioDesde: v })} onHasta={(v) => aplicar({ precioHasta: v })}
           />
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="f-sucursal" className="overline">Sucursal</label>
+            <label htmlFor="f-sucursal" className="etiqueta">Sucursal</label>
             <select
               id="f-sucursal" value={valor("branchId")}
               onChange={(e) => aplicar({ branchId: e.target.value })} className={controlBase}
@@ -128,7 +128,7 @@ export function VehiculosFiltros({
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="f-vendedor" className="overline">Vendedor</label>
+            <label htmlFor="f-vendedor" className="etiqueta">Vendedor</label>
             <select
               id="f-vendedor" value={valor("vendedorId")}
               onChange={(e) => aplicar({ vendedorId: e.target.value })} className={controlBase}
@@ -159,7 +159,7 @@ function Rango({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <p className="overline">{etiqueta}</p>
+      <p className="etiqueta">{etiqueta}</p>
       <div className="flex items-center gap-2">
         <input
           defaultValue={desde} inputMode="numeric" placeholder="desde"

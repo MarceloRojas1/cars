@@ -29,7 +29,7 @@ export function BuscadorPatente({ patentesDePrueba }: { patentesDePrueba?: reado
   return (
     <>
       <div className="max-w-xl border border-border bg-card p-5">
-        <p className="overline mb-3">Ingresa una patente</p>
+        <p className="etiqueta mb-3">Ingresa una patente</p>
         <div className="flex gap-2">
           <input
             value={patente}
@@ -53,7 +53,7 @@ export function BuscadorPatente({ patentesDePrueba }: { patentesDePrueba?: reado
 
         {patentesDePrueba && (
           <div className="mt-4 border-t border-border pt-3">
-            <p className="overline mb-2">Patentes que responden sin clave</p>
+            <p className="etiqueta mb-2">Patentes que responden sin clave</p>
             <div className="flex flex-wrap gap-1.5">
               {patentesDePrueba.map((p) => (
                 <button
@@ -85,7 +85,7 @@ export function BuscadorPatente({ patentesDePrueba }: { patentesDePrueba?: reado
             {datos.desdeCache && (
               <button
                 type="button" onClick={() => buscar(true)} disabled={buscando}
-                className="overline underline underline-offset-4 hover:text-foreground"
+                className="etiqueta underline underline-offset-4 hover:text-foreground"
               >
                 desde caché · consultar de nuevo
               </button>

@@ -14,7 +14,7 @@ export function Seccion({
   return (
     <section className="grid gap-8 border-t border-border py-8 lg:grid-cols-[220px_1fr]">
       <header>
-        <p className="overline">{numero}</p>
+        <p className="etiqueta">{numero}</p>
         <h2 className="display mt-1.5 text-[19px]">{titulo}</h2>
         {descripcion && (
           <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
@@ -39,7 +39,7 @@ export function Campo({
 }) {
   return (
     <div className={cn("flex flex-col gap-1.5", ancho === "completo" && "sm:col-span-2")}>
-      <label htmlFor={htmlFor} className="overline">
+      <label htmlFor={htmlFor} className="etiqueta">
         {label}
       </label>
       {children}

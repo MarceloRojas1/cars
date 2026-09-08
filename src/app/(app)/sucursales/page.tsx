@@ -67,7 +67,7 @@ export default async function SucursalesPage({ searchParams }: PageProps<"/sucur
                         {b.activa ? "Activa" : "Inactiva"}
                       </span>
                       {b.esPrincipal && (
-                        <span className="overline">Principal</span>
+                        <span className="etiqueta">Principal</span>
                       )}
                     </div>
                   </TableCell>

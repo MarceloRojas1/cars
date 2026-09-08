@@ -251,7 +251,7 @@ export function EditorCreativo({
           acción principal y descargar queda al final, no arriba.
         */}
         <div>
-          <p className="overline mb-1.5">1 · El auto en la escena</p>
+          <p className="etiqueta mb-1.5">1 · El auto en la escena</p>
           <Button
             onClick={armonizar}
             disabled={armonizando}
@@ -283,7 +283,7 @@ export function EditorCreativo({
         {/* Cambiar de auto o de fondo se hace mirando, no leyendo una lista. */}
         <div>
           <div className="mb-1.5 flex items-baseline justify-between">
-            <p className="overline">Vehículo</p>
+            <p className="etiqueta">Vehículo</p>
             <span className="truncate text-[11px] text-muted-foreground">{actual.titulo}</span>
           </div>
           <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -311,7 +311,7 @@ export function EditorCreativo({
         </div>
 
         <div>
-          <p className="overline mb-1.5">Fondo</p>
+          <p className="etiqueta mb-1.5">Fondo</p>
           <div className="flex gap-1.5 overflow-x-auto pb-1">
             {disponibles.map((f) => (
               <button
@@ -330,7 +330,7 @@ export function EditorCreativo({
         </div>
 
         <div>
-          <p className="overline mb-2">
+          <p className="etiqueta mb-2">
             {creativo.armonizadoUrl ? "2 · Textos" : "Capas"}
           </p>
           <ul className="divide-y border border-border">
@@ -355,7 +355,7 @@ export function EditorCreativo({
 
         {elemento?.tipo === "texto" && (
           <div className="space-y-4 border-t border-border pt-4">
-            <p className="overline">{elemento.etiqueta}</p>
+            <p className="etiqueta">{elemento.etiqueta}</p>
 
             <Campo label="Texto" htmlFor="texto">
               <input
@@ -391,7 +391,7 @@ export function EditorCreativo({
             </Campo>
 
             <div>
-              <p className="overline mb-1.5">Color</p>
+              <p className="etiqueta mb-1.5">Color</p>
               <div className="flex flex-wrap gap-1.5">
                 {COLORES.map((c) => (
                   <button
@@ -430,7 +430,7 @@ export function EditorCreativo({
 
         {elemento?.tipo === "auto" && (
           <div className="space-y-4 border-t border-border pt-4">
-            <p className="overline">Vehículo</p>
+            <p className="etiqueta">Vehículo</p>
             {!elemento.url && (
               <p className="text-[12px] leading-relaxed text-muted-foreground">
                 Todavía no hay recorte. Usa <span className="text-foreground">Recortar vehículo</span>:
@@ -477,7 +477,7 @@ function Deslizador({
   return (
     <div>
       <div className="mb-1 flex items-baseline justify-between">
-        <span className="overline">{etiqueta}</span>
+        <span className="etiqueta">{etiqueta}</span>
         <span className="tabular text-[11px] text-muted-foreground">{formato(valor)}</span>
       </div>
       <input

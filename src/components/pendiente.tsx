@@ -11,7 +11,7 @@ export function Pendiente({ que, fase, detalle }: { que: string; fase: string; d
           {detalle}
         </p>
       )}
-      <p className="overline mt-5">{fase}</p>
+      <p className="etiqueta mt-5">{fase}</p>
     </div>
   );
 }

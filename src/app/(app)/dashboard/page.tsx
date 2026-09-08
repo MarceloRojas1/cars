@@ -16,7 +16,7 @@ export default async function DashboardPage() {
   return (
     <>
       <PageHeader
-        titulo={`Hola, ${nombrePila} 👋`}
+        titulo={`Hola, ${nombrePila}`}
         descripcion="Lo que requiere tu atención hoy"
       />
 

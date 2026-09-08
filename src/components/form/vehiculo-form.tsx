@@ -141,7 +141,7 @@ export function VehiculoForm({
       <section className="mb-2 border border-border bg-card p-5">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex min-w-[200px] flex-col gap-1.5">
-            <label htmlFor="patente" className="overline">Patente</label>
+            <label htmlFor="patente" className="etiqueta">Patente</label>
             <input
               id="patente"
               name="patente"
@@ -415,7 +415,7 @@ export function VehiculoForm({
       {/* --- 5. presentación --- */}
       <Seccion numero="05" titulo="Presentación" descripcion="Cómo se le muestra el auto al comprador.">
         <div className="sm:col-span-2">
-          <p className="overline mb-2.5">Tags</p>
+          <p className="etiqueta mb-2.5">Tags</p>
           <div className="flex flex-wrap gap-2">
             {[...TAGS, ...tags.filter((t) => !TAGS.includes(t as never))].map((t) => (
               <button

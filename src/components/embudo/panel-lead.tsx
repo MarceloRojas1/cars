@@ -35,7 +35,7 @@ function Bloque({
   return (
     <section className="border-b border-border px-5 py-4">
       <div className="mb-2.5 flex items-center justify-between gap-3">
-        <h3 className="overline">{titulo}</h3>
+        <h3 className="etiqueta">{titulo}</h3>
         {accion}
       </div>
       {children}

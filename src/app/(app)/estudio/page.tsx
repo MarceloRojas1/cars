@@ -58,7 +58,7 @@ export default async function EstudioPage() {
 
       <section>
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 className="overline">Biblioteca Velie ({biblioteca.length})</h2>
+          <h2 className="etiqueta">Biblioteca Velie ({biblioteca.length})</h2>
           {sinGenerar > 0 && (
             <p className="text-[11.5px] text-muted-foreground">
               <span className="tabular">{sinGenerar}</span> sin generar ·{" "}
@@ -75,7 +75,7 @@ export default async function EstudioPage() {
 
       {propios.length > 0 && (
         <section className="mt-8">
-          <h2 className="overline mb-3">Mis showrooms ({propios.length})</h2>
+          <h2 className="etiqueta mb-3">Mis showrooms ({propios.length})</h2>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
             {propios.map((f) => (
               <TarjetaFondo key={f.id} fondo={f} />

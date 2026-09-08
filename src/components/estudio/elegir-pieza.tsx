@@ -39,7 +39,7 @@ export function ElegirPieza({
     <div className="space-y-8">
       <section>
         <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="overline">1 · Vehículo</h2>
+          <h2 className="etiqueta">1 · Vehículo</h2>
           <span className="text-[11.5px] text-muted-foreground">
             Se monta su foto principal
           </span>
@@ -88,7 +88,7 @@ export function ElegirPieza({
 
       <section>
         <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="overline">2 · Fondo</h2>
+          <h2 className="etiqueta">2 · Fondo</h2>
           <span className="text-[11.5px] text-muted-foreground">
             Se puede cambiar después
           </span>

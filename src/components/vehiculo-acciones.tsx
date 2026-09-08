@@ -71,7 +71,7 @@ export function VehiculoAcciones({
 
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuLabel className="overline">Estado</DropdownMenuLabel>
+            <DropdownMenuLabel className="etiqueta">Estado</DropdownMenuLabel>
             {ESTADOS.map((e) => (
               <DropdownMenuItem
                 key={e.valor}

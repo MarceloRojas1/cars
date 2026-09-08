@@ -32,15 +32,27 @@ Cuando tomemos una decisión que no sea obvia mirando el código, anótala en
   `src/lib/data/index.ts`, que es async para poder cambiarse a Supabase sin tocar la UI.
 - **Plata**: CLP entero, sin decimales. Usa `clp()` de `src/lib/format.ts`.
   Toda columna de cifras lleva la clase `tabular`.
-- **Monocromo**: la paleta es neutra y el acento (`primary`) es el hueso `#F2F0EC`,
-  o sea el mismo color del texto. **El color solo aparece cuando significa algo**:
-  `ok` / `warn` / `crit` / `hot` para estados reales. Un rol, un canal o una etiqueta
-  se distinguen por peso o por un punto, nunca por una cápsula de color.
-- **Formas**: radio 3px (`--radius`), filetes de 1px, sin sombras. Las tablas no van
+- **Grafito con acento**: fondo grafito frío entintado hacia el azul del acento
+  (`primary` = `#4C8DF6`). **El acento es de marca y es frío por obligación**: verde,
+  ámbar y rojo ya ocupan el lado cálido, y un acento cobre quedaba a ΔE 3.3 del rojo
+  de `crit` — indistinguible. Fuera del acento, **el color sigue apareciendo solo
+  cuando significa algo**: `ok` / `warn` / `crit` / `hot` para estados reales. Un rol,
+  un canal o una etiqueta se distinguen por peso o por un punto, nunca por cápsula.
+- **Los colores de estado están medidos, no elegidos.** Antes de tocarlos, pásalos por
+  el validador de la guía de gráficos: separación CVD, piso de visión normal ≥ 15,
+  croma y contraste contra el fondo. El par ámbar/rojo anterior estaba en ΔE 11.9 y se
+  veía casi igual cuando iban pegados.
+- **Formas**: radio 10px (`--radius`), filetes de 1px, sin sombras. Las tablas no van
   dentro de una tarjeta: se separan con líneas horizontales.
-- **Tipografía**: serif (`.display`, Newsreader) solo para títulos y cifras grandes;
-  IBM Plex Sans para la interfaz; IBM Plex Mono para cifras y códigos (clase `.tabular`).
-  Las etiquetas de sección usan `.overline`.
+- **Tipografía**: Bricolage Grotesque (`.display`, peso 700, tracking -0.03em) para
+  títulos y el wordmark; Geist para la interfaz; Geist Mono para cifras y códigos
+  (clase `.tabular`).
+- **Las etiquetas de sección usan `.etiqueta`, NO `.overline`**: ese es el nombre de una
+  utilidad de Tailwind (`text-decoration: overline`) y la utilidad gana, así que
+  dibujaba una línea sobre cada etiqueta.
+- **La navegación va arriba**, en una fila: seis secciones visibles y el resto en dos
+  menús (`NAV_PRINCIPAL`, `NAV_HERRAMIENTAS`, `NAV_CUENTA` en `src/lib/nav.ts`). No hay
+  barra lateral: el ancho completo lo necesitan el inventario, el embudo y el editor.
 - **Antigüedad de stock**: `severidadDias()` tiene los umbrales del producto
   (>30d advertencia, >60d crítico). No los redefinas en cada pantalla.
 - **`vehicleId` en un lead es opcional a propósito.** Un lead puede no tener vehículo.

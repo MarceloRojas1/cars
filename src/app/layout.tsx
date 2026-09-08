@@ -1,27 +1,22 @@
 import type { Metadata } from "next";
-import { Newsreader, IBM_Plex_Sans, IBM_Plex_Mono, Sora } from "next/font/google";
+import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-/** Tipografía de marca. Reservada al wordmark, según la guía. */
-const marca = Sora({
-  variable: "--font-marca",
+/**
+ * Display con carácter: los títulos y el wordmark. Reemplaza al par
+ * Sora + Newsreader — la serif editorial se leía elegante pero blanda para una
+ * herramienta de trabajo.
+ */
+const display = Bricolage_Grotesque({
+  variable: "--font-display",
   subsets: ["latin"],
-  weight: ["800"],
+  weight: ["600", "700"],
   display: "swap",
 });
 
-/** Serif editorial: solo títulos y cifras grandes. */
-const serif = Newsreader({
-  variable: "--font-serif",
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  style: ["normal", "italic"],
-  display: "swap",
-});
-
-/** Sans de interfaz: todo lo que se lee en pantalla pequeña. */
-const sans = IBM_Plex_Sans({
+/** Cuerpo: neutra y de buena lectura en tamaños chicos. */
+const sans = Geist({
   variable: "--font-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600"],
@@ -29,7 +24,7 @@ const sans = IBM_Plex_Sans({
 });
 
 /** Mono: cifras, códigos y patentes. */
-const mono = IBM_Plex_Mono({
+const mono = Geist_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
   weight: ["400", "500"],
@@ -45,7 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`dark ${marca.variable} ${serif.variable} ${sans.variable} ${mono.variable} h-full antialiased`}
+      className={`dark ${display.variable} ${sans.variable} ${mono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col bg-background font-sans text-foreground">

@@ -68,7 +68,7 @@ export function CargaDeFotos({ iniciales }: { iniciales?: VehiclePhoto[] }) {
       />
 
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="overline">Fotos</p>
+        <p className="etiqueta">Fotos</p>
         <p className="tabular text-[11.5px] text-muted-foreground">
           {fotos.length}/{MAX_FOTOS}
         </p>

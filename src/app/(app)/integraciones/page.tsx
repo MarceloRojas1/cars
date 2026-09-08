@@ -47,7 +47,7 @@ export default async function IntegracionesPage() {
           if (!items.length) return null;
           return (
             <section key={g.id}>
-              <h2 className="overline mb-2.5">
+              <h2 className="etiqueta mb-2.5">
                 {g.titulo}
               </h2>
               <ul className="divide-y border border-border bg-card">
