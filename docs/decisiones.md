@@ -1104,6 +1104,43 @@ Verificado simulando el webhook con firma HMAC válida: dos personas desde el
 mismo anuncio crean dos leads, el reintento del mismo mensaje no duplica, y una
 firma inválida recibe 401.
 
+## 2026-09-08 — El bot de WhatsApp: responde, califica y suelta el lead
+
+La cadena completa quedó armada: clic en anuncio → lead → respuesta del bot →
+conversación → traspaso a un vendedor. Dos piezas ya existían y se respetaron: el
+lead entra sin vendedor asignado porque la etapa de entrada la conduce el bot, y
+`moverLead` asigna solo al cruzar a una etapa humana.
+
+**De qué auto habla se resuelve por tres caminos, en orden de confianza**: el
+código de la publicación en el texto, la patente, o marca y modelo por texto
+libre. **Si ninguno calza, el bot pregunta en vez de adivinar** — cotizar el auto
+equivocado es peor que preguntar una vez.
+
+Eso impone una regla de configuración: **los anuncios de clic-a-WhatsApp deben
+llevar el código en el mensaje prellenado** ("Hola, quiero consultar por el
+COD920871"). Es lo que hace que el primer mensaje llegue con el auto identificado.
+
+**La respuesta y la clasificación salen de una sola llamada al modelo.**
+Separarlas duplica el costo y abre la puerta a que el mensaje diga una cosa y la
+clasificación otra.
+
+**El modelo no escribe en la base.** Devuelve `{respuesta, interes, motivo}` y
+quien lo llama actúa. Un modelo que mueve etapas por su cuenta es imposible de
+auditar cuando se equivoca — y equivocarse acá es despertar a un vendedor por
+nada, o dejar dormido un lead caliente. El `motivo` queda registrado.
+
+**El bot se calla apenas el lead pasa a una etapa de personas.** Un vendedor y un
+bot escribiéndole a la misma persona es la peor versión de esto.
+
+**Sin pensamiento extendido**: es una conversación de dos frases y cada segundo
+lo espera alguien mirando el chat. A 120.000 mensajes diarios el costo tampoco es
+menor.
+
+**Claude pasa al modelo mixto**, como las imágenes: si la automotora conectó su
+cuenta paga ella, si no se usa la clave de la plataforma. El asistente es el
+corazón del producto y no puede depender de que cada cliente abra una cuenta en
+Anthropic — en el original figura como "incluido" en el plan.
+
 ## Decisiones pendientes
 
 - [ ] **¿Conectar Supabase antes de la Fase 2 o seguir con semilla?**

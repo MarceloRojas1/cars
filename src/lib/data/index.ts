@@ -1421,3 +1421,67 @@ export async function cambiarEstadoMiembro(idInterfaz: string, activo: boolean):
   );
   return { ok: true, id };
 }
+
+/* --- Asistente de WhatsApp: contexto para decidir --- */
+
+/**
+ * Estado de un lead para que el bot decida: su etapa, quién la conduce y la
+ * conversación completa. En una consulta, porque esto corre por cada mensaje
+ * entrante y son 120.000 al día a escala del producto.
+ */
+export async function contextoDelBot(leadId: string): Promise<{
+  etapaId: string;
+  etapaResponsable: "ia" | "humano";
+  vehicleId: string | null;
+  historial: { direccion: "entrante" | "saliente"; cuerpo: string }[];
+} | null> {
+  if (!dbConfigurada()) return null;
+
+  const filas = await consultar<{
+    stage_id: string; responsable: "ia" | "humano"; vehicle_id: string | null;
+  }>(
+    ORG_UUID,
+    `select l.stage_id, e.responsable, l.vehicle_id
+       from lead l join stage e on e.id = l.stage_id
+      where l.id = $1 and l.organization_id = $2`,
+    [leadId, ORG_UUID],
+  );
+  if (!filas[0]) return null;
+
+  const mensajes = await consultar<{ direccion: string; cuerpo: string }>(
+    ORG_UUID,
+    `select a.payload->>'direccion' as direccion, a.payload->>'cuerpo' as cuerpo
+       from lead_activity a
+      where a.lead_id = $1 and a.tipo = 'mensaje'
+      order by a.created_at asc
+      limit 40`,
+    [leadId],
+  );
+
+  return {
+    etapaId: filas[0].stage_id,
+    etapaResponsable: filas[0].responsable,
+    vehicleId: filas[0].vehicle_id,
+    historial: mensajes.map((m) => ({
+      direccion: m.direccion === "saliente" ? "saliente" : "entrante",
+      cuerpo: m.cuerpo,
+    })),
+  };
+}
+
+/**
+ * A qué etapa pasa un lead cuando el bot detecta interés: la primera del embudo
+ * que conduce una persona. No se codifica un nombre porque el embudo lo
+ * configura cada automotora — lo que no cambia es que ahí empieza el humano.
+ */
+export async function primeraEtapaHumana(): Promise<{ id: string; nombre: string } | null> {
+  if (!dbConfigurada()) return null;
+  const filas = await consultar<{ id: string; nombre: string }>(
+    ORG_UUID,
+    `select id, nombre from stage
+      where organization_id = $1 and responsable = 'humano' and kind = 'progress'
+      order by orden limit 1`,
+    [ORG_UUID],
+  );
+  return filas[0] ?? null;
+}

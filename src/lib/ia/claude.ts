@@ -12,8 +12,17 @@ import { MODELO_POR_DEFECTO } from "./modelos";
  * construye por organización y no una sola vez para toda la aplicación.
  */
 
-type CredencialClaude = { apiKey: string; modelo?: string };
+type CredencialClaude = { apiKey: string; modelo?: string; paga: "automotora" | "plataforma" };
 
+/**
+ * Con qué clave habla el asistente — el mismo modelo mixto que las imágenes.
+ *
+ * Si la automotora conectó su cuenta, paga ella. Si no, se usa la de la
+ * plataforma: el asistente es el corazón del producto y no puede depender de
+ * que cada cliente abra una cuenta en Anthropic y cargue facturación. En el
+ * producto original Claude figura como "incluido" en el plan, no como algo que
+ * el cliente conecta.
+ */
 async function credencialDe(orgId: string): Promise<CredencialClaude | null> {
   const filas = await consultar<{ credenciales: { apiKey?: string; modelo?: string } | null }>(
     orgId,
@@ -22,21 +31,25 @@ async function credencialDe(orgId: string): Promise<CredencialClaude | null> {
     [orgId],
   );
   const guardado = filas[0]?.credenciales;
-  if (!guardado?.apiKey) return null;
+  if (guardado?.apiKey) {
+    return { apiKey: descifrar(guardado.apiKey), modelo: guardado.modelo, paga: "automotora" };
+  }
 
-  return { apiKey: descifrar(guardado.apiKey), modelo: guardado.modelo };
+  const plataforma = process.env.ANTHROPIC_API_KEY;
+  return plataforma ? { apiKey: plataforma, paga: "plataforma" } : null;
 }
 
-/** null si la automotora todavía no configuró su clave. */
+/** null solo si no hay clave por ningún lado: ni de la automotora ni de la plataforma. */
 export async function clienteClaude(
   orgId: string = ORG_UUID,
-): Promise<{ cliente: Anthropic; modelo: string } | null> {
+): Promise<{ cliente: Anthropic; modelo: string; paga: "automotora" | "plataforma" } | null> {
   const credencial = await credencialDe(orgId);
   if (!credencial) return null;
 
   return {
     cliente: new Anthropic({ apiKey: credencial.apiKey }),
     modelo: credencial.modelo ?? MODELO_POR_DEFECTO,
+    paga: credencial.paga,
   };
 }
 
