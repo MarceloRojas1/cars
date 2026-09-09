@@ -398,8 +398,78 @@ export async function getIntegrations(): Promise<Integration[]> {
     };
   });
 }
+/**
+ * Las cifras del dashboard y de rendimiento.
+ *
+ * Devolvía la semilla SIEMPRE. Con una automotora recién creada eso significaba
+ * un panel que anunciaba 390 leads calientes sin atender y 34 notas con saldo
+ * mientras los contadores reales decían 0 — datos inventados presentados como
+ * propios. En una herramienta de trabajo eso es peor que un panel vacío.
+ *
+ * Lo que todavía sale de la semilla está marcado abajo: son métricas cuya
+ * definición no está cerrada con el cliente (ver "Lo que falta definir" en
+ * AGENTS.md). Se devuelven en cero, no inventadas.
+ */
 export async function getMetricas() {
-  return seed.metricas;
+  if (!dbConfigurada()) return seed.metricas;
+
+  const orgId = await orgActual();
+  const [fila] = await consultar<{
+    leads_totales: string; leads_sin_asignar: string; hot_sin_atender: string; leads_mes: string;
+    ventas_mes: string; vendidos_30d: string; dias_stock_promedio: string | null;
+    autos_sin_movimiento: string; notas_cantidad: string; notas_total: string | null;
+  }>(
+    orgId,
+    `select
+       (select count(*) from lead where organization_id = $1) as leads_totales,
+       (select count(*) from lead
+         where organization_id = $1 and vendedor_id is null and not perdido) as leads_sin_asignar,
+       -- "Sin atender" = caliente, vivo y sin nadie a cargo.
+       (select count(*) from lead
+         where organization_id = $1 and temperatura = 'hot'
+           and vendedor_id is null and not perdido) as hot_sin_atender,
+       (select count(*) from lead
+         where organization_id = $1
+           and date_trunc('month', created_at) = date_trunc('month', current_date)) as leads_mes,
+       (select count(*) from operation
+         where organization_id = $1 and kind = 'venta'
+           and date_trunc('month', fecha) = date_trunc('month', current_date)) as ventas_mes,
+       (select count(*) from operation
+         where organization_id = $1 and kind = 'venta'
+           and fecha >= current_date - 30) as vendidos_30d,
+       (select round(avg(extract(day from now() - publicado_at)))
+          from vehicle
+         where organization_id = $1 and estado = 'disponible'
+           and archivado_at is null and publicado_at is not null) as dias_stock_promedio,
+       -- El umbral del panel: más de 45 días sin moverse.
+       (select count(*) from vehicle
+         where organization_id = $1 and estado = 'disponible' and archivado_at is null
+           and publicado_at < now() - interval '45 days') as autos_sin_movimiento,
+       (select count(*) from operation
+         where organization_id = $1 and saldo_pendiente > 0) as notas_cantidad,
+       (select sum(saldo_pendiente) from operation
+         where organization_id = $1 and saldo_pendiente > 0) as notas_total`,
+    [orgId],
+  );
+
+  const n = (v: string | null | undefined) => Number(v ?? 0);
+
+  return {
+    leadsTotales: n(fila?.leads_totales),
+    leadsMes: n(fila?.leads_mes),
+    leadsSinAsignar: n(fila?.leads_sin_asignar),
+    diasStockPromedio: n(fila?.dias_stock_promedio),
+    vendidos30d: n(fila?.vendidos_30d),
+    ventasMes: n(fila?.ventas_mes),
+    autosSinMovimiento: n(fila?.autos_sin_movimiento),
+    leadsHotSinAtender: n(fila?.hot_sin_atender),
+    notasConSaldo: { cantidad: n(fila?.notas_cantidad), total: n(fila?.notas_total) },
+
+    // Sin definición cerrada con el cliente: en cero, no inventadas.
+    metaMensual: 0,
+    rapidezMedianaSeg: 0,
+    conversacionesIaUsadas: 0,
+  };
 }
 
 /** Fila de `assistant_config` tal como vuelve de Postgres. */
@@ -592,11 +662,15 @@ export async function getResumenDashboard() {
   const criticos = disponibles.filter((v) => v.publicadoHaceDias > 60);
   const incompletas = disponibles.filter((v) => v.completitudPct < 100);
 
+  // Del mes en curso, no de todo el histórico: es lo que dice la etiqueta.
+  const esteMes = (fecha: string) => fecha.slice(0, 7) === new Date().toISOString().slice(0, 7);
+  const ventasDelMes = operations.filter((o) => o.kind === "venta" && esteMes(o.fecha));
+
   return {
     stockDisponible: disponibles.length,
     ventasMes: metricas.ventasMes,
-    leadsMes: 0,
-    utilidadMes: operations.reduce((acc, o) => acc + (o.precio - o.gastos) * 0, 0),
+    leadsMes: metricas.leadsMes,
+    utilidadMes: ventasDelMes.reduce((acc, o) => acc + (o.precio - o.gastos), 0),
     hotSinAtender: metricas.leadsHotSinAtender,
     sinMovimiento: metricas.autosSinMovimiento,
     notasConSaldo: metricas.notasConSaldo,

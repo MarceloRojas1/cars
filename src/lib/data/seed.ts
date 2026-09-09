@@ -225,6 +225,7 @@ export const knowledgeItems: KnowledgeItem[] = [
 /** Métricas del mes que en el producto real son agregaciones (ver docs, sección 4). */
 export const metricas = {
   leadsTotales: 640,
+  leadsMes: 0,
   leadsSinAsignar: 50,
   diasStockPromedio: 77,
   vendidos30d: 13,

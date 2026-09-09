@@ -1340,6 +1340,43 @@ maquinaria está medida y funciona, solo dejó de usarse.
 llamadas con la organización escrita en el código, de antes del sistema de
 cuentas.
 
+## 2026-09-09 — Despliegue real: tres bugs que solo aparecieron en producción
+
+Los tres compilaban, pasaban lint y funcionaban en desarrollo.
+
+**1. `sesionActual()` buscaba el perfil con la organización equivocada.** Resolvía
+`membership` y `app_user` en un solo join, y para eso la transacción tenía que
+declarar una organización ANTES de saber cuál era: usaba `ORG_UUID`. `app_user`
+lleva RLS, así que con la organización equivocada la fila quedaba filtrada y la
+sesión salía nula — "Sin sesión" después de un login correcto. En desarrollo la
+organización de la semilla era la única que existía y el id coincidía por
+casualidad. Ahora son dos consultas en orden: `membership` primero, que es la
+única tabla legible sin saber la organización porque no lleva RLS.
+
+**2. `pg` dejó de aceptar el TLS de Supabase.** Interpreta `sslmode=require` —lo
+que trae la cadena de Supabase— como `verify-full`, y su cadena de certificados
+no la pasa. La app no podía conectarse a la base en absoluto. El parámetro se
+quita de la URL y el TLS se configura explícito.
+
+**3. `getMetricas()` devolvía la semilla.** Una automotora recién creada veía un
+panel que anunciaba 390 leads calientes sin atender, 21 autos sin movimiento y 34
+notas con saldo por $147.950.000, con nombres de personas inventadas, mientras
+los contadores reales decían 0. Datos falsos presentados como propios: en una
+herramienta de trabajo eso es peor que un panel vacío. Ahora se calculan en SQL.
+Las métricas cuya definición no está cerrada con el cliente —meta mensual,
+rapidez mediana, conversaciones de IA— se devuelven en CERO, no inventadas.
+
+**El patrón es el mismo en los tres y ya había aparecido antes** con
+`getOrganization()` y `getCurrentUser()`: una función de datos que devuelve la
+semilla en vez de consultar. Con un solo cliente y la organización de la semilla
+no se distingue de lo correcto.
+
+**Y una confirmación que no era teórica:** en Supabase el rol `postgres` tiene
+`rolbypassrls = t`. Conectar la aplicación con él anula el aislamiento entre
+automotoras aunque las políticas estén puestas y sin dar ningún error. Por eso
+existe `supabase/rol-app.sql`. Comprobado: los 9 tests de aislamiento pasan
+contra Supabase con `velie_app`.
+
 ## Decisiones pendientes
 
 - [ ] **¿Conectar Supabase antes de la Fase 2 o seguir con semilla?**
