@@ -9,6 +9,7 @@ import {
 } from "@/lib/data";
 import { COMBUSTIBLES } from "@/lib/catalogos";
 import { consultarPatente } from "@/lib/patente";
+import { urlDeFotoValida } from "@/lib/storage";
 import { revalidarCatalogo } from "@/lib/catalogo/revalidar";
 
 /** Vacío en un formulario es "no informado", no cero ni cadena vacía. */
@@ -63,9 +64,16 @@ const esquema = z.object({
   comuna: textoOpcional,
 });
 
-/** Las fotos llegan como URLs: ya se subieron por /api/fotos antes del submit. */
+/**
+ * Las fotos llegan como URLs: ya se subieron antes del submit, o al disco local
+ * o directo del navegador a Blob. Se validan contra una lista blanca de
+ * destinos —ver `urlDeFotoValida`— porque este campo viaja por el navegador.
+ */
 const esquemaFotos = z
-  .array(z.object({ url: z.string().startsWith("/"), esPrincipal: z.boolean() }))
+  .array(z.object({
+    url: z.string().refine(urlDeFotoValida, "URL de foto no permitida"),
+    esPrincipal: z.boolean(),
+  }))
   .max(50, "Máximo 50 fotos por vehículo");
 
 export type EstadoFormulario = {

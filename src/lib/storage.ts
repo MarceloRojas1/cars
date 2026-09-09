@@ -152,3 +152,23 @@ export function imagenLocalExiste(url: string) {
   if (url.startsWith("http")) return true;
   return existsSync(path.join(process.cwd(), "public", url.replace(/^\//, "")));
 }
+
+/**
+ * ¿Es una URL de foto que aceptamos guardar?
+ *
+ * Lista blanca, no "cualquier cosa que parezca URL". El formulario manda las
+ * URLs que devolvió la subida, pero eso viaja por el navegador y se puede
+ * cambiar: sin este filtro, cualquiera podría hacer que la ficha de un auto
+ * —y el catálogo público— cargue una imagen de un servidor ajeno.
+ *
+ * Se admiten dos formas: el disco local (`/uploads/...`) y la tienda de Blob.
+ */
+export function urlDeFotoValida(url: string) {
+  if (url.startsWith("/uploads/")) return true;
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" && u.hostname.endsWith(".public.blob.vercel-storage.com");
+  } catch {
+    return false;
+  }
+}
