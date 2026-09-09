@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { upload } from "@vercel/blob/client";
 import Image from "next/image";
 import { ImagePlus, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,37 @@ export function CargaDeFotos({ iniciales }: { iniciales?: VehiclePhoto[] }) {
 
   const cupo = MAX_FOTOS - fotos.length;
 
+  /**
+   * Sube DIRECTO del navegador a Blob, sin pasar por una función de Vercel.
+   *
+   * Ese rodeo es lo que quita el tope de tamaño: una función tiene un límite de
+   * cuerpo de ~4,5 MB, y una foto de celular moderno lo pasa sin esfuerzo. Acá
+   * el archivo va del teléfono a la tienda; el servidor solo firma el permiso.
+   *
+   * Sin Blob configurado (desarrollo local) se cae al camino anterior, que
+   * escribe en `public/uploads` y ahí sí manda el límite de la función.
+   */
+  async function subirDirecto(archivos: File[]): Promise<Foto[]> {
+    return Promise.all(
+      archivos.map(async (archivo) => {
+        const subido = await upload(archivo.name, archivo, {
+          access: "public",
+          handleUploadUrl: "/api/fotos/token",
+        });
+        return { url: subido.url, nombre: archivo.name };
+      }),
+    );
+  }
+
+  async function subirPorServidor(archivos: File[]): Promise<Foto[]> {
+    const cuerpo = new FormData();
+    archivos.forEach((f) => cuerpo.append("fotos", f));
+    const res = await fetch("/api/fotos", { method: "POST", body: cuerpo });
+    const datos = await res.json();
+    if (!res.ok) throw new Error(datos.error ?? "No se pudieron subir las fotos.");
+    return datos.fotos as Foto[];
+  }
+
   async function subir(lista: FileList | null) {
     if (!lista?.length) return;
     setError(null);
@@ -34,15 +66,21 @@ export function CargaDeFotos({ iniciales }: { iniciales?: VehiclePhoto[] }) {
       elegidos.length = cupo;
     }
 
-    const cuerpo = new FormData();
-    elegidos.forEach((f) => cuerpo.append("fotos", f));
-
     setSubiendo(true);
     try {
-      const res = await fetch("/api/fotos", { method: "POST", body: cuerpo });
-      const datos = await res.json();
-      if (!res.ok) throw new Error(datos.error ?? "No se pudieron subir las fotos.");
-      setFotos((prev) => [...prev, ...datos.fotos]);
+      let subidas: Foto[];
+      try {
+        subidas = await subirDirecto(elegidos);
+      } catch (e) {
+        /*
+         * El endpoint del permiso responde 501 cuando no hay Blob: es el caso
+         * de desarrollo local, no un fallo. Cualquier otro error sí se muestra.
+         */
+        const sinBlob = e instanceof Error && /501|almacenamiento de objetos/i.test(e.message);
+        if (!sinBlob) throw e;
+        subidas = await subirPorServidor(elegidos);
+      }
+      setFotos((prev) => [...prev, ...subidas]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al subir.");
     } finally {

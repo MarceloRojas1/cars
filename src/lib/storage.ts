@@ -20,8 +20,18 @@ import path from "node:path";
  */
 
 export const MAX_FOTOS = 50;
-export const MAX_BYTES_POR_FOTO = 8 * 1024 * 1024; // 8 MB
 export const TIPOS_ACEPTADOS = ["image/jpeg", "image/png", "image/webp", "image/avif"];
+
+/**
+ * Tope por foto cuando el archivo pasa POR EL SERVIDOR (desarrollo local, o
+ * producción sin Blob). No es una regla del producto: es el límite de cuerpo de
+ * una función de Vercel, ~4,5 MB. Se avisa antes de intentarlo para no fallar
+ * con un 413 sin explicación.
+ *
+ * Con Blob configurado este tope NO se aplica: el navegador sube directo a la
+ * tienda y el archivo nunca pasa por una función.
+ */
+export const MAX_BYTES_POR_SERVIDOR = 4 * 1024 * 1024;
 
 const DIRECTORIO = path.join(process.cwd(), "public", "uploads", "vehiculos");
 
@@ -71,8 +81,11 @@ export async function guardarImagen(archivo: File): Promise<ResultadoSubida> {
   if (!TIPOS_ACEPTADOS.includes(archivo.type)) {
     throw new Error(`Formato no aceptado: ${archivo.type || "desconocido"}`);
   }
-  if (archivo.size > MAX_BYTES_POR_FOTO) {
-    throw new Error(`"${archivo.name}" pesa más de 8 MB`);
+  if (!blobConfigurado() && archivo.size > MAX_BYTES_POR_SERVIDOR) {
+    throw new Error(
+      `"${archivo.name}" pesa más de 4 MB y no hay almacenamiento de objetos ` +
+        "configurado, así que tiene que pasar por el servidor.",
+    );
   }
 
   const extension = archivo.type.split("/")[1].replace("jpeg", "jpg");
