@@ -257,6 +257,16 @@ const ES_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * que lo que vuelve en un formulario puede ser cualquiera de los dos. `uuidDe`
  * aplicado a un uuid lo convertiría en otro distinto, de ahí el guardia.
  */
+/**
+ * El id que manda la interfaz, convertido al uuid de la base.
+ *
+ * La distinción NO es cosmética: `uuidDe()` sobre un uuid que ya es uuid
+ * devuelve OTRO uuid distinto, y el insert termina apuntando a una fila que no
+ * existe. En desarrollo no se veía porque los ids de la semilla (`suc_centro`)
+ * siempre pasaban por la conversión; en la base de un cliente las sucursales
+ * tienen uuid de verdad y guardar un vehículo fallaba con
+ * "violates foreign key constraint vehicle_branch_id_fkey".
+ */
 const aUuid = (id: string) => (ES_UUID.test(id) ? id : uuidDe(id));
 
 /** Una ficha con sus fotos, para la pantalla de edición. */
@@ -779,8 +789,8 @@ export async function crearVehiculo(datos: NuevoVehiculo): Promise<Vehicle> {
        returning *`,
       [
         (await orgActual()),
-        datos.branchId ? uuidDe(datos.branchId) : await sucursalPorDefecto(await orgActual()),
-        datos.vendedorId ? uuidDe(datos.vendedorId) : null,
+        datos.branchId ? aUuid(datos.branchId) : await sucursalPorDefecto(await orgActual()),
+        datos.vendedorId ? aUuid(datos.vendedorId) : null,
         codigo, datos.titulo, datos.marca, datos.modelo, datos.version ?? null,
         datos.anio, datos.patente ?? null, datos.precio, datos.km ?? null,
         datos.combustible ?? null, datos.transmision ?? null, datos.carroceria ?? null,
@@ -849,8 +859,8 @@ export async function actualizarVehiculo(id: string, datos: NuevoVehiculo): Prom
        where id = $1 and organization_id = $28`,
       [
         id,
-        datos.branchId ? uuidDe(datos.branchId) : await sucursalPorDefecto(await orgActual()),
-        datos.vendedorId ? uuidDe(datos.vendedorId) : null,
+        datos.branchId ? aUuid(datos.branchId) : await sucursalPorDefecto(await orgActual()),
+        datos.vendedorId ? aUuid(datos.vendedorId) : null,
         datos.titulo, datos.marca, datos.modelo, datos.version ?? null, datos.anio,
         datos.patente ?? null, datos.precio, datos.km ?? null, datos.combustible ?? null,
         datos.transmision ?? null, datos.carroceria ?? null, datos.puertas ?? null,
@@ -1126,7 +1136,7 @@ export async function crearLead(datos: NuevoLead): Promise<string> {
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,'warm',$10) returning id`,
       [
         (await orgActual()), etapas[0].id, datos.vehicleId ?? null,
-        datos.vendedorId ? uuidDe(datos.vendedorId) : null,
+        datos.vendedorId ? aUuid(datos.vendedorId) : null,
         datos.nombre, datos.telefono, datos.email ?? null,
         datos.source, datos.tipo ?? null, datos.notas ?? null,
       ],
