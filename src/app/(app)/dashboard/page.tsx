@@ -45,9 +45,12 @@ export default async function DashboardPage() {
             <Flame className="size-4 shrink-0 text-hot" />
             <div className="min-w-0 flex-1">
               <p className="text-[13.5px] font-medium">{r.hotSinAtender} leads HOT sin atender</p>
-              <p className="truncate text-[12px] text-muted-foreground">
-                Moisés Pacheco · Hernán Godoy · Juan Andrés Valdés +2 más
-              </p>
+              {r.hotSinAtenderNombres.length > 0 && (
+                <p className="truncate text-[12px] text-muted-foreground">
+                  {r.hotSinAtenderNombres.slice(0, 3).join(" · ")}
+                  {r.hotSinAtenderNombres.length > 3 && ` +${r.hotSinAtenderNombres.length - 3} más`}
+                </p>
+              )}
             </div>
             <ChevronRight className="size-4 text-muted-foreground" />
           </li>

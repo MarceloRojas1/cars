@@ -672,6 +672,15 @@ export async function getResumenDashboard() {
     leadsMes: metricas.leadsMes,
     utilidadMes: ventasDelMes.reduce((acc, o) => acc + (o.precio - o.gastos), 0),
     hotSinAtender: metricas.leadsHotSinAtender,
+    /*
+     * Los nombres de esos leads. Estaban escritos a mano en el JSX del
+     * dashboard: cinco personas inventadas que seguían apareciendo aunque el
+     * contador dijera 0. Salen de los mismos leads que cuenta `hotSinAtender`.
+     */
+    hotSinAtenderNombres: leads
+      .filter((l) => l.temperatura === "hot" && !l.vendedorId && !l.perdido)
+      .map((l) => l.nombre)
+      .filter(Boolean),
     sinMovimiento: metricas.autosSinMovimiento,
     notasConSaldo: metricas.notasConSaldo,
     enSalon,
