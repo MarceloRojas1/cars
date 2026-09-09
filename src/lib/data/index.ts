@@ -13,7 +13,7 @@
  */
 import * as seed from "./seed";
 import { consultar, dbConfigurada, enTransaccion } from "@/lib/db";
-import { idSemilla, uuidDe, SUCURSAL_POR_DEFECTO } from "./ids";
+import { idSemilla, uuidDe } from "./ids";
 import { orgActual, sesionActual } from "@/lib/auth/sesion";
 import { calcularCompletitud } from "./completitud";
 import { MODELOS_SEMILLA } from "@/lib/catalogos";
@@ -107,6 +107,30 @@ function aVehiculo(f: FilaVehiculo): Vehicle {
  * dos habría dicho el nombre equivocado — incluido el que el bot usa para
  * presentarse por WhatsApp.
  */
+/**
+ * La sucursal a la que va un vehículo cuando no se eligió ninguna.
+ *
+ * Antes era una constante: el id de la primera sucursal de la SEMILLA. En
+ * producción esa sucursal no existe —la creó `npm run alta` con otro uuid— y
+ * guardar un vehículo fallaba con "violates foreign key constraint
+ * vehicle_branch_id_fkey", un mensaje de Postgres en crudo delante del usuario.
+ *
+ * Ahora sale de la base: la principal de la organización, o cualquiera activa.
+ * Devuelve null si la automotora no tiene ninguna, y entonces el vehículo queda
+ * sin sucursal (la columna lo admite) en vez de apuntar a una inexistente.
+ */
+async function sucursalPorDefecto(orgId: string): Promise<string | null> {
+  const filas = await consultar<{ id: string }>(
+    orgId,
+    `select id from branch
+      where organization_id = $1 and activa
+      order by es_principal desc, nombre
+      limit 1`,
+    [orgId],
+  );
+  return filas[0]?.id ?? null;
+}
+
 export async function getOrganization(): Promise<Organization> {
   if (!dbConfigurada()) return seed.organization;
 
@@ -755,7 +779,7 @@ export async function crearVehiculo(datos: NuevoVehiculo): Promise<Vehicle> {
        returning *`,
       [
         (await orgActual()),
-        datos.branchId ? uuidDe(datos.branchId) : SUCURSAL_POR_DEFECTO,
+        datos.branchId ? uuidDe(datos.branchId) : await sucursalPorDefecto(await orgActual()),
         datos.vendedorId ? uuidDe(datos.vendedorId) : null,
         codigo, datos.titulo, datos.marca, datos.modelo, datos.version ?? null,
         datos.anio, datos.patente ?? null, datos.precio, datos.km ?? null,
@@ -825,7 +849,7 @@ export async function actualizarVehiculo(id: string, datos: NuevoVehiculo): Prom
        where id = $1 and organization_id = $28`,
       [
         id,
-        datos.branchId ? uuidDe(datos.branchId) : SUCURSAL_POR_DEFECTO,
+        datos.branchId ? uuidDe(datos.branchId) : await sucursalPorDefecto(await orgActual()),
         datos.vendedorId ? uuidDe(datos.vendedorId) : null,
         datos.titulo, datos.marca, datos.modelo, datos.version ?? null, datos.anio,
         datos.patente ?? null, datos.precio, datos.km ?? null, datos.combustible ?? null,
