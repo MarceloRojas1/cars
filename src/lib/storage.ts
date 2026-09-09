@@ -50,7 +50,24 @@ async function subirABlob(
   return url;
 }
 
+/**
+ * Escribir al disco en un servidor sin disco.
+ *
+ * En Vercel el sistema de archivos es de solo lectura, así que `mkdir` falla con
+ * un ENOENT sobre `/var/task/...` que no le dice nada a nadie. Si falta el
+ * almacenamiento de objetos, es mejor decir exactamente qué falta.
+ */
+function sinDiscoDondeEscribir() {
+  return Boolean(process.env.VERCEL) && !blobConfigurado();
+}
+
 export async function guardarImagen(archivo: File): Promise<ResultadoSubida> {
+  if (sinDiscoDondeEscribir()) {
+    throw new Error(
+      "No hay dónde guardar las fotos: falta conectar Vercel Blob. " +
+        "En el panel de Vercel, Storage → Create → Blob, y vuelve a desplegar.",
+    );
+  }
   if (!TIPOS_ACEPTADOS.includes(archivo.type)) {
     throw new Error(`Formato no aceptado: ${archivo.type || "desconocido"}`);
   }
@@ -90,6 +107,12 @@ export async function guardarImagenGenerada(
   carpeta = "showrooms",
   nombreBase = randomUUID(),
 ): Promise<ResultadoSubida> {
+  if (sinDiscoDondeEscribir()) {
+    throw new Error(
+      "No hay dónde guardar la imagen generada: falta conectar Vercel Blob.",
+    );
+  }
+
   const extension = (tipo.split("/")[1] ?? "png").replace("jpeg", "jpg");
   const nombre = `${nombreBase}.${extension}`;
 
