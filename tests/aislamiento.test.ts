@@ -13,8 +13,17 @@ config({ path: ".env.local" });
 import assert from "node:assert/strict";
 import test, { after, before } from "node:test";
 import { Pool } from "pg";
+import { cadenaDeConexion, opcionesDeConexion } from "../src/lib/db";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+/*
+ * Se conecta por el MISMO camino que la aplicación (incluido el manejo de TLS
+ * de las bases gestionadas). Si el test armara su propia conexión, podría pasar
+ * con una configuración que la app no usa — y este es justo el test donde eso
+ * no puede ocurrir.
+ */
+const cadena = cadenaDeConexion();
+if (!cadena) throw new Error("Falta DATABASE_URL para correr el test de aislamiento.");
+const pool = new Pool(opcionesDeConexion(cadena));
 
 const ORG_A = "aaaaaaaa-0000-0000-0000-00000000000a";
 const ORG_B = "bbbbbbbb-0000-0000-0000-00000000000b";

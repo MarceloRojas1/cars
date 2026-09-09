@@ -20,6 +20,7 @@ config({ path: ".env.local" });
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { Client } from "pg";
+import { opcionesDeConexion } from "../src/lib/db";
 
 const DIRECTORIO = path.join(process.cwd(), "supabase", "migrations");
 
@@ -55,12 +56,8 @@ async function main() {
 
   const archivos = (await readdir(DIRECTORIO)).filter((f) => f.endsWith(".sql")).sort();
 
-  const cliente = new Client({
-    connectionString: url,
-    // Las bases gestionadas (Supabase, Neon) exigen TLS y usan su propia cadena
-    // de certificados; sin esto, `pg` rechaza la conexión.
-    ssl: url.includes("localhost") ? undefined : { rejectUnauthorized: false },
-  });
+  // Mismo tratamiento de TLS que la aplicación: ver `configuracion()` en db.ts.
+  const cliente = new Client(opcionesDeConexion(url));
   await cliente.connect();
 
   await cliente.query(`

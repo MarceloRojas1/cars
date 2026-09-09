@@ -19,19 +19,34 @@ function revisar(): Chequeo[] {
   const c: Chequeo[] = [];
   const e = process.env;
 
+  // La integración de Supabase en Vercel la inyecta como POSTGRES_URL.
+  const bd = e.DATABASE_URL || e.POSTGRES_URL;
   c.push(
-    hay(e.DATABASE_URL)
+    hay(bd)
       ? {
           nombre: "Base de datos",
-          nivel: e.DATABASE_URL!.includes("localhost") ? "bloquea" : "ok",
-          detalle: e.DATABASE_URL!.includes("localhost")
-            ? "DATABASE_URL apunta a localhost: en Vercel no existe. Usa la cadena del POOLER de la base gestionada."
-            : e.DATABASE_URL!.includes("pooler") || e.DATABASE_URL!.includes("6543")
+          nivel: bd!.includes("localhost") ? "bloquea" : "ok",
+          detalle: bd!.includes("localhost")
+            ? "Apunta a localhost: en Vercel no existe. Usa la cadena del POOLER de la base gestionada."
+            : bd!.includes("pooler") || bd!.includes("6543")
               ? "Apunta a una base remota por el pooler."
               : "Apunta a una base remota, pero no parece la cadena del pooler. Sin pooler, Postgres se queda sin conexiones con poco tráfico.",
         }
-      : { nombre: "Base de datos", nivel: "bloquea", detalle: "Falta DATABASE_URL." },
+      : { nombre: "Base de datos", nivel: "bloquea", detalle: "Falta DATABASE_URL (o POSTGRES_URL)." },
   );
+
+  // Conectarse como dueño de las tablas anula el aislamiento: RLS no se le
+  // aplica a un rol con BYPASSRLS. Ver supabase/rol-app.sql.
+  if (hay(bd) && !bd!.includes("localhost")) {
+    const comoPostgres = /:\/\/postgres[.:]/.test(bd!);
+    c.push({
+      nombre: "Rol de conexión",
+      nivel: comoPostgres ? "bloquea" : "ok",
+      detalle: comoPostgres
+        ? "La app se conecta como `postgres`, dueño de las tablas. Si ese rol tiene BYPASSRLS, una automotora ve los datos de otra. Crea el rol con supabase/rol-app.sql y compruébalo con `npm run test:aislamiento`."
+        : "No se conecta como el dueño de las tablas.",
+    });
+  }
 
   const authOk = hay(e.NEXT_PUBLIC_SUPABASE_URL) && hay(e.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   c.push({
