@@ -3,6 +3,13 @@ import { consultar } from "@/lib/db";
 import { ORG_UUID } from "@/lib/data/ids";
 
 /**
+ * Organización nula para la consulta que todavía no sabe cuál es.
+ * `membership` no lleva RLS, así que el valor no filtra nada; está para que
+ * `consultar()` reciba algo y la transacción quede acotada igual.
+ */
+const SIN_ORGANIZACION = "00000000-0000-0000-0000-000000000000";
+
+/**
  * Quién está mirando, y de qué automotora.
  *
  * Es la pieza de seguridad del producto. Hasta ahora la organización era una
@@ -46,30 +53,45 @@ export const sesionActual = cache(async (): Promise<Sesion | null> => {
   if (!authUserId) return null;
 
   /*
-   * La organización sale de `membership`, no de un dato que mande el navegador.
-   * Y el perfil sale de `app_user`, que es la lista del equipo que administra la
-   * automotora: un usuario autenticado sin fila ahí no tiene acceso.
+   * DOS consultas, y el orden es lo que importa.
+   *
+   * Primero `membership`, que es la única tabla que se puede leer sin saber aún
+   * la organización: no lleva RLS, justamente porque es la que responde "¿a
+   * cuál perteneces?". Recién con esa respuesta se puede consultar `app_user`,
+   * que sí la lleva.
+   *
+   * En una sola consulta con join no funciona: la transacción tiene que
+   * declarar una organización ANTES de saber cuál es, y con la equivocada RLS
+   * filtra las filas de `app_user` y la sesión sale nula. Se veía como "sin
+   * sesión" después de un login correcto. En desarrollo pasaba desapercibido
+   * porque la organización de la semilla era la única que existía.
    */
-  const filas = await consultar<{
-    organization_id: string; rol: Sesion["rol"]; nombre: string; email: string; id: string;
-  }>(
-    ORG_UUID,
-    `select m.organization_id, m.rol, u.nombre, u.email, u.id
-       from membership m
-       join app_user u
-         on u.organization_id = m.organization_id and u.auth_user_id = m.user_id
-      where m.user_id = $1
-      limit 1`,
+  const pertenencia = await consultar<{ organization_id: string; rol: Sesion["rol"] }>(
+    SIN_ORGANIZACION,
+    "select organization_id, rol from membership where user_id = $1 limit 1",
     [authUserId],
   );
-  if (!filas[0]) return null;
+  if (!pertenencia[0]) return null;
+
+  const orgId = pertenencia[0].organization_id;
+
+  // El perfil sale de `app_user`, la lista del equipo que administra la
+  // automotora: un usuario autenticado sin fila ahí no tiene acceso.
+  const perfil = await consultar<{ id: string; nombre: string; email: string }>(
+    orgId,
+    `select id, nombre, email from app_user
+      where organization_id = $1 and auth_user_id = $2 and activo
+      limit 1`,
+    [orgId, authUserId],
+  );
+  if (!perfil[0]) return null;
 
   return {
-    usuarioId: filas[0].id,
-    organizacionId: filas[0].organization_id,
-    rol: filas[0].rol,
-    nombre: filas[0].nombre,
-    email: filas[0].email,
+    usuarioId: perfil[0].id,
+    organizacionId: orgId,
+    rol: pertenencia[0].rol,
+    nombre: perfil[0].nombre,
+    email: perfil[0].email,
   };
 });
 
