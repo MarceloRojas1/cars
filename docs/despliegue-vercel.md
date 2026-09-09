@@ -16,28 +16,53 @@ mismos: base de datos, autenticación y fotos.
 
 ## 1. La base de datos
 
-Vercel no tiene base de datos propia: hay que crear una gestionada. Usa
-**Supabase**, porque de todas formas la vas a necesitar para el login.
+Vercel no tiene base de datos propia. Usa la de **Supabase**, que ya necesitas
+para el login.
 
-1. Crea un proyecto en <https://supabase.com>. Guarda la contraseña de la base
-   cuando te la muestre — no se puede volver a ver.
-2. Copia la cadena de conexión desde **Project Settings → Database**.
-   **Usa la del pooler** (*Transaction pooler*, puerto **6543**), no la directa.
-   Cada función de Vercel abre su propia conexión; sin pooler, Postgres se queda
-   sin cupos con muy poco tráfico.
-3. Aplica las migraciones desde tu máquina, con la cadena de la base nueva:
+Supabase te da DOS cadenas de conexión y **no son intercambiables**:
 
-   ```bash
-   DATABASE_URL="postgres://…" npm run migrar -- --listar   # qué falta
-   DATABASE_URL="postgres://…" npm run migrar               # aplicarlo
-   ```
+| | Cuál | Para qué |
+|---|---|---|
+| **Directa / sesión** (5432) | usuario `postgres` | correr las migraciones |
+| **Pooler de transacciones** (6543) | el que use la app | que corra la aplicación |
 
-   Cada archivo corre una vez y queda anotado en `_migracion`; volver a
-   ejecutarlo no repite nada.
+Cada función de Vercel abre su propia conexión; sin pooler, Postgres se queda
+sin cupos con muy poco tráfico. Y al revés: el pooler de transacciones no es el
+lugar para correr DDL.
 
-> Las migraciones necesitan el usuario **dueño** de las tablas, no el de la
-> aplicación. En Supabase es `postgres`. `velie_app` no puede hacer `alter
-> table` — a propósito.
+**1.1 · Aplica las migraciones**, desde tu máquina, con la cadena directa:
+
+```bash
+DATABASE_URL="postgres://postgres:…@db.<ref>.supabase.co:5432/postgres" npm run migrar -- --listar
+DATABASE_URL="postgres://postgres:…@db.<ref>.supabase.co:5432/postgres" npm run migrar
+```
+
+Cada archivo corre una vez y queda anotado en `_migracion`; volver a ejecutarlo
+no repite nada. Si adoptas una base que ya venía andando, `--marcar 0001-0012`
+la da por aplicada sin ejecutarla.
+
+**1.2 · Crea el rol de la aplicación.** Abre `supabase/rol-app.sql`, cámbiale la
+contraseña y pégalo en el SQL Editor de Supabase.
+
+> **Esto no es opcional y es lo más fácil de saltarse.** El aislamiento entre
+> automotoras es row level security, y RLS **no se le aplica** al superusuario ni
+> a un rol con `BYPASSRLS`. Si conectas la aplicación como `postgres`, una
+> automotora ve los datos de otra — con todas las políticas puestas y sin ningún
+> error a la vista. Ya pasó una vez en local: está en `0005_rls_forzado.sql`.
+
+La última consulta del archivo es la comprobación: `rolsuper` y `rolbypassrls`
+tienen que dar `f` para `velie_app`.
+
+**1.3 · La cadena que va en Vercel** es la del pooler pero con `velie_app`. En el
+pooler de Supabase el usuario lleva el identificador del proyecto pegado
+(`velie_app.<ref>`); copia el formato exacto del panel de Supabase y cámbiale el
+usuario.
+
+**1.4 · Comprueba el aislamiento** contra la base real antes de seguir:
+
+```bash
+DATABASE_URL="<la del pooler, con velie_app>" npm run test:aislamiento
+```
 
 ## 2. La autenticación
 
@@ -53,10 +78,30 @@ En el mismo proyecto de Supabase, **Project Settings → API**:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | *anon / public* |
 | `SUPABASE_SERVICE_ROLE_KEY` | *service_role* — **nunca** en el cliente |
 
-Después crea la primera automotora y su cuenta de dueño:
+Después crea la primera automotora y su cuenta de dueño. Esto crea la
+organización, su sucursal principal, las nueve etapas del embudo y el usuario,
+todo en una transacción — y además la cuenta de acceso en Supabase:
 
 ```bash
-npm run alta
+npm run alta -- --nombre "Marketcar" --slug market-car \
+  --email tu@correo.cl --duenio "Tu Nombre" --password "TU-CONTRASENA"
+```
+
+Sin `--password` crea la automotora pero no la cuenta de acceso, y lo dice.
+Necesita `NEXT_PUBLIC_SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` en tu
+`.env.local`.
+
+### ¿Y los datos de prueba?
+
+`supabase/seed.sql` tiene el inventario de demostración (Marketcar con sus
+vehículos, leads y etapas). Es útil para mostrarle algo a alguien, pero **no lo
+cargues en la base de un cliente real**: son datos inventados con los que
+después hay que convivir. Para una automotora de verdad, `npm run alta` y a
+cargar sus autos.
+
+```bash
+# Solo si quieres la demo:
+psql "postgres://postgres:…@db.<ref>.supabase.co:5432/postgres" -f supabase/seed.sql
 ```
 
 ## 3. Las fotos
