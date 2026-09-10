@@ -1,6 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { consultar } from "@/lib/db";
-import { ORG_UUID } from "@/lib/data/ids";
 import { descifrar } from "@/lib/cripto";
 import { MODELO_POR_DEFECTO } from "./modelos";
 
@@ -41,7 +40,7 @@ async function credencialDe(orgId: string): Promise<CredencialClaude | null> {
 
 /** null solo si no hay clave por ningún lado: ni de la automotora ni de la plataforma. */
 export async function clienteClaude(
-  orgId: string = ORG_UUID,
+  orgId: string,
 ): Promise<{ cliente: Anthropic; modelo: string; paga: "automotora" | "plataforma" } | null> {
   const credencial = await credencialDe(orgId);
   if (!credencial) return null;

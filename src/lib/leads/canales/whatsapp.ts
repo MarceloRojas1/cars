@@ -4,7 +4,7 @@ import {
 } from "@/lib/data";
 import { decidirRespuesta } from "@/lib/ia/asistente";
 import { fichaParaElBot } from "@/lib/ia/ficha-publica";
-import { ORG_UUID } from "@/lib/data/ids";
+import { orgActual } from "@/lib/auth/sesion";
 import { registrarLeadEntrante, type ResultadoEntrada } from "@/lib/leads/entrada";
 import {
   identificarVehiculo, respuestaDeVehiculo, respuestaSinVehiculo,
@@ -142,7 +142,7 @@ async function atenderConversacion(leadId: string, telefono: string) {
       contexto.vehicleId ? getVehiculo(contexto.vehicleId) : Promise.resolve(null),
     ]);
 
-    const decision = await decidirRespuesta(ORG_UUID, {
+    const decision = await decidirRespuesta(await orgActual(), {
       organizacion, config,
       vehiculo: vehiculo ? fichaParaElBot(vehiculo) : null,
       historial: contexto.historial,

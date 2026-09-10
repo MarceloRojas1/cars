@@ -1,5 +1,5 @@
 import { consultar, dbConfigurada } from "@/lib/db";
-import { ORG_UUID } from "@/lib/data/ids";
+import { orgActual } from "@/lib/auth/sesion";
 import { normalizarPatente, patenteValida } from "./normalizar";
 import { proveedorFixtures } from "./fixtures";
 import { proveedorBoostr } from "./boostr";
@@ -58,7 +58,7 @@ export async function consultarPatente(
   // el dato viejo de otro.
   if (dbConfigurada() && !forzar) {
     const filas = await consultar<{ data: DatosPatente }>(
-      ORG_UUID,
+      await orgActual(),
       `select data from plate_lookup
         where patente = $1 and proveedor = $2
           and fetched_at > now() - interval '${CACHE_HORAS} hours'`,
@@ -73,7 +73,7 @@ export async function consultarPatente(
 
   if (resultado.ok && dbConfigurada()) {
     await consultar(
-      ORG_UUID,
+      await orgActual(),
       `insert into plate_lookup (patente, proveedor, data, fetched_at)
        values ($1, $2, $3, now())
        on conflict (patente, proveedor)
