@@ -151,7 +151,24 @@ con el mismo `WHATSAPP_VERIFY_TOKEN` que pusiste en las variables. Deja de
 hacer falta el túnel de desarrollo (`scripts/proxy-webhook.mjs`).
 
 El webhook está fuera del proxy de sesión a propósito: lo autentica la firma
-HMAC de Meta, no una cookie.
+HMAC de Meta, no una cookie. Y como no hay sesión, la organización sale del
+número que recibió el mensaje: hay que dejarlo en la fila de la automotora.
+
+```sql
+update organization set whatsapp_phone_number_id = '<phone_number_id>' where slug = '<slug>';
+```
+
+Mientras exista una sola automotora funciona sin esto, pero al dar de alta la
+segunda pasa a ser obligatorio: sin el número, adivinar significa entregarle a
+una los leads de la otra.
+
+> **El token de prueba de Meta dura 24 horas.** Cuando expira, recibir sigue
+> funcionando y responder falla con `401 Authentication Error` — el bot registra
+> el lead y no contesta, que es difícil de notar. Para producción hace falta un
+> token permanente de un **usuario del sistema**: en Meta Business Settings →
+> Usuarios del sistema → agregar el activo de la WhatsApp Business Account →
+> generar token sin caducidad, con los permisos `whatsapp_business_messaging` y
+> `whatsapp_business_management`.
 
 ---
 
