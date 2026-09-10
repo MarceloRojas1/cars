@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { upload } from "@vercel/blob/client";
+import { comprimirImagen } from "@/lib/imagenes/comprimir";
 import Image from "next/image";
 import { ImagePlus, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ export function CargaDeFotos({ iniciales }: { iniciales?: VehiclePhoto[] }) {
     () => Math.max(0, (iniciales ?? []).findIndex((f) => f.esPrincipal)),
   );
   const [subiendo, setSubiendo] = useState(false);
+  const [avance, setAvance] = useState<{ hechas: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
 
@@ -36,15 +38,32 @@ export function CargaDeFotos({ iniciales }: { iniciales?: VehiclePhoto[] }) {
    * escribe en `public/uploads` y ahí sí manda el límite de la función.
    */
   async function subirDirecto(archivos: File[]): Promise<Foto[]> {
-    return Promise.all(
-      archivos.map(async (archivo) => {
-        const subido = await upload(archivo.name, archivo, {
-          access: "public",
-          handleUploadUrl: "/api/fotos/token",
-        });
-        return { url: subido.url, nombre: archivo.name };
-      }),
-    );
+    const resultado: Foto[] = [];
+    let hechas = 0;
+    setAvance({ hechas: 0, total: archivos.length });
+
+    /*
+     * De a tres, no todas de golpe. Veinte subidas simultáneas se pelean el
+     * ancho de banda: tardan lo mismo en total y la barra no se mueve hasta el
+     * final, que es justo la sensación de "se colgó" que se quiere evitar.
+     */
+    const TANDA = 3;
+    for (let i = 0; i < archivos.length; i += TANDA) {
+      const tanda = await Promise.all(
+        archivos.slice(i, i + TANDA).map(async (original) => {
+          // Comprimir ANTES de subir: lo que tarda es transmitir.
+          const { archivo } = await comprimirImagen(original);
+          const subido = await upload(archivo.name, archivo, {
+            access: "public",
+            handleUploadUrl: "/api/fotos/token",
+          });
+          setAvance({ hechas: ++hechas, total: archivos.length });
+          return { url: subido.url, nombre: original.name };
+        }),
+      );
+      resultado.push(...tanda);
+    }
+    return resultado;
   }
 
   async function subirPorServidor(archivos: File[]): Promise<Foto[]> {
@@ -85,6 +104,7 @@ export function CargaDeFotos({ iniciales }: { iniciales?: VehiclePhoto[] }) {
       setError(e instanceof Error ? e.message : "Error al subir.");
     } finally {
       setSubiendo(false);
+      setAvance(null);
       if (input.current) input.current.value = "";
     }
   }
@@ -131,7 +151,11 @@ export function CargaDeFotos({ iniciales }: { iniciales?: VehiclePhoto[] }) {
           disabled={subiendo || cupo <= 0}
           onClick={() => input.current?.click()}
         >
-          {subiendo ? "Subiendo…" : cupo <= 0 ? "Llegaste al máximo" : "Elegir fotos"}
+          {subiendo
+            ? avance
+              ? `Subiendo ${avance.hechas} de ${avance.total}…`
+              : "Preparando…"
+            : cupo <= 0 ? "Llegaste al máximo" : "Elegir fotos"}
         </Button>
       </div>
 
