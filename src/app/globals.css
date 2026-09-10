@@ -60,6 +60,18 @@
 }
 
 :root {
+  /*
+   * Le dice al navegador con qué esquema dibujar lo que dibuja ÉL y no
+   * nosotros: la lista desplegable de un <select>, la de un <datalist>, las
+   * barras de desplazamiento, el selector de fecha.
+   *
+   * Sin esto asumía el esquema claro —fondo blanco— mientras nuestro CSS
+   * pintaba el texto con los colores del tema oscuro: el desplegable salía
+   * blanco con letras casi blancas, ilegible. No se arregla con CSS, porque
+   * esas listas no las podemos estilar; se arregla declarando el esquema.
+   */
+  color-scheme: light;
+
   /* Aristas nítidas: 3px. Los radios derivados quedan todos por debajo. */
   --radius: 0.625rem;
 
@@ -110,6 +122,8 @@
 }
 
 .dark {
+  color-scheme: dark;
+
   /*
    * Grafito con acento. El gris está entintado hacia el azul del acento: un
    * gris neutro puro se lee como "sin decidir".

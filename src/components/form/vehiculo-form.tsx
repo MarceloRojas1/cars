@@ -17,6 +17,7 @@ import {
 } from "@/lib/catalogos";
 import { REGIONES, NOMBRES_REGIONES } from "@/lib/geo-chile";
 import { CargaDeFotos } from "@/components/form/fotos";
+import { Combo } from "@/components/form/combo";
 import type { AppUser, Branch, Vehicle } from "@/lib/types";
 
 const MAX_TITULO = 100;
@@ -185,29 +186,20 @@ export function VehiculoForm({
         descripcion="Lo mínimo para guardar: marca, modelo, año y precio."
       >
         <Campo label="Marca" htmlFor="marca" error={e.marca} hint="Si no está en la lista, escríbela.">
-          <input
-            id="marca" name="marca" list="lista-marcas" autoComplete="off"
-            value={marca}
-            onChange={(ev) => { setMarca(ev.target.value); setModelo(""); }}
-            className={controlBase}
+          <Combo
+            id="marca" name="marca" value={marca} opciones={MARCAS}
+            onChange={(v) => { setMarca(v); setModelo(""); }}
           />
-          <datalist id="lista-marcas">
-            {MARCAS.map((m) => <option key={m} value={m} />)}
-          </datalist>
         </Campo>
 
         <Campo
           label="Modelo" htmlFor="modelo" error={e.modelo}
           hint={marca ? `${modelos.length} sugeridos para ${marca}` : "Elige primero una marca."}
         >
-          <input
-            id="modelo" name="modelo" list="lista-modelos" autoComplete="off"
-            value={modelo} onChange={(ev) => setModelo(ev.target.value)}
-            className={controlBase}
+          <Combo
+            id="modelo" name="modelo" value={modelo} opciones={modelos}
+            onChange={setModelo}
           />
-          <datalist id="lista-modelos">
-            {modelos.map((m) => <option key={m} value={m} />)}
-          </datalist>
         </Campo>
 
         <Campo label="Versión" htmlFor="version" hint="Ej: 2.0 TFSI Highline">
@@ -325,15 +317,11 @@ export function VehiculoForm({
           </Select>
         </Campo>
         <Campo label="Color exterior" htmlFor="colorExterior">
-          <input
-            id="colorExterior" name="colorExterior" list="lista-color-ext"
+          <Combo
+            id="colorExterior" name="colorExterior" opciones={COLORES_EXTERIOR}
             value={campo("colorExterior", vehiculo?.colorExterior)}
-            onChange={(ev) => setDesdePatente((p) => ({ ...p, colorExterior: ev.target.value }))}
-            autoComplete="off" className={controlBase}
+            onChange={(v) => setDesdePatente((p) => ({ ...p, colorExterior: v }))}
           />
-          <datalist id="lista-color-ext">
-            {COLORES_EXTERIOR.map((c) => <option key={c} value={c} />)}
-          </datalist>
         </Campo>
         <Campo label="Cilindrada" htmlFor="cilindrada" hint="Ej: 2.0">
           <input
@@ -344,14 +332,11 @@ export function VehiculoForm({
           />
         </Campo>
         <Campo label="Color interior" htmlFor="colorInterior">
-          <input
-            id="colorInterior" name="colorInterior" list="lista-color-int"
-            defaultValue={vehiculo?.colorInterior ?? ""}
-            autoComplete="off" className={controlBase}
+          <Combo
+            id="colorInterior" name="colorInterior" opciones={COLORES_INTERIOR}
+            value={campo("colorInterior", vehiculo?.colorInterior)}
+            onChange={(v) => setDesdePatente((p) => ({ ...p, colorInterior: v }))}
           />
-          <datalist id="lista-color-int">
-            {COLORES_INTERIOR.map((c) => <option key={c} value={c} />)}
-          </datalist>
         </Campo>
       </Seccion>
 
