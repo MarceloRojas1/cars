@@ -12,6 +12,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Velie — contexto del proyecto
 
+> ⚠️ **PENDIENTE URGENTE:** hay credenciales de producción expuestas desde el
+> 2026-09-09. Ver `docs/rotar-credenciales.md`. Tienen que estar rotadas **antes**
+> de cargar datos de una automotora real.
+
 Recreación de un CRM para automotoras chilenas a partir de capturas (`fotos/`).
 **Antes de tocar nada, lee `docs/decisiones.md`.** Tiene cada decisión tomada con su
 porqué y qué la revertiría, además de las decisiones que siguen abiertas. El código
