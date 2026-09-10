@@ -119,8 +119,21 @@ en `public/uploads/`. El mismo código sirve para las dos cosas.
 
 1. En Vercel: **Add New → Project** e importa `MarceloRojas1/cars`.
 2. Framework: Next.js. No cambies nada de la construcción.
-3. Pega las variables de entorno. La lista completa está en `.env.example`;
-   las obligatorias son las de los pasos 1 a 3 más `APP_ENCRYPTION_KEY`.
+3. Las variables de entorno **no se pegan a mano**:
+
+   ```bash
+   npm run vercel:sync              # muestra qué haría
+   npm run vercel:sync -- --aplicar # las escribe
+   ```
+
+   Llenarlas en el panel ya falló tres veces en este proyecto, siempre en
+   silencio: una variable creada con el valor vacío se ve idéntica a una bien
+   puesta, y el fallo aparece después y lejos —"no hay dónde guardar las fotos",
+   "falta WHATSAPP_VERIFY_TOKEN"— sin decir que la causa fue un campo en blanco.
+
+   El script sube solo lo que va a producción y se niega a subir valores que
+   apunten a tu máquina. `DATABASE_URL` y las de Supabase quedan fuera a
+   propósito: el propio archivo explica por qué.
 
 > `DATABASE_URL` también hace falta **al construir**: el catálogo público
 > prerenderiza las fichas y para eso consulta la base. Si no contesta, el

@@ -15,7 +15,8 @@
     "alta": "tsx scripts/alta-automotora.ts",
     "catalogo:probar": "tsx scripts/probar-catalogo.ts",
     "migrar": "tsx scripts/migrar.ts",
-    "revisar-despliegue": "tsx scripts/revisar-despliegue.ts"
+    "revisar-despliegue": "tsx scripts/revisar-despliegue.ts",
+    "vercel:sync": "tsx scripts/sincronizar-vercel.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",
