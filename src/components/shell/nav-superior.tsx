@@ -2,13 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, ChevronDown, MessageSquare, Settings2 } from "lucide-react";
+import { Bell, ChevronDown, LogOut, MessageSquare, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
-  DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NAV_CUENTA, NAV_HERRAMIENTAS, NAV_PRINCIPAL, type NavItem } from "@/lib/nav";
+
+/**
+ * Lo que se ofrece bajo el avatar. No es todo `NAV_CUENTA` —esos ocho ya están
+ * en su propio menú, al lado— sino lo que alguien busca cuando hace clic en su
+ * propia cuenta: su plan, su equipo y lo que tiene conectado.
+ */
+const CUENTA_RAPIDO: NavItem[] = NAV_CUENTA.filter((i) =>
+  ["/mi-plan", "/equipo", "/integraciones"].includes(i.href),
+);
 import { salirAction } from "@/app/login/acciones";
 import { cn } from "@/lib/utils";
 
@@ -78,17 +87,57 @@ export function NavSuperior({ usuario }: { usuario: { nombre: string; email: str
                 </button>
               }
             />
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="font-normal">
-                <p className="text-[13px] font-medium">{usuario.nombre}</p>
-                <p className="truncate text-[11.5px] text-muted-foreground">{usuario.email}</p>
-              </DropdownMenuLabel>
+            <DropdownMenuContent align="end" className="w-60">
+              {/*
+                El encabezado va dentro de un Group a propósito: `GroupLabel`
+                exige ese contexto y sin él Base UI lanza "MenuGroupContext is
+                missing" — que no rompía solo la etiqueta, tumbaba el menú
+                entero. El botón parecía muerto: se hacía clic y no pasaba nada.
+              */}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="font-normal">
+                  <p className="text-[13px] font-medium">{usuario.nombre}</p>
+                  <p className="truncate text-[11.5px] text-muted-foreground">{usuario.email}</p>
+                </DropdownMenuLabel>
+              </DropdownMenuGroup>
+
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => { void salirAction(); }}
-              >
-                Cerrar sesión
-              </DropdownMenuItem>
+
+              {CUENTA_RAPIDO.map((item) => (
+                <DropdownMenuItem
+                  key={item.href}
+                  render={
+                    <Link href={item.href}>
+                      <item.icon className="size-4 text-muted-foreground" />
+                      {item.label}
+                    </Link>
+                  }
+                />
+              ))}
+
+              <DropdownMenuSeparator />
+
+              {/*
+                Un formulario y no un onClick: `salirAction` termina en
+                `redirect()`, y un servidor solo puede redirigir al navegador
+                dentro del envío de un formulario o una transición. Llamada
+                suelta desde un manejador, la sesión se cerraba y la pantalla se
+                quedaba igual.
+              */}
+              <form action={salirAction}>
+                <DropdownMenuItem
+                  // `nativeButton`: se le dice a Base UI que lo que se le pasa
+                  // ya es un <button>, para que conserve su comportamiento
+                  // nativo —enviar el formulario— en vez de simularlo.
+                  nativeButton
+                  render={
+                    <button type="submit" className="w-full">
+                      <LogOut className="size-4 text-muted-foreground" />
+                      Cerrar sesión
+                    </button>
+                  }
+                />
+              </form>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
