@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { consultar } from "@/lib/db";
 import { ORG_UUID } from "@/lib/data/ids";
 
@@ -95,6 +96,25 @@ export const sesionActual = cache(async (): Promise<Sesion | null> => {
   };
 });
 
+/**
+ * Organización fijada a mano para trabajo que no nace de una sesión.
+ *
+ * El caso real es el webhook de WhatsApp: quien llama es Meta, no una persona,
+ * así que no hay cookie que consultar — y sin embargo el mensaje pertenece a
+ * una automotora concreta. Esa organización se resuelve del número que recibió
+ * el mensaje y se fija acá para todo el procesamiento.
+ *
+ * `AsyncLocalStorage` y no una variable suelta: el servidor atiende varias
+ * peticiones a la vez, y una global haría que el mensaje de una automotora se
+ * procesara con la organización de otra. Cada cadena de llamadas ve la suya.
+ */
+const organizacionFijada = new AsyncLocalStorage<string>();
+
+/** Corre `fn` declarando explícitamente la organización, sin sesión. */
+export function comoOrganizacion<T>(orgId: string, fn: () => Promise<T>): Promise<T> {
+  return organizacionFijada.run(orgId, fn);
+}
+
 /** ¿Corremos con el respaldo de desarrollo, sin login? */
 export const enDesarrolloSinLogin = () => process.env.NODE_ENV !== "production";
 
@@ -104,7 +124,13 @@ export const enDesarrolloSinLogin = () => process.env.NODE_ENV !== "production";
  * El catálogo público NO la usa: ahí no hay sesión y la organización sale del
  * slug de la URL (ver `data/catalogo.ts`).
  */
-export const orgActual = cache(async (): Promise<string> => {
+/**
+ * Solo la resolución por SESIÓN se memoriza. La organización fijada se consulta
+ * fuera del `cache()` a propósito: dentro de una misma petición puede cambiar
+ * —el webhook la fija al procesar cada mensaje— y un valor memorizado de antes
+ * atribuiría el mensaje a la automotora equivocada.
+ */
+const organizacionDeSesion = cache(async (): Promise<string> => {
   const sesion = await sesionActual();
   if (sesion) return sesion.organizacionId;
 
@@ -118,3 +144,6 @@ export const orgActual = cache(async (): Promise<string> => {
    */
   throw new Error("Sin sesión: no hay organización para consultar.");
 });
+
+export const orgActual = async (): Promise<string> =>
+  organizacionFijada.getStore() ?? organizacionDeSesion();

@@ -1,6 +1,8 @@
 import { NextResponse, after } from "next/server";
 import { firmaValida } from "@/lib/whatsapp/firma";
 import { procesarMensajeWhatsapp, type ContactoWhatsapp, type MensajeWhatsapp } from "@/lib/leads/canales/whatsapp";
+import { comoOrganizacion } from "@/lib/auth/sesion";
+import { organizacionDelNumero } from "@/lib/data/whatsapp";
 
 /**
  * Webhook único para toda la instancia (ver docs/decisiones.md, "El embudo":
@@ -69,7 +71,9 @@ export async function POST(request: Request) {
 
   // Se juntan todos los mensajes de todos los "changes" antes de procesar:
   // un solo POST puede traer varios (varios chats escribiendo a la vez).
-  const pendientes: { mensaje: MensajeWhatsapp; contacto?: ContactoWhatsapp }[] = [];
+  const pendientes: {
+    mensaje: MensajeWhatsapp; contacto?: ContactoWhatsapp; numeroId?: string;
+  }[] = [];
   for (const entry of evento.entry ?? []) {
     for (const cambio of entry.changes ?? []) {
       if (cambio.field !== "messages") continue; // status de entrega, no un mensaje
@@ -78,6 +82,8 @@ export async function POST(request: Request) {
         pendientes.push({
           mensaje,
           contacto: contacts.find((c) => c.wa_id === mensaje.from) ?? contacts[0],
+          // De qué automotora es el mensaje: del número que lo RECIBIÓ.
+          numeroId: cambio.value.metadata?.phone_number_id,
         });
       }
     }
@@ -89,9 +95,23 @@ export async function POST(request: Request) {
    * reintentar un mensaje que ya guardamos duplicaría la respuesta del bot.
    */
   after(async () => {
-    for (const { mensaje, contacto } of pendientes) {
+    for (const { mensaje, contacto, numeroId } of pendientes) {
       try {
-        await procesarMensajeWhatsapp(mensaje, contacto);
+        /*
+         * Acá no hay sesión: quien llama es Meta. La organización se resuelve
+         * del número que recibió el mensaje y se fija para todo el
+         * procesamiento — si no, la capa de datos no sabría a qué automotora
+         * pertenece y fallaría con "Sin sesión: no hay organización".
+         */
+        const orgId = await organizacionDelNumero(numeroId);
+        if (!orgId) {
+          console.error(
+            "[webhook whatsapp] ninguna automotora tiene el número", numeroId,
+            "— el mensaje", mensaje.id, "se descarta",
+          );
+          continue;
+        }
+        await comoOrganizacion(orgId, () => procesarMensajeWhatsapp(mensaje, contacto));
       } catch (e) {
         console.error("[webhook whatsapp] no se pudo procesar un mensaje", mensaje.id, e);
       }
