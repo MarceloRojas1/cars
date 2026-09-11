@@ -5,6 +5,7 @@ import { z } from "zod";
 import {
   crearKnowledgeItem, eliminarKnowledgeItem, guardarAssistantConfig,
 } from "@/lib/data";
+import { mensajeParaElUsuario } from "@/lib/errores";
 
 const bool = z.enum(["true", "false"]).transform((v) => v === "true");
 
@@ -45,7 +46,7 @@ export async function guardarAsistenteAction(
   try {
     await guardarAssistantConfig(parseado.data);
   } catch (e) {
-    return { mensaje: e instanceof Error ? e.message : "No se pudo guardar." };
+    return { mensaje: mensajeParaElUsuario(e, "No se pudo guardar la configuración.") };
   }
 
   revalidatePath("/asistente-ia");

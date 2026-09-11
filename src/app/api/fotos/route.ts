@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { guardarImagen, MAX_FOTOS } from "@/lib/storage";
+import { mensajeParaElUsuario } from "@/lib/errores";
 
 /**
  * Las fotos se suben aquí y no dentro del Server Action a propósito: las
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ fotos: subidas });
   } catch (e) {
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "No se pudo subir la imagen." },
+      { error: mensajeParaElUsuario(e, "No se pudo subir la imagen.") },
       { status: 400 },
     );
   }

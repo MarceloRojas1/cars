@@ -6,6 +6,7 @@ import {
   agregarNotaLead, asignarLead, cambiarVehiculoLead, crearLead,
   getCurrentUser, getDetalleLead, moverLead,
 } from "@/lib/data";
+import { mensajeParaElUsuario } from "@/lib/errores";
 
 function revalidar() {
   revalidatePath("/embudo");
@@ -52,7 +53,7 @@ export async function crearLeadAction(
   try {
     await crearLead(parseado.data);
   } catch (e) {
-    return { mensaje: e instanceof Error ? e.message : "No se pudo crear el lead." };
+    return { mensaje: mensajeParaElUsuario(e, "No se pudo crear el lead.") };
   }
   revalidar();
   return { ok: true };

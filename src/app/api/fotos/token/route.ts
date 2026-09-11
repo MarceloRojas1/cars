@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { sesionActual, enDesarrolloSinLogin } from "@/lib/auth/sesion";
 import { blobConfigurado, TIPOS_ACEPTADOS } from "@/lib/storage";
+import { mensajeParaElUsuario } from "@/lib/errores";
 
 /**
  * Entrega el permiso para que el NAVEGADOR suba la foto directo a Blob.
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
     return NextResponse.json(respuesta);
   } catch (e) {
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "No se pudo autorizar la subida." },
+      { error: mensajeParaElUsuario(e, "No se pudo autorizar la subida.") },
       { status: 400 },
     );
   }

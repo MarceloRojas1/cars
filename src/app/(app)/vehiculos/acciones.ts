@@ -11,6 +11,7 @@ import { COMBUSTIBLES } from "@/lib/catalogos";
 import { consultarPatente } from "@/lib/patente";
 import { urlDeFotoValida } from "@/lib/storage";
 import { revalidarCatalogo } from "@/lib/catalogo/revalidar";
+import { mensajeParaElUsuario } from "@/lib/errores";
 
 /** Vacío en un formulario es "no informado", no cero ni cadena vacía. */
 const opcional = (v: unknown) => (v === "" || v === null ? undefined : v);
@@ -110,7 +111,7 @@ export async function crearVehiculoAction(
   } catch (e) {
     return {
       mensaje:
-        e instanceof Error ? e.message : "No se pudo guardar el vehículo.",
+        mensajeParaElUsuario(e, "No se pudo guardar el vehículo."),
     };
   }
 
@@ -152,7 +153,7 @@ export async function actualizarVehiculoAction(
   try {
     await actualizarVehiculo(id, { ...parseado.data, tags, fotos: fotos.data });
   } catch (e) {
-    return { mensaje: e instanceof Error ? e.message : "No se pudo guardar." };
+    return { mensaje: mensajeParaElUsuario(e, "No se pudo guardar el vehículo.") };
   }
 
   await revalidar(id);
