@@ -18,7 +18,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         {/* El isotipo manda acá: es la única pantalla sin barra de navegación,
             así que es lo único que dice de quién es la aplicación. */}
         <div className="mb-9 flex flex-col items-center text-center">
-          <Logotipo alto={52} />
+          <Logotipo alto={64} />
           <p className="mt-5 text-[13px] text-muted-foreground">
             Entra con la cuenta de tu automotora.
           </p>

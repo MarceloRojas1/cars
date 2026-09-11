@@ -19,6 +19,7 @@ const CUENTA_RAPIDO: NavItem[] = NAV_CUENTA.filter((i) =>
   ["/mi-plan", "/equipo", "/integraciones"].includes(i.href),
 );
 import { salirAction } from "@/app/login/acciones";
+import { Logotipo } from "@/components/marca/logotipo";
 import { cn } from "@/lib/utils";
 
 /**
@@ -36,8 +37,10 @@ export function NavSuperior({ usuario }: { usuario: { nombre: string; email: str
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card">
       <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-6 gap-y-2 px-5 py-2.5 lg:px-8">
-        <Link href="/dashboard" className="marca text-[19px] leading-none">
-          Velie
+        <Link href="/dashboard" aria-label="Velie — ir al panel" className="shrink-0">
+          {/* 22px de alto: por encima del mínimo de 24px que la guía exige para
+              el ícono SOLO, y aquí va acompañado del wordmark. */}
+          <Logotipo alto={22} />
         </Link>
 
         <nav className="flex flex-wrap items-center gap-1" aria-label="Principal">
