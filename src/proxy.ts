@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { conOpciones, OPCIONES_COOKIE } from "@/lib/supabase/cookies";
 import { esRutaDelPanel } from "@/lib/rutas";
 
 /**
@@ -59,13 +60,14 @@ export async function proxy(request: NextRequest) {
   let respuesta = NextResponse.next({ request });
 
   const supabase = createServerClient(url, anon, {
+    cookieOptions: OPCIONES_COOKIE,
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll: (cookies) => {
         cookies.forEach(({ name, value }) => request.cookies.set(name, value));
         respuesta = NextResponse.next({ request });
         cookies.forEach(({ name, value, options }) =>
-          respuesta.cookies.set(name, value, options),
+          respuesta.cookies.set(name, value, conOpciones(options)),
         );
       },
     },
