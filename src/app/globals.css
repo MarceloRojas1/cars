@@ -225,3 +225,9 @@
     letter-spacing: -0.03em;
   }
 }
+
+/* La tipografía de la marca. Se reserva para el wordmark y títulos destacados;
+   el cuerpo y la interfaz usan la neutra, como indica la guía de marca. */
+.font-marca {
+  font-family: var(--font-marca), "Helvetica Neue", Arial, sans-serif;
+}

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Geist, Geist_Mono, Sora } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -31,6 +31,20 @@ const mono = Geist_Mono({
   display: "swap",
 });
 
+/**
+ * La tipografía de la MARCA, no de la interfaz.
+ *
+ * La guía la reserva para el wordmark y títulos destacados: "textos largos y UI
+ * pueden combinarse con una tipografía de sistema neutra". Por eso se carga solo
+ * el peso 800 y no se usa para el cuerpo.
+ */
+const marca = Sora({
+  variable: "--font-marca",
+  subsets: ["latin"],
+  weight: ["800"],
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: { default: "Velie", template: "%s · Velie" },
   description: "CRM e inventario para automotoras.",
@@ -40,7 +54,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`dark ${display.variable} ${sans.variable} ${mono.variable} h-full antialiased`}
+      className={`dark ${display.variable} ${sans.variable} ${mono.variable} ${marca.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col bg-background font-sans text-foreground">
