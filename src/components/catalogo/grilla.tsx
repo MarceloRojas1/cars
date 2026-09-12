@@ -6,6 +6,17 @@ import Link from "next/link";
 import { clp, km, numero } from "@/lib/format";
 import type { VehiculoPublico } from "@/lib/data/catalogo";
 
+/**
+ * "Ayer", "Hace 5 días". Un auto recién publicado es lo que más mueve a un
+ * comprador: le dice que el stock está vivo y que vale la pena volver.
+ */
+function publicado(dias: number | undefined) {
+  if (dias === undefined || dias > 30) return null;
+  if (dias <= 0) return "Hoy";
+  if (dias === 1) return "Ayer";
+  return `Hace ${dias} días`;
+}
+
 const POR_TANDA = 12;
 
 type Orden = "recientes" | "precio-asc" | "precio-desc" | "km-asc";
@@ -31,10 +42,12 @@ const control =
  * esto guardado.
  */
 export function GrillaCatalogo({
-  slug, vehiculos,
+  slug, vehiculos, color,
 }: {
   slug: string;
   vehiculos: VehiculoPublico[];
+  /** El color de la automotora: la cápsula del precio y el botón lo usan. */
+  color: string;
 }) {
   const [marca, setMarca] = useState("");
   const [orden, setOrden] = useState<Orden>("recientes");
@@ -110,9 +123,31 @@ export function GrillaCatalogo({
                     sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 92vw"
                     className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
                   />
+
+                  {publicado(v.publicadoHaceDias) && (
+                    <span className="absolute left-2.5 top-2.5 rounded-full bg-background/85 px-2.5 py-1 text-[11px] backdrop-blur-sm">
+                      {publicado(v.publicadoHaceDias)}
+                    </span>
+                  )}
+
                   {v.fotos.length > 1 && (
-                    <span className="tabular absolute bottom-2.5 right-2.5 rounded-md bg-background/80 px-1.5 py-0.5 text-[11px] backdrop-blur-sm">
+                    <span className="tabular absolute right-2.5 top-2.5 rounded-full bg-background/85 px-2 py-1 text-[11px] backdrop-blur-sm">
                       {v.fotos.length} fotos
+                    </span>
+                  )}
+
+                  {/* El precio sobre la foto: es lo que la gente compara al
+                      recorrer una grilla, y así no hay que bajar la vista. */}
+                  <span
+                    className="tabular absolute bottom-2.5 left-2.5 rounded-lg px-2.5 py-1.5 text-[15px] font-semibold text-white shadow-sm"
+                    style={{ backgroundColor: color }}
+                  >
+                    {clp(v.precio)}
+                  </span>
+
+                  {v.anio > 0 && (
+                    <span className="tabular absolute bottom-2.5 right-2.5 rounded-lg bg-background/85 px-2 py-1.5 text-[12px] backdrop-blur-sm">
+                      {v.anio}
                     </span>
                   )}
                 </div>
@@ -120,13 +155,13 @@ export function GrillaCatalogo({
                 <div className="flex flex-1 flex-col gap-2 p-4">
                   <h2 className="text-[14px] font-medium leading-snug">{v.titulo}</h2>
                   <p className="text-[12px] text-muted-foreground">
-                    {[v.anio, km(v.km), v.combustible, v.transmision]
+                    {[km(v.km), v.combustible, v.transmision, v.comuna]
                       .filter(Boolean)
                       .join(" · ")}
                   </p>
-                  <p className="tabular mt-auto pt-1.5 text-[20px] font-medium leading-none">
-                    {clp(v.precio)}
-                  </p>
+                  <span className="mt-auto flex h-9 items-center justify-center rounded-[var(--radius)] border border-border text-[13px] font-medium transition-colors group-hover:bg-accent">
+                    Ver detalles
+                  </span>
                 </div>
               </Link>
             </li>

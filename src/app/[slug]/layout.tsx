@@ -1,7 +1,8 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { MessageCircle } from "lucide-react";
-import { getAutomotoraPorSlug } from "@/lib/data/catalogo";
+import { getAutomotoraPorSlug, getMarcaPublica } from "@/lib/data/catalogo";
 import { enlaceWhatsapp } from "@/lib/catalogo/whatsapp";
 
 /**
@@ -23,20 +24,33 @@ export default async function CatalogoLayout({ params, children }: LayoutProps<"
   const automotora = await getAutomotoraPorSlug(slug);
   if (!automotora) notFound();
 
-  const wa = enlaceWhatsapp(automotora);
+  const [wa, marca] = [enlaceWhatsapp(automotora), await getMarcaPublica(automotora.id)];
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-20 border-b border-border bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-[1200px] items-center gap-4 px-5 lg:px-8">
-          <Link href={`/${automotora.slug}`} className="min-w-0">
-            <p className="display truncate text-[19px] leading-none">{automotora.nombre}</p>
-            {automotora.comuna && (
-              <p className="mt-1 truncate text-[12px] text-muted-foreground">
-                {automotora.comuna}
-                {automotora.region ? `, ${automotora.region}` : ""}
-              </p>
+          <Link href={`/${automotora.slug}`} className="flex min-w-0 items-center gap-2.5">
+            {marca.logoUrl && (
+              <Image
+                src={marca.logoUrl}
+                alt=""
+                width={32}
+                height={32}
+                className="size-8 shrink-0 rounded-lg bg-white/95 object-contain p-1"
+              />
             )}
+            <span className="min-w-0">
+              <span className="display block truncate text-[17px] leading-none">
+                {automotora.nombre}
+              </span>
+              {automotora.comuna && (
+                <span className="mt-1 block truncate text-[12px] text-muted-foreground">
+                  {automotora.comuna}
+                  {automotora.region ? `, ${automotora.region}` : ""}
+                </span>
+              )}
+            </span>
           </Link>
 
           {wa && (
@@ -44,7 +58,9 @@ export default async function CatalogoLayout({ params, children }: LayoutProps<"
               href={wa}
               target="_blank"
               rel="noopener noreferrer"
-              className="ml-auto inline-flex h-9 shrink-0 items-center gap-2 rounded-[var(--radius)] bg-primary px-3.5 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              // El botón lleva el color de la automotora, no el nuestro.
+              style={{ backgroundColor: marca.color }}
+              className="ml-auto inline-flex h-9 shrink-0 items-center gap-2 rounded-[var(--radius)] px-3.5 text-[13px] font-medium text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               <MessageCircle className="size-4" />
               <span className="hidden sm:inline">Escríbenos</span>

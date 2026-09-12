@@ -76,6 +76,58 @@ export async function getAutomotoraPorSlug(slug: string): Promise<Automotora | n
   };
 }
 
+/**
+ * La identidad visual con la que se muestra el catálogo.
+ *
+ * El catálogo es el sitio de la AUTOMOTORA, no el nuestro: quien lo mira es su
+ * comprador. Por eso el color, el logo y el eslogan salen de `site_config` y no
+ * de la marca de Velie, que solo aparece en el pie.
+ */
+export type MarcaPublica = {
+  logoUrl?: string;
+  portadaUrl?: string;
+  color: string;
+  heroTitulo?: string;
+  heroSubtitulo?: string;
+};
+
+/** Cuando la automotora no configuró nada. El índigo es el de nuestra marca. */
+const MARCA_POR_DEFECTO: MarcaPublica = { color: "#4F46E5" };
+
+export async function getMarcaPublica(orgId: string): Promise<MarcaPublica> {
+  if (!dbConfigurada()) return MARCA_POR_DEFECTO;
+
+  const filas = await consultar<{
+    logo_url: string | null; portada_url: string | null;
+    color_principal: string | null;
+    hero_titulo: string | null; hero_subtitulo: string | null;
+  }>(
+    orgId,
+    `select logo_url, portada_url, color_principal, hero_titulo, hero_subtitulo
+       from site_config where organization_id = $1`,
+    [orgId],
+  );
+
+  const c = filas[0];
+  if (!c) return MARCA_POR_DEFECTO;
+
+  /*
+   * El color se valida antes de usarlo: termina dentro de un atributo `style`,
+   * así que un valor arbitrario de la base no puede entrar tal cual.
+   */
+  const color = /^#[0-9a-fA-F]{6}$/.test(c.color_principal ?? "")
+    ? c.color_principal!
+    : MARCA_POR_DEFECTO.color;
+
+  return {
+    logoUrl: c.logo_url ?? undefined,
+    portadaUrl: c.portada_url ?? undefined,
+    color,
+    heroTitulo: c.hero_titulo ?? undefined,
+    heroSubtitulo: c.hero_subtitulo ?? undefined,
+  };
+}
+
 type FilaPublica = {
   id: string; codigo: string; titulo: string; marca: string | null;
   modelo: string | null; version: string | null; anio: number | null;
@@ -85,6 +137,7 @@ type FilaPublica = {
   cantidad_duenos: number | null; equipamiento: string | null;
   descripcion: string | null; comuna: string | null; region: string | null;
   pie_financiamiento: string | null; fotos: string[] | null;
+  publicado_at: Date | null;
 };
 
 /** Solo campos que una publicación muestra. El resto del inventario no sale. */
@@ -111,6 +164,8 @@ export type VehiculoPublico = {
   region?: string;
   pieFinanciamiento?: number;
   fotos: string[];
+  /** Días desde que se publicó. Alimenta el distintivo "Ayer", "Hace 5 días". */
+  publicadoHaceDias?: number;
 };
 
 function aPublico(f: FilaPublica): VehiculoPublico {
@@ -137,13 +192,16 @@ function aPublico(f: FilaPublica): VehiculoPublico {
     region: f.region ?? undefined,
     pieFinanciamiento: f.pie_financiamiento ? Number(f.pie_financiamiento) : undefined,
     fotos: f.fotos ?? [],
+    publicadoHaceDias: f.publicado_at
+      ? Math.floor((Date.now() - f.publicado_at.getTime()) / 86_400_000)
+      : undefined,
   };
 }
 
 const CAMPOS = `v.id, v.codigo, v.titulo, v.marca, v.modelo, v.version, v.anio,
   v.precio, v.km, v.combustible, v.transmision, v.carroceria, v.puertas,
   v.color, v.color_interior, v.cilindrada, v.cantidad_duenos, v.equipamiento, v.descripcion, v.comuna,
-  v.region, v.pie_financiamiento,
+  v.region, v.pie_financiamiento, v.publicado_at,
   (select array_agg(p.url order by p.es_principal desc, p.orden)
      from vehicle_photo p where p.vehicle_id = v.id) as fotos`;
 
