@@ -7,6 +7,8 @@ import {
 import { GrillaCatalogo } from "@/components/catalogo/grilla";
 import { Portada } from "@/components/catalogo/portada";
 import { PortadaSlider } from "@/components/catalogo/portada-slider";
+import { SeccionesDelSitio } from "@/components/catalogo/secciones";
+import { getSeccionesSitio } from "@/lib/data/sitio";
 
 /** Los catálogos se hornean al construir; los que aparezcan después, al visitarse. */
 export async function generateStaticParams() {
@@ -31,10 +33,11 @@ export default async function CatalogoPage({ params }: PageProps<"/[slug]">) {
   const automotora = await getAutomotoraPorSlug(slug);
   if (!automotora) notFound();
 
-  const [vehiculos, marca, diapositivas] = await Promise.all([
+  const [vehiculos, marca, diapositivas, secciones] = await Promise.all([
     getCatalogo(automotora.id),
     getMarcaPublica(automotora.id),
     getDiapositivas(automotora.id),
+    getSeccionesSitio(automotora.id),
   ]);
 
   return (
@@ -57,6 +60,12 @@ export default async function CatalogoPage({ params }: PageProps<"/[slug]">) {
         <GrillaCatalogo slug={automotora.slug} vehiculos={vehiculos} color={marca.color} />
       )}
       </div>
+
+      <SeccionesDelSitio
+        secciones={secciones}
+        color={marca.color}
+        nombre={automotora.nombre}
+      />
     </>
   );
 }
