@@ -75,7 +75,7 @@ export default async function CatalogoLayout({ params, children }: LayoutProps<"
                   href={`/${automotora.slug}/${p.ruta}`}
                   className="text-[13px] text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  {p.titulo}
+                  {p.rotulo ?? p.titulo}
                 </Link>
               ))}
             </nav>
@@ -122,7 +122,7 @@ export default async function CatalogoLayout({ params, children }: LayoutProps<"
                 {menu.map((p) => (
                   <li key={p.ruta}>
                     <Link href={`/${automotora.slug}/${p.ruta}`} className="hover:text-foreground">
-                      {p.titulo}
+                      {p.rotulo ?? p.titulo}
                     </Link>
                   </li>
                 ))}

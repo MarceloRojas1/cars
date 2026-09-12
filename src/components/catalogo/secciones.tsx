@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Clock, Mail, MapPin, Phone } from "lucide-react";
 import { MarcoFoto } from "@/components/catalogo/marco-foto";
@@ -198,6 +199,41 @@ export function Testimonios({ resenas }: { resenas: SeccionesSitio["resenas"] })
                 </span>
               </span>
             </div>
+          </li>
+        ))}
+      </ul>
+    </Seccion>
+  );
+}
+
+/**
+ * Financieras y marcas con las que trabaja la automotora.
+ *
+ * Los logos van en escala de grises y recuperan el color al pasar por encima:
+ * media docena de marcas a todo color compite con las fotos de los autos, que
+ * es lo que la página tiene que vender.
+ */
+export function Aliados({ aliados }: { aliados: { nombre: string; logoUrl?: string }[] }) {
+  if (aliados.length === 0) return null;
+
+  return (
+    <Seccion rotulo="Aliados financieros" titulo="Trabajamos con los mejores">
+      <ul className="flex flex-wrap items-center justify-center gap-x-12 gap-y-8">
+        {aliados.map((a) => (
+          <li key={a.nombre}>
+            {a.logoUrl ? (
+              // Alto fijo y ancho automático: los logos vienen de distintas
+              // proporciones y encajonarlos en una caja los deforma.
+              <Image
+                src={a.logoUrl}
+                alt={a.nombre}
+                width={160}
+                height={36}
+                className="h-9 w-auto opacity-60 grayscale transition hover:opacity-100 hover:grayscale-0"
+              />
+            ) : (
+              <span className="text-[15px] font-medium opacity-60">{a.nombre}</span>
+            )}
           </li>
         ))}
       </ul>

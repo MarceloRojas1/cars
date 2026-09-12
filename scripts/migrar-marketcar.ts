@@ -43,26 +43,41 @@ const TESTIMONIOS = [
 
 /** Las pestañas del sitio actual, en su orden y con su formulario. */
 const PAGINAS = [
-  { ruta: "quienes-somos", titulo: "Quiénes somos", rotulo: "El equipo",
-    bajada: "Una experiencia boutique para comprar, vender o consignar tu auto.",
+  { ruta: "quienes-somos", titulo: "Una boutique automotriz, no una automotora más.",
+    rotulo: "Quiénes somos",
+    bajada: "Marketcar nace en 2024.",
     contenido:
-      "Nos caracteriza la transparencia, la calidad y una excelente experiencia para nuestros clientes. " +
-      "Tenemos todo el proceso 100% en línea, lo que hace que comprar un auto sea tan fácil y entretenido como conducirlo.",
+      "De la mano de Juan José Domínguez, quien decide emprender y tener su propia automotora " +
+      "después de más de 20 años en el rubro.\n\n" +
+      "Nos caracterizamos por nuestra transparencia, calidad y excelente experiencia para nuestros " +
+      "clientes. Tenemos todo el proceso 100% en línea, lo que hace que comprar un auto sea tan " +
+      "fácil y entretenido como conducirlo.\n\n" +
+      "Nuestros autos y motos están revisados minuciosamente en más de 150 puntos antes de llegar " +
+      "al showroom de Los Trapenses.",
     formulario: null, orden: 1 },
-  { ruta: "compramos-tu-auto", titulo: "Compramos tu auto", rotulo: "Vende sin vueltas",
-    bajada: "Completas el formulario, recibes tu cotización, vendes y cobras.",
-    contenido: "Cotización sin compromiso. Si aceptas, la compra se cierra el mismo día.",
+  { ruta: "compramos-tu-auto", titulo: "Compramos tu auto.", rotulo: "Vende sin vueltas",
+    bajada: "Oferta justa, pago inmediato y sin complicaciones. Cotiza tu vehículo en minutos.",
+    contenido:
+      "Cómo funciona:\n\n" +
+      "1. Completas el formulario — marca, modelo, año, kilometraje y tu contacto.\n" +
+      "2. Recibes tu cotización, sin trámites engorrosos ni visitas a tu casa.\n" +
+      "3. Vendes y cobras.",
     formulario: "cotizar", orden: 2 },
   { ruta: "consignaciones", titulo: "Consignaciones", rotulo: "Nosotros lo vendemos",
-    bajada: "Dejas tu auto con nosotros y nos encargamos de todo.",
-    contenido: "Publicamos, mostramos y negociamos por ti. Tú recibes el pago cuando se vende.",
+    bajada: "Te ayudamos a vender tu vehículo de forma segura, rápida y sin que expongas tu casa.",
+    contenido:
+      "Exhibimos tu vehículo en el showroom y gestionamos las visitas nosotros.\n\n" +
+      "No te expones ni tú, ni tu familia, ni tu hogar al mostrar el auto.",
     formulario: "consignar", orden: 3 },
   { ruta: "financiamiento", titulo: "Financiamiento", rotulo: "A tu medida",
-    bajada: "Convenio con distintas financieras para encontrar la mejor opción.",
-    contenido: "Cuéntanos qué auto te interesa y cuánto puedes dar de pie; te armamos alternativas reales.",
+    bajada: "Convenios con las principales instituciones del país. Pre-aprobación en menos de 1 hora.",
+    contenido:
+      "Trabajamos con bancos e instituciones financieras para ofrecerte tasas preferenciales, " +
+      "plazos flexibles y evaluación rápida.\n\n" +
+      "Evaluación en menos de 1 hora. Sin compromiso ni obligación de compra.",
     formulario: "financiar", orden: 4 },
-  { ruta: "contacto", titulo: "Contacto", rotulo: "Conversemos",
-    bajada: "Escríbenos y te respondemos el mismo día.",
+  { ruta: "contacto", titulo: "Conversemos.", rotulo: "Contacto",
+    bajada: "Estamos para acompañarte. Visítanos en el showroom o escríbenos.",
     contenido: null, formulario: "contacto", orden: 5 },
 ];
 

@@ -7,9 +7,9 @@ import {
 import { Portada } from "@/components/catalogo/portada";
 import { PortadaSlider } from "@/components/catalogo/portada-slider";
 import {
-  Destacados, Equipo, Servicios, Testimonios, Ubicacion, VerStock,
+  Aliados, Destacados, Equipo, Servicios, Testimonios, Ubicacion, VerStock,
 } from "@/components/catalogo/secciones";
-import { getSeccionesSitio } from "@/lib/data/sitio";
+import { getRedes, getSeccionesSitio } from "@/lib/data/sitio";
 
 /** Los catálogos se hornean al construir; los que aparezcan después, al visitarse. */
 export async function generateStaticParams() {
@@ -34,12 +34,13 @@ export default async function CatalogoPage({ params }: PageProps<"/[slug]">) {
   const automotora = await getAutomotoraPorSlug(slug);
   if (!automotora) notFound();
 
-  const [vehiculos, destacados, marca, diapositivas, secciones] = await Promise.all([
+  const [vehiculos, destacados, marca, diapositivas, secciones, redes] = await Promise.all([
     getCatalogo(automotora.id),
     getDestacados(automotora.id),
     getMarcaPublica(automotora.id),
     getDiapositivas(automotora.id),
     getSeccionesSitio(automotora.id),
+    getRedes(automotora.id),
   ]);
 
   return (
@@ -64,6 +65,7 @@ export default async function CatalogoPage({ params }: PageProps<"/[slug]">) {
       />
       <Testimonios resenas={secciones.resenas} />
       <Ubicacion sucursales={secciones.sucursales} />
+      <Aliados aliados={redes.aliados} />
     </>
   );
 }
