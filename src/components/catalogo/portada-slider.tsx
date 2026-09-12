@@ -119,7 +119,8 @@ export function PortadaSlider({
       {/* El texto de la diapositiva activa, donde la automotora lo puso. */}
       <div
         className={cn(
-          "relative mx-auto flex h-full min-h-[inherit] max-w-[1200px] flex-col px-5 py-12 lg:px-8 lg:py-16",
+          // pt mayor que py: la barra de navegación es fija y se superpone.
+          "relative mx-auto flex h-full min-h-[inherit] max-w-[1200px] flex-col px-5 pb-14 pt-28 lg:px-8 lg:pb-20 lg:pt-32",
           POSICIONES[diapositivas[activa].posicion] ?? POSICIONES["bottom-left"],
         )}
       >

@@ -37,7 +37,7 @@ export function Portada({
       {/* Velo oscuro: garantiza el contraste del texto sobre cualquier color. */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/25 to-black/10" />
 
-      <div className="relative mx-auto max-w-[1200px] px-5 py-14 lg:px-8 lg:py-20">
+      <div className="relative mx-auto max-w-[1200px] px-5 pb-14 pt-24 lg:px-8 lg:pb-20 lg:pt-28">
         {marca.logoUrl && (
           <Image
             src={marca.logoUrl}

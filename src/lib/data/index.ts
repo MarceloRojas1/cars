@@ -1580,7 +1580,7 @@ export async function cambiarEstadoMiembro(idInterfaz: string, activo: boolean):
 
   await consultar(
     (await orgActual()),
-    `update app_user set activo = $3 where organization_id = $1 and id = $2`,
+    `update app_user set activo = $3, en_sitio_web = (en_sitio_web and $3) where organization_id = $1 and id = $2`,
     [(await orgActual()), id, activo],
   );
   return { ok: true, id };

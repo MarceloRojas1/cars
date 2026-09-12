@@ -209,9 +209,9 @@ export function Testimonios({ resenas }: { resenas: SeccionesSitio["resenas"] })
 /**
  * Financieras y marcas con las que trabaja la automotora.
  *
- * Los logos van en escala de grises y recuperan el color al pasar por encima:
- * media docena de marcas a todo color compite con las fotos de los autos, que
- * es lo que la página tiene que vender.
+ * Cada logo va sobre una tarjeta CLARA. No es decoración: los logos de las
+ * financieras son arte oscuro, pensado para papel y para fondos blancos. Sobre
+ * el fondo oscuro de la página desaparecían — se veía el título y debajo nada.
  */
 export function Aliados({ aliados }: { aliados: { nombre: string; logoUrl?: string }[] }) {
   if (aliados.length === 0) return null;
@@ -220,7 +220,7 @@ export function Aliados({ aliados }: { aliados: { nombre: string; logoUrl?: stri
     <Seccion rotulo="Aliados financieros" titulo="Trabajamos con los mejores">
       <ul className="flex flex-wrap items-center justify-center gap-x-12 gap-y-8">
         {aliados.map((a) => (
-          <li key={a.nombre}>
+          <li key={a.nombre} className="grid h-16 w-40 place-items-center rounded-lg bg-white px-4">
             {a.logoUrl ? (
               // Alto fijo y ancho automático: los logos vienen de distintas
               // proporciones y encajonarlos en una caja los deforma.
@@ -229,10 +229,10 @@ export function Aliados({ aliados }: { aliados: { nombre: string; logoUrl?: stri
                 alt={a.nombre}
                 width={160}
                 height={36}
-                className="h-9 w-auto opacity-60 grayscale transition hover:opacity-100 hover:grayscale-0"
+                className="h-8 w-auto object-contain"
               />
             ) : (
-              <span className="text-[15px] font-medium opacity-60">{a.nombre}</span>
+              <span className="text-[15px] font-medium text-[#17171A]">{a.nombre}</span>
             )}
           </li>
         ))}

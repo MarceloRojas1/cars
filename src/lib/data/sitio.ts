@@ -136,8 +136,17 @@ export async function getSeccionesSitio(orgId: string): Promise<SeccionesSitio> 
       nombre: string; cargo_publico: string | null; foto_url: string | null;
     }>(
       orgId,
+      /*
+       * Solo `en_sitio_web` decide. Antes se exigía además `activo`, y eso
+       * ataba salir en la web a ocupar un cupo del plan: el dueño y el asesor
+       * estaban marcados para el sitio y no aparecían. Son cosas distintas —
+       * una es usar el CRM, la otra es que tu cara esté en internet.
+       *
+       * Para que dar de baja a alguien no lo deje publicado, `cambiarEstadoMiembro`
+       * apaga también esta marca al desactivarlo.
+       */
       `select nombre, cargo_publico, foto_url from app_user
-        where organization_id = $1 and activo and en_sitio_web
+        where organization_id = $1 and en_sitio_web
         order by nombre`,
       [orgId],
     ),

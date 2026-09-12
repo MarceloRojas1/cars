@@ -38,13 +38,15 @@ export default async function CatalogoLayout({ params, children }: LayoutProps<"
       <header className="sticky top-0 z-20 border-b border-border bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-[1200px] items-center gap-4 px-5 lg:px-8">
           <Link href={`/${automotora.slug}`} className="flex min-w-0 items-center gap-2.5">
+            {/* Alto fijo, ancho libre: el logo de una automotora casi siempre
+                es apaisado, y meterlo en un cuadrado lo encoge hasta no leerse. */}
             {marca.logoUrl && (
               <Image
                 src={marca.logoUrl}
                 alt=""
-                width={32}
+                width={140}
                 height={32}
-                className="size-8 shrink-0 rounded-lg bg-white/95 object-contain p-1"
+                className="h-7 w-auto shrink-0 object-contain"
               />
             )}
             <span className="min-w-0">
