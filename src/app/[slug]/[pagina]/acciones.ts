@@ -4,6 +4,7 @@ import { z } from "zod";
 import { comoOrganizacion } from "@/lib/auth/sesion";
 import { getAutomotoraPorSlug } from "@/lib/data/catalogo";
 import { registrarLeadEntrante } from "@/lib/leads/entrada";
+import { registrarMensajeWhatsapp } from "@/lib/data";
 import { mensajeParaElUsuario } from "@/lib/errores";
 
 export type EstadoFormulario = { ok: boolean; mensaje: string };
@@ -52,7 +53,7 @@ export async function enviarFormularioAction(
 
   try {
     await comoOrganizacion(automotora.id, async () => {
-      await registrarLeadEntrante({
+      const resultado = await registrarLeadEntrante({
         source: "landing_ads",
         nombre: datos.data.nombre,
         telefono: datos.data.telefono,
@@ -68,6 +69,24 @@ export async function enviarFormularioAction(
           mensaje: datos.data.mensaje,
         },
       });
+
+      /*
+       * El detalle de la consulta se guarda además como mensaje del lead.
+       * Sin esto queda solo dentro de `canal_payload`, que ninguna pantalla
+       * muestra: el vendedor recibía un contacto pelado sin saber qué pidió.
+       */
+      if ("leadId" in resultado && resultado.leadId) {
+        const lineas = [
+          TITULO[datos.data.tipo],
+          datos.data.vehiculo ? `Vehículo: ${datos.data.vehiculo}` : null,
+          datos.data.mensaje,
+          datos.data.email ? `Correo: ${datos.data.email}` : null,
+        ].filter(Boolean);
+        await registrarMensajeWhatsapp(resultado.leadId, {
+          direccion: "entrante",
+          cuerpo: lineas.join("\n"),
+        });
+      }
     });
   } catch (e) {
     return { ok: false, mensaje: mensajeParaElUsuario(e, "No pudimos enviar tu mensaje. Inténtalo de nuevo.") };
