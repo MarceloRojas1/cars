@@ -125,20 +125,25 @@ export default async function FichaPublicaPage({ params }: Props) {
         <aside className="lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:sticky lg:top-24 lg:self-start">
           <Encabezado v={v} />
 
+          {/* La leyenda acompaña al botón: sin número de WhatsApp no va ninguno
+              de los dos. Antes se quedaba el texto solo, prometiendo una
+              respuesta por un canal que la página no ofrecía. */}
           {wa && (
-            <a
-              href={wa}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-5 flex h-11 items-center justify-center gap-2 rounded-[var(--radius)] bg-primary text-[14px] font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
-              <MessageCircle className="size-4" />
-              Consultar por WhatsApp
-            </a>
+            <>
+              <a
+                href={wa}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-5 flex h-11 items-center justify-center gap-2 rounded-[var(--radius)] bg-primary text-[14px] font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                <MessageCircle className="size-4" />
+                Consultar por WhatsApp
+              </a>
+              <p className="mt-2 text-center text-[11.5px] text-muted-foreground">
+                Te responden con el precio y la disponibilidad de este vehículo.
+              </p>
+            </>
           )}
-          <p className="mt-2 text-center text-[11.5px] text-muted-foreground">
-            Te responden con el precio y la disponibilidad de este vehículo.
-          </p>
 
           <div className="mt-5">
             <Simulador precio={v.precio} pieSugerido={v.pieFinanciamiento} />

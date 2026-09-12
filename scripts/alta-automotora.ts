@@ -2,7 +2,8 @@
  * Da de alta una automotora nueva.
  *
  *   npm run alta -- --nombre "Automotora Sur" --slug automotora-sur \
- *                   --email dueno@automotorasur.cl --duenio "María Pérez"
+ *                   --email dueno@automotorasur.cl --duenio "María Pérez" \
+ *                   --whatsapp 56912345678
  *
  * El cobro es POR ORGANIZACIÓN, no por usuario: el plan y todos los límites
  * viven en la fila de `organization`. Por eso el alta la hacemos nosotros a
@@ -43,6 +44,9 @@ async function main() {
   const duenio = argumento("duenio") ?? "Dueño";
   const plan = argumento("plan") ?? "Pro";
   const sucursal = argumento("sucursal") ?? "Casa matriz";
+  // Solo dígitos: es el formato que quiere wa.me.
+  const whatsapp = argumento("whatsapp")?.replace(/\D/g, "") || undefined;
+  const numeroId = argumento("phone-number-id") ?? process.env.WHATSAPP_PHONE_NUMBER_ID;
 
   if (!nombre || !slug || !email) {
     console.error("Faltan datos. Uso:");
@@ -67,8 +71,15 @@ async function main() {
     if (yaExiste[0]) throw new Error(`Ya hay una automotora con el slug "${slug}".`);
 
     const { rows: orgs } = await cliente.query<{ id: string }>(
-      `insert into organization (nombre, slug, plan) values ($1,$2,$3) returning id`,
-      [nombre, slug, plan],
+      /*
+       * El número de WhatsApp va desde el alta: sin él el catálogo público no
+       * muestra el botón de consultar, que es de donde salen los leads. Y el
+       * `phone_number_id` es lo que permite al webhook saber de qué automotora
+       * es cada mensaje entrante.
+       */
+      `insert into organization (nombre, slug, plan, whatsapp, whatsapp_phone_number_id)
+       values ($1,$2,$3,$4,$5) returning id`,
+      [nombre, slug, plan, whatsapp ?? null, numeroId ?? null],
     );
     const orgId = orgs[0].id;
 
