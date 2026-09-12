@@ -280,6 +280,31 @@ export async function getVehiculoPublico(
   return filas[0] ? aPublico(filas[0]) : null;
 }
 
+/**
+ * Los que la automotora quiere mostrar primero en su portada.
+ *
+ * Si no marcó ninguno se devuelven los más recientes: una portada con un hueco
+ * donde deberían ir los autos es peor que una con los últimos que entraron.
+ */
+export async function getDestacados(orgId: string, cuantos = 4): Promise<VehiculoPublico[]> {
+  const marcados = await consultar<FilaPublica>(
+    orgId,
+    `select ${CAMPOS} from vehicle v
+      where ${PUBLICABLE} and v.destacado
+      order by v.publicado_at desc nulls last limit $2`,
+    [orgId, cuantos],
+  );
+  if (marcados.length > 0) return marcados.map(aPublico);
+
+  const recientes = await consultar<FilaPublica>(
+    orgId,
+    `select ${CAMPOS} from vehicle v where ${PUBLICABLE}
+      order by v.publicado_at desc nulls last limit $2`,
+    [orgId, cuantos],
+  );
+  return recientes.map(aPublico);
+}
+
 /** Del mismo rango de precio, para el bloque "también te puede interesar". */
 export async function getSimilares(
   orgId: string, codigo: string, precio: number, cuantos = 3,

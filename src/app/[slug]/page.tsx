@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
-  getAutomotoraPorSlug, getCatalogo, getDiapositivas, getMarcaPublica,
-  getSlugsPublicos,
+  getAutomotoraPorSlug, getCatalogo, getDestacados, getDiapositivas,
+  getMarcaPublica, getSlugsPublicos,
 } from "@/lib/data/catalogo";
-import { GrillaCatalogo } from "@/components/catalogo/grilla";
 import { Portada } from "@/components/catalogo/portada";
 import { PortadaSlider } from "@/components/catalogo/portada-slider";
-import { SeccionesDelSitio } from "@/components/catalogo/secciones";
+import {
+  Destacados, Equipo, Servicios, Testimonios, Ubicacion, VerStock,
+} from "@/components/catalogo/secciones";
 import { getSeccionesSitio } from "@/lib/data/sitio";
 
 /** Los catálogos se hornean al construir; los que aparezcan después, al visitarse. */
@@ -33,8 +34,9 @@ export default async function CatalogoPage({ params }: PageProps<"/[slug]">) {
   const automotora = await getAutomotoraPorSlug(slug);
   if (!automotora) notFound();
 
-  const [vehiculos, marca, diapositivas, secciones] = await Promise.all([
+  const [vehiculos, destacados, marca, diapositivas, secciones] = await Promise.all([
     getCatalogo(automotora.id),
+    getDestacados(automotora.id),
     getMarcaPublica(automotora.id),
     getDiapositivas(automotora.id),
     getSeccionesSitio(automotora.id),
@@ -43,7 +45,7 @@ export default async function CatalogoPage({ params }: PageProps<"/[slug]">) {
   return (
     <>
       {/* Con diapositivas manda el carrusel; sin ellas, la portada simple. Una
-          automotora recién dada de alta publica su catálogo antes de tener
+          automotora recién dada de alta publica su sitio antes de tener
           material gráfico, y no puede quedarse sin encabezado por eso. */}
       {diapositivas.length > 0 ? (
         <PortadaSlider diapositivas={diapositivas} color={marca.color} />
@@ -51,21 +53,17 @@ export default async function CatalogoPage({ params }: PageProps<"/[slug]">) {
         <Portada automotora={automotora} marca={marca} cuantos={vehiculos.length} />
       )}
 
-      <div className="mx-auto max-w-[1200px] px-5 py-10 lg:px-8 lg:py-14">
-      {vehiculos.length === 0 ? (
-        <p className="border-t border-border py-20 text-center text-[13.5px] text-muted-foreground">
-          Todavía no hay vehículos publicados.
-        </p>
-      ) : (
-        <GrillaCatalogo slug={automotora.slug} vehiculos={vehiculos} color={marca.color} />
-      )}
-      </div>
-
-      <SeccionesDelSitio
-        secciones={secciones}
-        color={marca.color}
+      <Destacados vehiculos={destacados} slug={automotora.slug} color={marca.color} />
+      <Servicios servicios={secciones.servicios} color={marca.color} />
+      <VerStock slug={automotora.slug} cuantos={vehiculos.length} />
+      <Equipo
+        equipo={secciones.equipo}
+        sobreTitulo={secciones.sobreTitulo}
+        sobreTexto={secciones.sobreTexto}
         nombre={automotora.nombre}
       />
+      <Testimonios resenas={secciones.resenas} />
+      <Ubicacion sucursales={secciones.sucursales} />
     </>
   );
 }

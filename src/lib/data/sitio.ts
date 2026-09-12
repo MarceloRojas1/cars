@@ -9,7 +9,7 @@ import { consultar, dbConfigurada } from "@/lib/db";
  * marcado; una reseña oculta no sale.
  */
 
-export type Servicio = { titulo: string; texto: string; link?: string };
+export type Servicio = { titulo: string; texto: string; link?: string; imagenUrl?: string };
 
 export type MiembroPublico = {
   nombre: string;
