@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
-  getAutomotoraPorSlug, getCatalogo, getMarcaPublica, getSlugsPublicos,
+  getAutomotoraPorSlug, getCatalogo, getDiapositivas, getMarcaPublica,
+  getSlugsPublicos,
 } from "@/lib/data/catalogo";
 import { GrillaCatalogo } from "@/components/catalogo/grilla";
 import { Portada } from "@/components/catalogo/portada";
+import { PortadaSlider } from "@/components/catalogo/portada-slider";
 
 /** Los catálogos se hornean al construir; los que aparezcan después, al visitarse. */
 export async function generateStaticParams() {
@@ -29,14 +31,22 @@ export default async function CatalogoPage({ params }: PageProps<"/[slug]">) {
   const automotora = await getAutomotoraPorSlug(slug);
   if (!automotora) notFound();
 
-  const [vehiculos, marca] = await Promise.all([
+  const [vehiculos, marca, diapositivas] = await Promise.all([
     getCatalogo(automotora.id),
     getMarcaPublica(automotora.id),
+    getDiapositivas(automotora.id),
   ]);
 
   return (
     <>
-      <Portada automotora={automotora} marca={marca} cuantos={vehiculos.length} />
+      {/* Con diapositivas manda el carrusel; sin ellas, la portada simple. Una
+          automotora recién dada de alta publica su catálogo antes de tener
+          material gráfico, y no puede quedarse sin encabezado por eso. */}
+      {diapositivas.length > 0 ? (
+        <PortadaSlider diapositivas={diapositivas} color={marca.color} />
+      ) : (
+        <Portada automotora={automotora} marca={marca} cuantos={vehiculos.length} />
+      )}
 
       <div className="mx-auto max-w-[1200px] px-5 py-10 lg:px-8 lg:py-14">
       {vehiculos.length === 0 ? (

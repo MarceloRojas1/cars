@@ -1649,3 +1649,131 @@ export async function primeraEtapaHumana(): Promise<{ id: string; nombre: string
   );
   return filas[0] ?? null;
 }
+
+/* --- el sitio público de la automotora --- */
+
+export type ConfigSitio = {
+  logoUrl?: string;
+  portadaUrl?: string;
+  color: string;
+  heroTitulo?: string;
+  heroSubtitulo?: string;
+};
+
+export async function getConfigSitio(): Promise<ConfigSitio> {
+  const orgId = await orgActual();
+  if (!dbConfigurada()) return { color: "#4F46E5" };
+
+  const filas = await consultar<{
+    logo_url: string | null; portada_url: string | null; color_principal: string | null;
+    hero_titulo: string | null; hero_subtitulo: string | null;
+  }>(
+    orgId,
+    `select logo_url, portada_url, color_principal, hero_titulo, hero_subtitulo
+       from site_config where organization_id = $1`,
+    [orgId],
+  );
+  const c = filas[0];
+  return {
+    logoUrl: c?.logo_url ?? undefined,
+    portadaUrl: c?.portada_url ?? undefined,
+    color: c?.color_principal ?? "#4F46E5",
+    heroTitulo: c?.hero_titulo ?? undefined,
+    heroSubtitulo: c?.hero_subtitulo ?? undefined,
+  };
+}
+
+/** Fila única por organización: se inserta o se actualiza, nunca se duplica. */
+export async function guardarConfigSitio(datos: ConfigSitio): Promise<void> {
+  const orgId = await orgActual();
+  await consultar(
+    orgId,
+    `insert into site_config
+       (organization_id, logo_url, portada_url, color_principal, hero_titulo, hero_subtitulo)
+     values ($1,$2,$3,$4,$5,$6)
+     on conflict (organization_id) do update set
+       logo_url = excluded.logo_url, portada_url = excluded.portada_url,
+       color_principal = excluded.color_principal,
+       hero_titulo = excluded.hero_titulo, hero_subtitulo = excluded.hero_subtitulo`,
+    [orgId, datos.logoUrl ?? null, datos.portadaUrl ?? null, datos.color,
+     datos.heroTitulo ?? null, datos.heroSubtitulo ?? null],
+  );
+}
+
+export type Diapositiva = {
+  id: string;
+  mediaUrl: string;
+  tipo: "imagen" | "video";
+  textoSuperior?: string;
+  titulo?: string;
+  subtitulo?: string;
+  btnTexto?: string;
+  btnLink?: string;
+  posicion: string;
+  orden: number;
+};
+
+export async function getDiapositivasPanel(): Promise<Diapositiva[]> {
+  const orgId = await orgActual();
+  if (!dbConfigurada()) return [];
+  const filas = await consultar<{
+    id: string; media_url: string | null; media_tipo: string | null;
+    texto_superior: string | null; titulo: string | null; subtitulo: string | null;
+    btn_texto: string | null; btn_link: string | null; posicion: string | null; orden: number;
+  }>(
+    orgId,
+    `select id, media_url, media_tipo, texto_superior, titulo, subtitulo,
+            btn_texto, btn_link, posicion, orden
+       from hero_slide where organization_id = $1 order by orden, id`,
+    [orgId],
+  );
+  return filas.map((f) => ({
+    id: f.id,
+    mediaUrl: f.media_url ?? "",
+    tipo: f.media_tipo === "video" ? "video" : "imagen",
+    textoSuperior: f.texto_superior ?? undefined,
+    titulo: f.titulo ?? undefined,
+    subtitulo: f.subtitulo ?? undefined,
+    btnTexto: f.btn_texto ?? undefined,
+    btnLink: f.btn_link ?? undefined,
+    posicion: f.posicion ?? "bottom-left",
+    orden: f.orden,
+  }));
+}
+
+export async function guardarDiapositiva(
+  datos: Omit<Diapositiva, "id"> & { id?: string },
+): Promise<void> {
+  const orgId = await orgActual();
+  if (datos.id) {
+    await consultar(
+      orgId,
+      `update hero_slide set media_url=$3, media_tipo=$4, texto_superior=$5,
+              titulo=$6, subtitulo=$7, btn_texto=$8, btn_link=$9, posicion=$10, orden=$11
+        where id=$1 and organization_id=$2`,
+      [datos.id, orgId, datos.mediaUrl, datos.tipo, datos.textoSuperior ?? null,
+       datos.titulo ?? null, datos.subtitulo ?? null, datos.btnTexto ?? null,
+       datos.btnLink ?? null, datos.posicion, datos.orden],
+    );
+    return;
+  }
+  await consultar(
+    orgId,
+    `insert into hero_slide
+       (organization_id, media_url, media_tipo, texto_superior, titulo, subtitulo,
+        btn_texto, btn_link, posicion, orden)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+    [orgId, datos.mediaUrl, datos.tipo, datos.textoSuperior ?? null, datos.titulo ?? null,
+     datos.subtitulo ?? null, datos.btnTexto ?? null, datos.btnLink ?? null,
+     datos.posicion, datos.orden],
+  );
+}
+
+export async function eliminarDiapositiva(id: string): Promise<void> {
+  const orgId = await orgActual();
+  await consultar(
+    orgId,
+    "delete from hero_slide where id = $1 and organization_id = $2",
+    [id, orgId],
+  );
+}

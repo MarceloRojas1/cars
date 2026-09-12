@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { ExternalLink, ImageOff, MessageCircle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { Pendiente } from "@/components/pendiente";
+import { EditorSitio } from "@/components/sitio/editor-sitio";
+import { getConfigSitio, getDiapositivasPanel } from "@/lib/data";
 import { getResumenCatalogo } from "@/lib/data/catalogo";
 import { orgActual } from "@/lib/auth/sesion";
 import { numero } from "@/lib/format";
@@ -9,13 +10,18 @@ import { numero } from "@/lib/format";
 export const metadata = { title: "Mi sitio web" };
 
 export default async function Page() {
-  const resumen = await getResumenCatalogo(await orgActual());
+  const orgId = await orgActual();
+  const [resumen, config, diapositivas] = await Promise.all([
+    getResumenCatalogo(orgId),
+    getConfigSitio(),
+    getDiapositivasPanel(),
+  ]);
 
   return (
-    <>
+    <div className="mx-auto max-w-3xl">
       <PageHeader
         titulo="Mi sitio web"
-        descripcion="El catálogo público de tu automotora y lo que se ve en él"
+        descripcion="Cómo se ve tu catálogo para quien te compra"
       />
 
       {resumen && (
@@ -37,8 +43,6 @@ export default async function Page() {
             todo lo que esté disponible, sin archivar y con al menos una foto.
           </p>
 
-          {/* Lo que NO se ve es la información útil acá: un auto sin fotos no
-              lo mira nadie, y desde el inventario eso no salta a la vista. */}
           {resumen.sinFotos > 0 && (
             <p className="mt-3 flex items-start gap-2 border-l-2 border-l-warn bg-warn/[0.06] px-3 py-2 text-[12.5px] leading-relaxed">
               <ImageOff className="mt-0.5 size-3.5 shrink-0 text-warn" />
@@ -64,11 +68,11 @@ export default async function Page() {
         </section>
       )}
 
-      <Pendiente
-        que="Editor del hero y la marca"
-        fase="Fase 8 · Sitio público"
-        detalle="Carga de logo y portada, color de marca y los slides con posición de texto. El catálogo y la ficha ya están publicados."
+      <EditorSitio
+        config={config}
+        diapositivas={diapositivas}
+        slug={resumen?.slug ?? ""}
       />
-    </>
+    </div>
   );
 }

@@ -128,6 +128,56 @@ export async function getMarcaPublica(orgId: string): Promise<MarcaPublica> {
   };
 }
 
+/** Una diapositiva de la portada. */
+export type Diapositiva = {
+  id: string;
+  mediaUrl: string;
+  tipo: "imagen" | "video";
+  textoSuperior?: string;
+  titulo?: string;
+  subtitulo?: string;
+  btnTexto?: string;
+  btnLink?: string;
+  /** Dónde va el texto, en una grilla de 3x3. */
+  posicion: string;
+};
+
+/**
+ * Las diapositivas de la portada, en orden.
+ *
+ * Sin ninguna, la portada cae al color y los textos de `site_config`. Es
+ * deliberado: una automotora recién dada de alta tiene que poder publicar su
+ * catálogo antes de preparar material gráfico.
+ */
+export async function getDiapositivas(orgId: string): Promise<Diapositiva[]> {
+  if (!dbConfigurada()) return [];
+  const filas = await consultar<{
+    id: string; media_url: string | null; media_tipo: string | null;
+    texto_superior: string | null; titulo: string | null; subtitulo: string | null;
+    btn_texto: string | null; btn_link: string | null; posicion: string | null;
+  }>(
+    orgId,
+    `select id, media_url, media_tipo, texto_superior, titulo, subtitulo,
+            btn_texto, btn_link, posicion
+       from hero_slide where organization_id = $1 order by orden, id`,
+    [orgId],
+  );
+
+  return filas
+    .filter((f) => f.media_url)
+    .map((f) => ({
+      id: f.id,
+      mediaUrl: f.media_url!,
+      tipo: f.media_tipo === "video" ? "video" : "imagen",
+      textoSuperior: f.texto_superior ?? undefined,
+      titulo: f.titulo ?? undefined,
+      subtitulo: f.subtitulo ?? undefined,
+      btnTexto: f.btn_texto ?? undefined,
+      btnLink: f.btn_link ?? undefined,
+      posicion: f.posicion ?? "bottom-left",
+    }));
+}
+
 type FilaPublica = {
   id: string; codigo: string; titulo: string; marca: string | null;
   modelo: string | null; version: string | null; anio: number | null;
