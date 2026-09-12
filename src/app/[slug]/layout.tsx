@@ -3,6 +3,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { MessageCircle } from "lucide-react";
 import { getAutomotoraPorSlug, getMarcaPublica } from "@/lib/data/catalogo";
+import { getPaginas, getRedes } from "@/lib/data/sitio";
 import { enlaceWhatsapp } from "@/lib/catalogo/whatsapp";
 
 /**
@@ -24,7 +25,13 @@ export default async function CatalogoLayout({ params, children }: LayoutProps<"
   const automotora = await getAutomotoraPorSlug(slug);
   if (!automotora) notFound();
 
-  const [wa, marca] = [enlaceWhatsapp(automotora), await getMarcaPublica(automotora.id)];
+  const wa = enlaceWhatsapp(automotora);
+  const [marca, paginas, redes] = await Promise.all([
+    getMarcaPublica(automotora.id),
+    getPaginas(automotora.id),
+    getRedes(automotora.id),
+  ]);
+  const menu = paginas.filter((p) => p.enMenu);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -53,6 +60,27 @@ export default async function CatalogoLayout({ params, children }: LayoutProps<"
             </span>
           </Link>
 
+          {/* Las pestañas salen de la base: agregar una sección no exige tocar
+              este archivo. En pantalla chica se ocultan y queda el catálogo,
+              que es a lo que la gente viene. */}
+          {menu.length > 0 && (
+            <nav className="ml-6 hidden items-center gap-5 lg:flex" aria-label="Secciones">
+              <Link href={`/${automotora.slug}/catalogo`}
+                    className="text-[13px] text-muted-foreground transition-colors hover:text-foreground">
+                Vehículos
+              </Link>
+              {menu.map((p) => (
+                <Link
+                  key={p.ruta}
+                  href={`/${automotora.slug}/${p.ruta}`}
+                  className="text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {p.titulo}
+                </Link>
+              ))}
+            </nav>
+          )}
+
           {wa && (
             <a
               href={wa}
@@ -71,15 +99,80 @@ export default async function CatalogoLayout({ params, children }: LayoutProps<"
 
       <main className="flex-1">{children}</main>
 
-      <footer className="border-t border-border">
-        <div className="mx-auto flex max-w-[1200px] flex-col gap-2 px-5 py-8 text-[12px] text-muted-foreground lg:flex-row lg:items-center lg:px-8">
-          <p>
-            {automotora.nombre}
-            {automotora.telefono ? ` · ${automotora.telefono}` : ""}
-          </p>
-          <p className="lg:ml-auto">
-            Catálogo publicado con <span className="text-foreground">Velie</span>
-          </p>
+      <footer className="border-t border-border bg-card/40">
+        <div className="mx-auto max-w-[1200px] px-5 py-12 lg:px-8">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="display text-[17px]">{automotora.nombre}</p>
+              {automotora.descripcion && (
+                <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">
+                  {automotora.descripcion}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <p className="etiqueta mb-3">Navegación</p>
+              <ul className="space-y-1.5 text-[12.5px] text-muted-foreground">
+                <li>
+                  <Link href={`/${automotora.slug}/catalogo`} className="hover:text-foreground">
+                    Vehículos
+                  </Link>
+                </li>
+                {menu.map((p) => (
+                  <li key={p.ruta}>
+                    <Link href={`/${automotora.slug}/${p.ruta}`} className="hover:text-foreground">
+                      {p.titulo}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <p className="etiqueta mb-3">Contacto</p>
+              <ul className="space-y-1.5 text-[12.5px] text-muted-foreground">
+                {automotora.comuna && (
+                  <li>
+                    {automotora.comuna}
+                    {automotora.region ? `, ${automotora.region}` : ""}
+                  </li>
+                )}
+                {automotora.telefono && (
+                  <li>
+                    <a href={`tel:${automotora.telefono.replace(/\s/g, "")}`} className="hover:text-foreground">
+                      {automotora.telefono}
+                    </a>
+                  </li>
+                )}
+                {wa && (
+                  <li>
+                    <a href={wa} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
+                      WhatsApp
+                    </a>
+                  </li>
+                )}
+              </ul>
+            </div>
+
+            {(redes.instagram || redes.tiktok || redes.facebook) && (
+              <div>
+                <p className="etiqueta mb-3">Síguenos</p>
+                <ul className="space-y-1.5 text-[12.5px] text-muted-foreground">
+                  {redes.instagram && <li><a href={redes.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">Instagram</a></li>}
+                  {redes.tiktok && <li><a href={redes.tiktok} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">TikTok</a></li>}
+                  {redes.facebook && <li><a href={redes.facebook} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">Facebook</a></li>}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-10 flex flex-col gap-2 border-t border-border pt-6 text-[11.5px] text-muted-foreground lg:flex-row lg:items-center">
+            <p>© {new Date().getFullYear()} {automotora.nombre}</p>
+            <p className="lg:ml-auto">
+              Sitio publicado con <span className="text-foreground">Velie</span>
+            </p>
+          </div>
         </div>
       </footer>
     </div>

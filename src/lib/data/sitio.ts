@@ -46,6 +46,72 @@ export type SeccionesSitio = {
   sucursales: Sucursal[];
 };
 
+export type PaginaSitio = {
+  ruta: string;
+  titulo: string;
+  rotulo?: string;
+  bajada?: string;
+  contenido?: string;
+  imagenUrl?: string;
+  /** null = solo contenido. El resto decide qué campos pide y cómo entra el lead. */
+  formulario?: "cotizar" | "consignar" | "financiar" | "contacto";
+  enMenu: boolean;
+};
+
+/** Las pestañas del sitio, en orden. */
+export async function getPaginas(orgId: string): Promise<PaginaSitio[]> {
+  if (!dbConfigurada()) return [];
+  const filas = await consultar<{
+    ruta: string; titulo: string; rotulo: string | null; bajada: string | null;
+    contenido: string | null; imagen_url: string | null; formulario: string | null;
+    en_menu: boolean;
+  }>(
+    orgId,
+    `select ruta, titulo, rotulo, bajada, contenido, imagen_url, formulario, en_menu
+       from pagina where organization_id = $1 and visible order by orden, titulo`,
+    [orgId],
+  );
+  return filas.map((f) => ({
+    ruta: f.ruta,
+    titulo: f.titulo,
+    rotulo: f.rotulo ?? undefined,
+    bajada: f.bajada ?? undefined,
+    contenido: f.contenido ?? undefined,
+    imagenUrl: f.imagen_url ?? undefined,
+    formulario: (f.formulario as PaginaSitio["formulario"]) ?? undefined,
+    enMenu: f.en_menu,
+  }));
+}
+
+export type RedesSociales = {
+  instagram?: string;
+  tiktok?: string;
+  facebook?: string;
+  youtube?: string;
+  aliados: { nombre: string; logoUrl?: string }[];
+};
+
+export async function getRedes(orgId: string): Promise<RedesSociales> {
+  if (!dbConfigurada()) return { aliados: [] };
+  const [c] = await consultar<{
+    instagram_url: string | null; tiktok_url: string | null;
+    facebook_url: string | null; youtube_url: string | null;
+    aliados: { nombre: string; logoUrl?: string }[] | null;
+  }>(
+    orgId,
+    `select instagram_url, tiktok_url, facebook_url, youtube_url, aliados
+       from site_config where organization_id = $1`,
+    [orgId],
+  );
+  return {
+    instagram: c?.instagram_url ?? undefined,
+    tiktok: c?.tiktok_url ?? undefined,
+    facebook: c?.facebook_url ?? undefined,
+    youtube: c?.youtube_url ?? undefined,
+    aliados: (c?.aliados ?? []).filter((a) => a?.nombre),
+  };
+}
+
 export async function getSeccionesSitio(orgId: string): Promise<SeccionesSitio> {
   const vacio: SeccionesSitio = { servicios: [], equipo: [], resenas: [], sucursales: [] };
   if (!dbConfigurada()) return vacio;
