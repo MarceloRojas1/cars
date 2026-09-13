@@ -15,6 +15,12 @@ services:
       - pgdata:/var/lib/postgresql/data
       # Se aplican una sola vez, en orden alfabético, al crear el volumen.
       # Para re-aplicarlos: docker compose down -v && docker compose up
+      #
+      # CADA MIGRACIÓN NUEVA HAY QUE AGREGARLA ACÁ A MANO. La lista se había
+      # quedado en 0012: un volumen nuevo nacía sin auth, sin catálogo público
+      # y sin sitio, y el fallo no se ve —la base levanta igual, solo le faltan
+      # tablas—. `npm run migrar` sí las aplica todas, así que una base ya
+      # creada quedaba al día y el hueco solo aparecía al recrear el volumen.
       - ./docker/initdb/00-auth-shim.sql:/docker-entrypoint-initdb.d/00-auth-shim.sql:ro
       - ./supabase/migrations/0001_init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
       - ./supabase/migrations/0002_vehicle_publicacion.sql:/docker-entrypoint-initdb.d/02-vehiculo.sql:ro
@@ -28,6 +34,11 @@ services:
       - ./supabase/migrations/0010_lead_notas.sql:/docker-entrypoint-initdb.d/11-notas.sql:ro
       - ./supabase/migrations/0011_integracion_unica.sql:/docker-entrypoint-initdb.d/12-integracion.sql:ro
       - ./supabase/migrations/0012_showrooms.sql:/docker-entrypoint-initdb.d/13-showrooms.sql:ro
+      - ./supabase/migrations/0013_auth.sql:/docker-entrypoint-initdb.d/14-auth.sql:ro
+      - ./supabase/migrations/0014_catalogo_publico.sql:/docker-entrypoint-initdb.d/15-catalogo.sql:ro
+      - ./supabase/migrations/0015_whatsapp_por_organizacion.sql:/docker-entrypoint-initdb.d/16-whatsapp.sql:ro
+      - ./supabase/migrations/0016_sitio_publico.sql:/docker-entrypoint-initdb.d/17-sitio.sql:ro
+      - ./supabase/migrations/0017_paginas_sitio.sql:/docker-entrypoint-initdb.d/18-paginas.sql:ro
       - ./docker/initdb/06-rol-app.sql:/docker-entrypoint-initdb.d/06-rol-app.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U velie -d velie"]
