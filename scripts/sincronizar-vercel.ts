@@ -32,10 +32,32 @@ const VARIABLES: { nombre: string; obligatoria: boolean; publica?: boolean }[] =
   { nombre: "WHATSAPP_VERIFY_TOKEN", obligatoria: false },
   { nombre: "ANTHROPIC_API_KEY", obligatoria: false },
   { nombre: "GEMINI_API_KEY", obligatoria: false },
+  /*
+   * SÍ se despliega, desde el 2026-09-13.
+   *
+   * Antes la usaban solo los scripts de administración (`npm run alta`) y por
+   * eso estaba en la lista de abajo, la de las que no suben. Las invitaciones
+   * del equipo cambiaron eso: crear la cuenta de alguien que canjea su enlace
+   * es `auth.admin.createUser()`, corre en el servidor de la aplicación y sin
+   * esta clave devuelve "la creación de cuentas no está configurada".
+   *
+   * Es la credencial más peligrosa del proyecto —se salta todas las políticas
+   * de aislamiento— así que va como `--sensitive`, igual que las demás: Vercel
+   * no la vuelve a mostrar una vez escrita.
+   *
+   * SON DOS NOMBRES PARA DOS CLAVES DISTINTAS, y basta con una: Supabase
+   * renombró su clave de administración a `SUPABASE_SECRET_KEY` (`sb_secret_…`)
+   * y dejó la anterior, `SUPABASE_SERVICE_ROLE_KEY` (un JWT), en una pestaña
+   * de legado. Se aceptan las dos porque las dos sirven, y `claveDeServicio()`
+   * toma la que esté. Por eso ninguna es obligatoria por separado — pero si
+   * faltan LAS DOS, `npm run revisar-despliegue` lo marca como bloqueante.
+   */
+  { nombre: "SUPABASE_SECRET_KEY", obligatoria: false },
+  { nombre: "SUPABASE_SERVICE_ROLE_KEY", obligatoria: false },
 ];
 
 /**
- * Tres que NO se sincronizan, y por qué:
+ * Dos que NO se sincronizan, y por qué:
  *
  * · `DATABASE_URL` — en `.env.local` apunta al Postgres de tu máquina. Subirlo
  *   dejaría la aplicación desplegada hablándole a una base que desde Vercel no
@@ -46,9 +68,6 @@ const VARIABLES: { nombre: string; obligatoria: boolean; publica?: boolean }[] =
  *   haría que el desarrollo local exija login contra la base de tu máquina, que
  *   no tiene la cuenta: entrarías bien en Supabase y la aplicación te devolvería
  *   al login para siempre.
- *
- * · `SUPABASE_SERVICE_ROLE_KEY` — solo la usan los scripts de administración
- *   (`npm run alta`), nunca la aplicación. No tiene por qué estar desplegada.
  */
 const ENTORNOS = ["production", "preview"];
 

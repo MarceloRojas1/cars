@@ -1,13 +1,14 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { conOpciones, OPCIONES_COOKIE } from "./cookies";
+import { clavePublica, hayAuthConfigurada, urlPublica } from "./publica";
 
 export async function createClient() {
   const cookieStore = await cookies();
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    urlPublica()!,
+    clavePublica()!,
     {
       cookieOptions: OPCIONES_COOKIE,
       cookies: {
@@ -28,7 +29,5 @@ export async function createClient() {
 
 /** ¿Hay credenciales configuradas? Mientras no las haya, la app usa los datos semilla. */
 export function supabaseConfigurado() {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  );
+  return hayAuthConfigurada();
 }

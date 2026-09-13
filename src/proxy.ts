@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { conOpciones, OPCIONES_COOKIE } from "@/lib/supabase/cookies";
+import { clavePublica, urlPublica } from "@/lib/supabase/publica";
 import { esRutaDelPanel } from "@/lib/rutas";
 
 /**
@@ -35,8 +36,10 @@ export async function proxy(request: NextRequest) {
    */
   if (!esPanel && !esLogin) return NextResponse.next();
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // Acepta el nombre nuevo de Supabase (`…PUBLISHABLE_KEY`) y el legado
+  // (`…ANON_KEY`). Ver lib/supabase/publica.ts.
+  const url = urlPublica();
+  const anon = clavePublica();
 
   /*
    * Sin Supabase configurado no hay login posible. En desarrollo eso es lo
@@ -48,7 +51,7 @@ export async function proxy(request: NextRequest) {
   if (!url || !anon) {
     if (process.env.NODE_ENV === "production" && esPanel) {
       return new NextResponse(
-        "Falta configurar la autenticación (NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY).",
+        "Falta configurar la autenticación (NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY).",
         { status: 503 },
       );
     }

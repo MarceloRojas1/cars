@@ -18,6 +18,7 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 import { enTransaccion } from "../src/lib/db";
+import { claveDeServicio } from "../src/lib/supabase/servicio";
 
 /** El embudo estándar. Cada automotora lo puede editar después. */
 const ETAPAS: [string, string, number, "ia" | "humano", boolean][] = [
@@ -142,11 +143,13 @@ async function crearCuenta(
   orgId: string, usuarioId: string, email: string, password: string | undefined,
 ) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const servicio = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Acepta SUPABASE_SECRET_KEY o SUPABASE_SERVICE_ROLE_KEY, con o sin el
+  // prefijo que les pone la integración de Vercel. Ver lib/supabase/servicio.ts.
+  const servicio = claveDeServicio();
 
   if (!url || !servicio) {
     console.log("\n⚠ Falta el acceso: Supabase no está configurado todavía.");
-    console.log("  Cuando pongas NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY,");
+    console.log("  Cuando pongas NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SECRET_KEY,");
     console.log(`  vuelve a correr esto con --password para crear la cuenta de ${email}.`);
     return;
   }

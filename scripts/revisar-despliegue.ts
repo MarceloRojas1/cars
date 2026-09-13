@@ -10,6 +10,11 @@
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
+// Después de `config()`: el helper lee `process.env` al llamarlo, y necesita
+// que el archivo ya esté cargado.
+import { hayClaveDeServicio } from "../src/lib/supabase/servicio";
+import { hayAuthConfigurada } from "../src/lib/supabase/publica";
+
 type Nivel = "bloquea" | "avisa" | "ok";
 type Chequeo = { nombre: string; nivel: Nivel; detalle: string };
 
@@ -48,21 +53,31 @@ function revisar(): Chequeo[] {
     });
   }
 
-  const authOk = hay(e.NEXT_PUBLIC_SUPABASE_URL) && hay(e.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  // Acepta el nombre nuevo (`…PUBLISHABLE_KEY`) y el legado (`…ANON_KEY`),
+  // igual que `proxy.ts`: si el chequeo y la aplicación no miran lo mismo, el
+  // chequeo miente.
+  const authOk = hayAuthConfigurada();
   c.push({
     nombre: "Autenticación",
     nivel: authOk ? "ok" : "bloquea",
     detalle: authOk
       ? "Supabase configurado: el panel pide sesión."
-      : "Faltan NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_ANON_KEY. SIN ESTO EL PANEL QUEDA ABIERTO A INTERNET.",
+      : "Faltan NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY. SIN ESTO EL PANEL QUEDA ABIERTO A INTERNET.",
   });
 
+  /*
+   * Pasó de "avisa" a "bloquea": desde que existen las invitaciones del equipo,
+   * esta clave ya no la usan solo los scripts. Sin ella, quien abre su enlace
+   * de invitación recibe "la creación de cuentas no está configurada" y la
+   * automotora no puede sumar a nadie — que es un despliegue a medio andar, no
+   * una comodidad que falta.
+   */
   c.push({
     nombre: "Alta de cuentas",
-    nivel: hay(e.SUPABASE_SERVICE_ROLE_KEY) ? "ok" : "avisa",
-    detalle: hay(e.SUPABASE_SERVICE_ROLE_KEY)
-      ? "Se pueden crear cuentas con `npm run alta`."
-      : "Sin SUPABASE_SERVICE_ROLE_KEY no se pueden crear cuentas desde el servidor. No bloquea el despliegue.",
+    nivel: hayClaveDeServicio() ? "ok" : "bloquea",
+    detalle: hayClaveDeServicio()
+      ? "Se pueden crear cuentas: `npm run alta` y las invitaciones del equipo."
+      : "Falta SUPABASE_SECRET_KEY (o SUPABASE_SERVICE_ROLE_KEY). Sin ella nadie puede canjear una invitación.",
   });
 
   c.push({
