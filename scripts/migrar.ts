@@ -3,6 +3,8 @@
  *
  *   npm run migrar                     # aplica lo que falte
  *   npm run migrar -- --listar         # solo dice qué falta, sin tocar nada
+ *   npm run migrar -- --produccion     # contra Supabase, no contra tu docker
+ *   npm run migrar -- --produccion --listar
  *   npm run migrar -- --marcar 0001-0012,0014
  *                                      # las da por aplicadas SIN ejecutarlas
  *
@@ -44,14 +46,58 @@ function expandir(rango: string, archivos: string[]): string[] {
   return archivos.filter((a) => elegidos.has(a));
 }
 
+/**
+ * La cadena para migrar PRODUCCIÓN, sin que nadie tenga que copiar una
+ * contraseña.
+ *
+ * Supabase no vuelve a mostrar la contraseña de la base después de crear el
+ * proyecto, así que buscarla termina en resetearla — y resetearla rompe todas
+ * las cadenas que ya están puestas. Pero la integración de Supabase en Vercel
+ * ya la dejó escrita en `.env.local` dentro de `POSTGRES_URL_NON_POOLING`
+ * (con el prefijo que esa integración les pone, ver lib/supabase/servicio.ts).
+ *
+ * NON_POOLING y no la del pooler a propósito: esto corre DDL —`create table`,
+ * `create policy`, `alter table`— y PgBouncer en modo transacción no es el
+ * lugar para eso. El pooler es para la aplicación, que hace consultas cortas.
+ *
+ * Es la conexión del DUEÑO de las tablas, que es lo que la migración necesita:
+ * `velie_app` no puede crear políticas, a propósito.
+ */
+function cadenaDeProduccion(): string | undefined {
+  for (const [nombre, valor] of Object.entries(process.env)) {
+    if (nombre.endsWith("POSTGRES_URL_NON_POOLING") && valor?.trim()) return valor;
+  }
+  return undefined;
+}
+
 async function main() {
   const soloListar = process.argv.includes("--listar");
   const iMarcar = process.argv.indexOf("--marcar");
   const marcar = iMarcar >= 0 ? process.argv[iMarcar + 1] : undefined;
-  const url = process.env.DATABASE_URL;
+
+  /*
+   * `--produccion` es explícito y ruidoso a propósito. Migrar la base de los
+   * clientes no puede ser lo que pasa por olvidarse de una variable.
+   */
+  const enProduccion = process.argv.includes("--produccion");
+  const url = enProduccion ? cadenaDeProduccion() : process.env.DATABASE_URL;
+
+  if (enProduccion && !url) {
+    console.error(
+      "No encontré POSTGRES_URL_NON_POOLING en .env.local.\n" +
+      "La deja la integración de Supabase en Vercel; bájala con `vercel env pull`.",
+    );
+    process.exit(1);
+  }
   if (!url) {
     console.error("Falta DATABASE_URL.");
     process.exit(1);
+  }
+
+  if (enProduccion) {
+    // Sin la contraseña: solo el host, para que se vea contra qué se está corriendo.
+    const host = (() => { try { return new URL(url).host; } catch { return "?"; } })();
+    console.log(`\n⚠ PRODUCCIÓN — ${host}\n`);
   }
 
   const archivos = (await readdir(DIRECTORIO)).filter((f) => f.endsWith(".sql")).sort();

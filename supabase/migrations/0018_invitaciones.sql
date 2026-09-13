@@ -29,8 +29,18 @@ create table if not exists invitacion (
    * invitación. Es la misma razón por la que no se guardan contraseñas.
    */
   token_hash text not null,
-  -- El rol que tendrá en `membership`, que es el que de verdad manda.
-  rol user_role not null default 'vendedor',
+  /*
+   * El rol que tendrá en `membership`, que es el que de verdad manda.
+   *
+   * `text` con restricción y NO el enum `user_role`, aunque el enum exista y
+   * sea lo que usan `app_user` y `membership`. El editor SQL de Supabase no
+   * resuelve el tipo —falla con `type "user_role" does not exist`— y esta
+   * migración tiene que poder aplicarse desde ahí, que es como se adopta una
+   * base que ya está andando. Los valores son los mismos y Postgres convierte
+   * el texto al insertar en `membership`.
+   */
+  rol text not null default 'vendedor'
+    check (rol in ('owner', 'admin', 'vendedor')),
   creada_por uuid references app_user on delete set null,
   expira_at timestamptz not null,
   usada_at timestamptz,
@@ -65,7 +75,7 @@ returns table (
   id uuid,
   organization_id uuid,
   app_user_id uuid,
-  rol user_role,
+  rol text,
   expira_at timestamptz,
   usada_at timestamptz
 )
