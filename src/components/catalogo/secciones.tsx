@@ -209,9 +209,13 @@ export function Testimonios({ resenas }: { resenas: SeccionesSitio["resenas"] })
 /**
  * Financieras y marcas con las que trabaja la automotora.
  *
- * Cada logo va sobre una tarjeta CLARA. No es decoración: los logos de las
- * financieras son arte oscuro, pensado para papel y para fondos blancos. Sobre
- * el fondo oscuro de la página desaparecían — se veía el título y debajo nada.
+ * Los logos van SIN tarjeta, directo sobre el fondo de la página.
+ *
+ * Medido, no supuesto: el arte de estos logos es blanco —promedia rgb(252,252,252)
+ * sobre blanco—, o sea está hecho para fondos oscuros. Primero los puse sobre una
+ * tarjeta clara y desaparecieron: se veía el título y debajo nada. Si algún día
+ * una automotora sube logos oscuros habrá que decidir el fondo por logo, pero
+ * inventar esa complejidad ahora sería resolver un problema que no existe.
  */
 export function Aliados({ aliados }: { aliados: { nombre: string; logoUrl?: string }[] }) {
   if (aliados.length === 0) return null;
@@ -220,7 +224,7 @@ export function Aliados({ aliados }: { aliados: { nombre: string; logoUrl?: stri
     <Seccion rotulo="Aliados financieros" titulo="Trabajamos con los mejores">
       <ul className="flex flex-wrap items-center justify-center gap-x-12 gap-y-8">
         {aliados.map((a) => (
-          <li key={a.nombre} className="grid h-16 w-40 place-items-center rounded-lg bg-white px-4">
+          <li key={a.nombre} className="grid h-10 place-items-center">
             {a.logoUrl ? (
               // Alto fijo y ancho automático: los logos vienen de distintas
               // proporciones y encajonarlos en una caja los deforma.
@@ -229,10 +233,10 @@ export function Aliados({ aliados }: { aliados: { nombre: string; logoUrl?: stri
                 alt={a.nombre}
                 width={160}
                 height={36}
-                className="h-8 w-auto object-contain"
+                className="h-8 w-auto object-contain opacity-75 transition-opacity hover:opacity-100"
               />
             ) : (
-              <span className="text-[15px] font-medium text-[#17171A]">{a.nombre}</span>
+              <span className="text-[15px] font-medium opacity-75">{a.nombre}</span>
             )}
           </li>
         ))}
