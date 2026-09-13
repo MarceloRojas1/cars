@@ -15,10 +15,30 @@ import type { AssistantConfig, Organization } from "@/lib/types";
  * equivoca, y acá equivocarse significa despertar a un vendedor por nada — o
  * peor, dejar dormido un lead caliente.
  */
+/**
+ * En qué quedó la conversación, y por qué son TRES y no un sí/no.
+ *
+ * Antes esto era `interes: boolean`, y con eso el bot solo podía empujar hacia
+ * arriba. El problema de agregarle el "no" era que `false` no significa "no le
+ * interesa" sino **"todavía no"**: es el estado de toda conversación hasta que
+ * la persona muestre interés, y el primer mensaje siempre es `false`. Mover
+ * leads con esa señal descartaría a todo el mundo apenas dice "hola",
+ * incluidos los que iban a comprar.
+ *
+ * Con tres estados, el silencio de "sigo conversando" deja de confundirse con
+ * un rechazo.
+ */
+export type EstadoConversacion =
+  /** Saludó, preguntó si está disponible, pidió una foto. Se queda donde está. */
+  | "conversando"
+  /** Interés real: pidió precio final, financiamiento, visita o permuta. */
+  | "interesado"
+  /** Cerró la puerta: dijo que no, ya compró, era otra cosa, número equivocado. */
+  | "descartado";
+
 export type DecisionAsistente = {
   respuesta: string;
-  /** Interés real de compra: pidió precio final, financiamiento, visita o permuta. */
-  interes: boolean;
+  estado: EstadoConversacion;
   /** Por qué, en una frase. Queda en la bitácora para poder auditar al bot. */
   motivo: string;
 };
@@ -47,8 +67,8 @@ function instruccionesDelSistema(ctx: ContextoAsistente): string {
   ].filter(Boolean).join("; ");
 
   const traspaso = c.modoConsultor
-    ? "Antes de dar por interesado a alguien, averigua su presupuesto y cómo piensa pagar (contado, crédito o parte de pago). Recién con eso marca interes=true."
-    : "Apenas detectes interés real de compra, marca interes=true. No sigas calificando.";
+    ? 'Antes de dar por interesado a alguien, averigua su presupuesto y cómo piensa pagar (contado, crédito o parte de pago). Recién con eso marca estado="interesado".'
+    : 'Apenas detectes interés real de compra, marca estado="interesado". No sigas calificando.';
 
   return [
     `Eres ${c.nombreAgente || "el asistente"} de ${organizacion.nombre}, una automotora chilena.`,
@@ -76,9 +96,22 @@ function instruccionesDelSistema(ctx: ContextoAsistente): string {
     c.modoConsultor
       ? ""
       : "Cuenta como interés: pedir precio final o descuento, preguntar por financiamiento o pie, querer agendar visita, ofrecer su auto en parte de pago, o preguntar cómo comprarlo.",
-    "NO cuenta como interés: saludar, preguntar si está disponible, o pedir una foto.",
     "",
-    "Cuando marques interes=true, cierra el mensaje avisando que un ejecutivo",
+    /*
+     * El "todavía no" tiene que ser explícito o el modelo lo confunde con el
+     * "no": ante la duda entre conversando y descartado, conversando.
+     */
+    'Usa estado="conversando" mientras la conversación siga viva aunque no haya',
+    "interés: saludar, preguntar si está disponible, pedir una foto, preguntar",
+    "por el kilometraje. Es el estado normal, y en la duda es el que corresponde.",
+    "",
+    'Usa estado="descartado" SOLO si la persona cierra la puerta: dice que no le',
+    "interesa, que ya compró otro auto, que se equivocó de número, o que su",
+    "consulta era de otra cosa. Nunca por falta de respuesta ni por desinterés",
+    "supuesto: descartar a alguien que iba a comprar es el peor error que puedes",
+    "cometer acá, y nadie va a revisar esa carpeta.",
+    "",
+    'Cuando marques estado="interesado", cierra el mensaje avisando que un ejecutivo',
     c.instrucciones?.includes("sin nombre") ? "se pondrá en contacto." : "de ventas se pondrá en contacto a la brevedad.",
   ].filter(Boolean).join("\n");
 }
@@ -88,10 +121,17 @@ const ESQUEMA = {
   type: "object" as const,
   properties: {
     respuesta: { type: "string" as const, description: "El mensaje de WhatsApp a enviar." },
-    interes: { type: "boolean" as const, description: "true si mostró interés real de compra." },
+    estado: {
+      type: "string" as const,
+      enum: ["conversando", "interesado", "descartado"],
+      description:
+        "conversando: la conversación sigue viva sin interés claro (lo normal). " +
+        "interesado: mostró interés real de compra. " +
+        "descartado: cerró la puerta explícitamente.",
+    },
     motivo: { type: "string" as const, description: "Una frase explicando la decisión." },
   },
-  required: ["respuesta", "interes", "motivo"],
+  required: ["respuesta", "estado", "motivo"],
   additionalProperties: false,
 };
 
@@ -122,8 +162,19 @@ export async function decidirRespuesta(
     if (!bloque || bloque.type !== "text") return { error: "El modelo no devolvió texto." };
 
     const decision = JSON.parse(bloque.text) as DecisionAsistente;
-    if (typeof decision.respuesta !== "string" || typeof decision.interes !== "boolean") {
+    if (typeof decision.respuesta !== "string") {
       return { error: "El modelo devolvió una decisión incompleta." };
+    }
+    /*
+     * Un estado que no reconocemos se trata como "conversando", no como un
+     * error: el mensaje ya está redactado y vale la pena mandarlo. Lo único
+     * que se pierde es un movimiento de etapa, que es recuperable; fallar
+     * dejaría al cliente sin respuesta, que no lo es.
+     */
+    const validos: EstadoConversacion[] = ["conversando", "interesado", "descartado"];
+    if (!validos.includes(decision.estado)) {
+      console.warn("[asistente] estado no reconocido:", decision.estado);
+      decision.estado = "conversando";
     }
     return decision;
   } catch (e) {

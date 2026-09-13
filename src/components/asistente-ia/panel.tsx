@@ -115,6 +115,25 @@ export function PanelAsistente({
               label="Modo consultor"
               hint="Responde dudas generales aunque el lead todavía no muestre intención de compra."
             />
+
+            {/*
+              * El único reintento del bot. Va acá y no escondido en un toggle
+              * porque decide cuándo tu automotora vuelve a escribirle a alguien
+              * que no contestó, y eso conviene que sea una decisión mirada.
+              */}
+            <div className="max-w-[260px] pt-1">
+              <Campo
+                label="Reintentar tras días sin respuesta" htmlFor="diasSinRespuesta"
+                hint="El bot escribe UNA vez más y mueve el lead a Sin Respuesta. 0 lo desactiva."
+                error={estado.errores?.diasSinRespuesta}
+              >
+                <input
+                  id="diasSinRespuesta" name="diasSinRespuesta"
+                  inputMode="numeric" defaultValue={config.diasSinRespuesta}
+                  className={cn(controlBase, "tabular")}
+                />
+              </Campo>
+            </div>
           </div>
         </Seccion>
 

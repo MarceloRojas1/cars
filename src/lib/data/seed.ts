@@ -212,6 +212,7 @@ export const assistantConfig: AssistantConfig = {
   servicioFinanciamiento: true,
   modoConsultor: false,
   antiguedadMaxFinanciamiento: 10,
+  diasSinRespuesta: 3,
   nombreAgente: "Ben",
   saludo: "",
   tono: "",

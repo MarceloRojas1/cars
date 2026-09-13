@@ -18,6 +18,11 @@ const esquema = z.object({
   servicioFinanciamiento: bool,
   modoConsultor: bool,
   antiguedadMaxFinanciamiento: z.coerce.number().int().min(0).max(30),
+  /*
+   * Tope de 30 días: más que eso no es seguimiento, es escribirle a alguien que
+   * ya no se acuerda de haber preguntado. 0 apaga el reintento.
+   */
+  diasSinRespuesta: z.coerce.number().int().min(0).max(30),
   nombreAgente: z.string().trim().min(1, "El agente necesita un nombre").max(60),
   saludo: z.string().trim().max(500),
   tono: z.string().trim().max(500),

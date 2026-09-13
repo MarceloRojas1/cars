@@ -1,6 +1,7 @@
 import {
-  buscarLeadPorTelefono, cambiarVehiculoLead, contextoDelBot, getAssistantConfig,
-  getOrganization, getVehiculo, moverLead, primeraEtapaHumana, registrarMensajeWhatsapp,
+  buscarLeadPorTelefono, cambiarVehiculoLead, contextoDelBot, etapaDeDescarte,
+  getAssistantConfig, getOrganization, getVehiculo, moverLead, primeraEtapaHumana,
+  registrarMensajeWhatsapp,
 } from "@/lib/data";
 import { decidirRespuesta } from "@/lib/ia/asistente";
 import { fichaParaElBot } from "@/lib/ia/ficha-publica";
@@ -161,13 +162,29 @@ async function atenderConversacion(leadId: string, telefono: string) {
       console.error("[whatsapp] no se pudo enviar la respuesta al lead", leadId, envio.mensaje);
     }
 
-    if (decision.interes) {
+    /*
+     * El bot triage: sube, saca, o no hace nada.
+     *
+     * "conversando" es el caso normal y NO mueve el lead: la conversación sigue
+     * viva y el bot sigue a cargo. Mover en ese estado era el error que había
+     * que evitar — el primer mensaje de cualquiera cae ahí.
+     *
+     * El motivo queda en la bitácora en los dos movimientos: cuando el bot se
+     * equivoque, hay que poder ver qué leyó para decidirlo.
+     */
+    if (decision.estado === "interesado") {
       const destino = await primeraEtapaHumana();
       if (destino) {
-        // El motivo queda en la bitácora: cuando el bot se equivoque, hay que
-        // poder ver qué leyó para decidirlo.
+        // `moverLead` asigna vendedor solo al cruzar a una etapa humana: el bot
+        // decide, el embudo hace lo suyo.
         await moverLead(leadId, destino.id);
         console.info(`[whatsapp] lead ${leadId} → ${destino.nombre}: ${decision.motivo}`);
+      }
+    } else if (decision.estado === "descartado") {
+      const destino = await etapaDeDescarte();
+      if (destino) {
+        await moverLead(leadId, destino.id);
+        console.info(`[whatsapp] lead ${leadId} descartado → ${destino.nombre}: ${decision.motivo}`);
       }
     }
   } catch (e) {

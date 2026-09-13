@@ -254,6 +254,8 @@ export type AssistantConfig = {
   /** Responde dudas generales aunque el lead no muestre intención de compra. */
   modoConsultor: boolean;
   antiguedadMaxFinanciamiento: number;
+  /** Días de silencio antes de que el bot reintente una vez. 0 lo desactiva. */
+  diasSinRespuesta: number;
   nombreAgente: string;
   saludo: string;
   tono: string;

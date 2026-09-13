@@ -1596,6 +1596,72 @@ los NOMBRES de las variables de producción (nunca los valores) y solo bloquea
 si de verdad faltan allá. Una herramienta que grita en falso se vuelve ruido
 que se aprende a ignorar, y entonces no sirve para el día que sí importa.
 
+## 2026-09-13 — El bot decide tres cosas, no dos
+
+**Lo que había.** El bot solo sabía empujar hacia arriba: `decidirRespuesta()`
+devolvía `interes: boolean`, y con `true` movía el lead a la primera etapa
+humana. Con `false` no hacía nada. Además **nadie movía un lead de «Nuevo» a
+«Calificando»** — el único movimiento automático del sistema era ese salto a la
+tercera etapa, así que «Calificando» nunca se usaba. Comprobado en producción:
+2 leads en «Nuevo», 0 en «Calificando», y los dos ya habían conversado con el bot.
+
+**La decisión: el bot hace triage, no progresión.** Detecta interés o rechazo y
+mueve en consecuencia; no recorre las etapas una por una. «Calificando» queda
+para que una persona la use a mano.
+
+**Por qué `interes: boolean` no servía para agregar el «no».** Porque `false` no
+significa «no le interesa» sino **«todavía no»**: es el estado de toda
+conversación hasta que la persona muestre interés, y el primer mensaje de
+cualquiera es `false`. Mover con esa señal descartaría a todo el mundo apenas
+dice «hola», incluidos los que iban a comprar. Ahora son tres estados
+—`conversando`, `interesado`, `descartado`— y el «todavía no» deja de
+confundirse con un rechazo. El prompt insiste en que ante la duda es
+`conversando`, y un estado no reconocido cae ahí en vez de fallar: el mensaje ya
+está redactado y vale la pena mandarlo.
+
+**El destino del descarte sale de `kind = 'exit_lost'`, no del nombre
+«Descartado».** Cada automotora renombra sus etapas. Si el embudo no tiene salida
+de pérdida, el lead **no se mueve**: se queda visible y molestando, en vez de
+desaparecer a una etapa inventada.
+
+**El silencio es el caso más común y no se podía detectar desde la
+conversación**, porque el disparador es que NO llegue un mensaje. De ahí el cron
+diario (`/api/cron/seguimiento`, 13:00 UTC = 10:00 en Chile, dentro del horario
+laboral). Busca leads en etapas del bot cuyo último mensaje ENTRANTE sea viejo
+—el entrante y no el último a secas, porque el saliente es del propio bot y
+reiniciaría el reloj con su propia respuesta—, les escribe una vez y los mueve a
+la etapa marcada `es_seguimiento`.
+
+**UNA sola vez, y eso es lo importante.** `lead.seguimiento_at` marca que ya se
+hizo. Sin esa marca, el cron le escribiría cada día al mismo silencio, que es la
+forma más rápida de que a una automotora la bloqueen por spam en WhatsApp.
+
+**Si el envío falla no se marca ni se mueve nada.** Mañana se reintenta. Mover a
+«Sin Respuesta» a alguien a quien no se le pudo escribir diría algo falso sobre
+él. Probado en local con el token de WhatsApp caído: 2 revisados, 0 contactados,
+2 fallidos, cero cambios en la base.
+
+**El mensaje de seguimiento es plantilla, no modelo.** Es un empujón de una
+línea; una llamada de IA por cada lead dormido cuesta dinero y latencia para
+redactar siempre lo mismo. Cuando la persona conteste vuelve a entrar el modelo
+con todo el historial, porque la etapa de seguimiento lleva `responsable = ia`.
+
+**`stage.es_seguimiento` es una marca, no un nombre.** Buscar «Sin Respuesta»
+por texto rompe en silencio en cuanto alguien la renombra o le cambia una
+tilde. Índice único parcial por organización: si hubiera dos, «a dónde va»
+dejaría de tener respuesta.
+
+**El cron se autentica con `CRON_SECRET`.** La ruta no es del panel, así que
+`proxy.ts` la deja pasar —igual que `/api/fotos`, que ya se había quedado
+abierta una vez— y no puede pedir sesión porque quien llama es Vercel. Sin la
+variable configurada, en producción rechaza todo: es preferible que el
+seguimiento no corra a que cualquiera en internet pueda gatillar mensajes de
+WhatsApp a los clientes de una automotora.
+
+**Nota:** el guardarraíl de migraciones atrapó su primer caso real acá. La
+`0019` estaba aplicada solo en local y el chequeo bloqueó la build antes de
+subirla.
+
 ## Decisiones pendientes
 
 - [ ] **El bot de WhatsApp está caído desde el 2026-09-09 21:00.** El token de

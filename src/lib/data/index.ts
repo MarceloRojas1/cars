@@ -711,7 +711,8 @@ type FilaAssistantConfig = {
   trigger_ctwa: boolean; trigger_contactos_nuevos: boolean;
   trigger_contactos_existentes: boolean; svc_consignacion: boolean;
   svc_compra_directa: boolean; svc_financiamiento: boolean; modo_consultor: boolean;
-  antiguedad_max_financiamiento: number; nombre_agente: string;
+  antiguedad_max_financiamiento: number; dias_sin_respuesta: number;
+  nombre_agente: string;
   saludo: string | null; tono: string | null; instrucciones: string | null;
   prohibiciones: string | null;
 };
@@ -726,6 +727,7 @@ function aAssistantConfig(f: FilaAssistantConfig): AssistantConfig {
     servicioFinanciamiento: f.svc_financiamiento,
     modoConsultor: f.modo_consultor,
     antiguedadMaxFinanciamiento: f.antiguedad_max_financiamiento,
+    diasSinRespuesta: f.dias_sin_respuesta ?? 3,
     nombreAgente: f.nombre_agente,
     saludo: f.saludo ?? "",
     tono: f.tono ?? "",
@@ -753,8 +755,8 @@ export async function guardarAssistantConfig(datos: AssistantConfig) {
        organization_id, trigger_ctwa, trigger_contactos_nuevos,
        trigger_contactos_existentes, svc_consignacion, svc_compra_directa,
        svc_financiamiento, modo_consultor, antiguedad_max_financiamiento,
-       nombre_agente, saludo, tono, instrucciones, prohibiciones)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+       dias_sin_respuesta, nombre_agente, saludo, tono, instrucciones, prohibiciones)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
      on conflict (organization_id) do update set
        trigger_ctwa = excluded.trigger_ctwa,
        trigger_contactos_nuevos = excluded.trigger_contactos_nuevos,
@@ -764,6 +766,7 @@ export async function guardarAssistantConfig(datos: AssistantConfig) {
        svc_financiamiento = excluded.svc_financiamiento,
        modo_consultor = excluded.modo_consultor,
        antiguedad_max_financiamiento = excluded.antiguedad_max_financiamiento,
+       dias_sin_respuesta = excluded.dias_sin_respuesta,
        nombre_agente = excluded.nombre_agente,
        saludo = excluded.saludo, tono = excluded.tono,
        instrucciones = excluded.instrucciones, prohibiciones = excluded.prohibiciones`,
@@ -771,7 +774,7 @@ export async function guardarAssistantConfig(datos: AssistantConfig) {
       (await orgActual()), datos.triggerCtwa, datos.triggerContactosNuevos,
       datos.triggerContactosExistentes, datos.servicioConsignacion,
       datos.servicioCompraDirecta, datos.servicioFinanciamiento, datos.modoConsultor,
-      datos.antiguedadMaxFinanciamiento, datos.nombreAgente,
+      datos.antiguedadMaxFinanciamiento, datos.diasSinRespuesta, datos.nombreAgente,
       datos.saludo || null, datos.tono || null, datos.instrucciones || null,
       datos.prohibiciones || null,
     ],
@@ -1856,6 +1859,30 @@ export async function contextoDelBot(leadId: string): Promise<{
       cuerpo: m.cuerpo,
     })),
   };
+}
+
+/**
+ * A dónde va un lead que cerró la puerta.
+ *
+ * Se busca por `kind = 'exit_lost'` y no por el nombre "Descartado": cada
+ * automotora renombra sus etapas, pero la que significa "se perdió" es una y
+ * está marcada en el esquema.
+ *
+ * Devuelve null si el embudo no tiene salida de pérdida, y quien llama no
+ * mueve nada. Es deliberado: sin un lugar definido para los descartes, un lead
+ * se queda donde está —visible, molestando— en vez de desaparecer a una etapa
+ * inventada.
+ */
+export async function etapaDeDescarte(): Promise<{ id: string; nombre: string } | null> {
+  if (!dbConfigurada()) return null;
+  const filas = await consultar<{ id: string; nombre: string }>(
+    (await orgActual()),
+    `select id, nombre from stage
+      where organization_id = $1 and kind = 'exit_lost'
+      order by orden limit 1`,
+    [(await orgActual())],
+  );
+  return filas[0] ?? null;
 }
 
 /**
