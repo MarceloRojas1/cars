@@ -16,7 +16,7 @@ import { NAV_CUENTA, NAV_HERRAMIENTAS, NAV_PRINCIPAL, type NavItem } from "@/lib
  * propia cuenta: su plan, su equipo y lo que tiene conectado.
  */
 const CUENTA_RAPIDO: NavItem[] = NAV_CUENTA.filter((i) =>
-  ["/mi-plan", "/equipo", "/integraciones"].includes(i.href),
+  ["/mi-cuenta", "/mi-plan", "/equipo", "/integraciones"].includes(i.href),
 );
 import { salirAction } from "@/app/login/acciones";
 import { Logotipo } from "@/components/marca/logotipo";

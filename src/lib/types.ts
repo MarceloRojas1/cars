@@ -57,6 +57,14 @@ export type Branch = {
   creadaHace: string;
 };
 
+/**
+ * Si esta persona puede iniciar sesión, y en qué punto va.
+ *
+ * Es distinto de `activo`: activo es si sigue trabajando en la automotora,
+ * esto es si tiene cuenta. Alguien recién agregado está activo y `sin_acceso`.
+ */
+export type EstadoAcceso = "con_cuenta" | "invitado" | "sin_acceso";
+
 export type AppUser = {
   id: string;
   nombre: string;
@@ -68,6 +76,9 @@ export type AppUser = {
   disponibilidad: "online" | "offline";
   ultimoAcceso: string;
   chatsActivos: number;
+  acceso: EstadoAcceso;
+  /** Cuándo vence la invitación pendiente, si hay una. */
+  invitacionExpira?: string;
 };
 
 export type Combustible =

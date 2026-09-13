@@ -46,6 +46,7 @@ export const users: AppUser[] = [
     disponibilidad: "offline",
     ultimoAcceso: "hace 8 minutos",
     chatsActivos: 2,
+    acceso: "con_cuenta",
   },
   {
     id: "usr_martin",
@@ -58,6 +59,7 @@ export const users: AppUser[] = [
     disponibilidad: "offline",
     ultimoAcceso: "hace 38 minutos",
     chatsActivos: 8,
+    acceso: "con_cuenta",
   },
 ];
 

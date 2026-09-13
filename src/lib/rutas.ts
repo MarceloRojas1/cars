@@ -29,6 +29,7 @@ export const RUTAS_DEL_PANEL = [
   "asistente-ia",
   "automatizacion",
   "asignacion-de-leads",
+  "mi-cuenta",
 ] as const;
 
 /**
@@ -41,6 +42,12 @@ export const SLUGS_RESERVADOS = new Set<string>([
   "login",
   "admin",
   "_next",
+  /*
+   * `invitacion` NO es ruta del panel —se abre sin sesión, que es justamente el
+   * punto— pero tampoco puede ser el slug de una automotora: `/invitacion/x`
+   * tiene que resolver siempre al canje y nunca a un catálogo.
+   */
+  "invitacion",
 ]);
 
 /** ¿Este camino pertenece al panel y por lo tanto exige sesión? */

@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   LayoutGrid, Car, ScanSearch, Receipt, Contact, Users, Filter, Bell,
   Megaphone, BarChart3, Sparkles, CreditCard, Building2, UserCog,
-  Globe, Bot, Workflow, Share2, Plug,
+  Globe, Bot, Workflow, Share2, Plug, UserRound,
 } from "lucide-react";
 
 export type NavItem = {
@@ -42,6 +42,7 @@ export const NAV: NavGroup[] = [
   {
     label: "Administración",
     items: [
+      { href: "/mi-cuenta", label: "Mi cuenta", icon: UserRound },
       { href: "/mi-plan", label: "Mi Plan", icon: CreditCard },
       { href: "/sucursales", label: "Sucursales", icon: Building2 },
       { href: "/equipo", label: "Equipo", icon: UserCog },
@@ -78,6 +79,6 @@ export const NAV_HERRAMIENTAS: NavItem[] = [
 
 /** Se toca una vez y no se vuelve en semanas. */
 export const NAV_CUENTA: NavItem[] = [
-  "/mi-plan", "/sucursales", "/equipo", "/mi-sitio-web",
+  "/mi-cuenta", "/mi-plan", "/sucursales", "/equipo", "/mi-sitio-web",
   "/asistente-ia", "/automatizacion", "/asignacion-de-leads", "/integraciones",
 ].map(buscar);

@@ -39,6 +39,7 @@ services:
       - ./supabase/migrations/0015_whatsapp_por_organizacion.sql:/docker-entrypoint-initdb.d/16-whatsapp.sql:ro
       - ./supabase/migrations/0016_sitio_publico.sql:/docker-entrypoint-initdb.d/17-sitio.sql:ro
       - ./supabase/migrations/0017_paginas_sitio.sql:/docker-entrypoint-initdb.d/18-paginas.sql:ro
+      - ./supabase/migrations/0018_invitaciones.sql:/docker-entrypoint-initdb.d/19-invitaciones.sql:ro
       - ./docker/initdb/06-rol-app.sql:/docker-entrypoint-initdb.d/06-rol-app.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U velie -d velie"]

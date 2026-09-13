@@ -3,7 +3,10 @@
 import { useState, useTransition } from "react";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { cambiarEstadoMiembroAction, guardarMiembroAction } from "@/app/(app)/equipo/acciones";
+import {
+  cambiarEstadoMiembroAction, guardarMiembroAction, reinvitarAction,
+} from "@/app/(app)/equipo/acciones";
+import { DialogoEnlace } from "@/components/equipo/enlace-invitacion";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -42,13 +45,24 @@ export function DialogoMiembro({
   const [pendiente, iniciar] = useTransition();
   const editando = Boolean(miembro);
 
+  /*
+   * El enlace de acceso que devuelve la acción al crear. Se guarda acá porque
+   * el token solo existe en esa respuesta: no está en la base ni se puede
+   * volver a pedir.
+   */
+  const [enlace, setEnlace] = useState<{ url: string; dias: number; nombre: string } | null>(null);
+
   function enviar(formData: FormData) {
     iniciar(async () => {
       const r = await guardarMiembroAction({ ok: false, mensaje: "" }, formData);
       if (!r.ok) { setError(r.mensaje); return; }
       cerrar();
       setError("");
-      toast.success(editando ? "Miembro actualizado" : "Miembro agregado");
+      if (r.invitacion) {
+        setEnlace({ ...r.invitacion, nombre: String(formData.get("nombre") ?? "") });
+      } else {
+        toast.success("Miembro actualizado");
+      }
     });
   }
 
@@ -130,6 +144,10 @@ export function DialogoMiembro({
           </form>
         </DialogContent>
       </Dialog>
+
+      {enlace && (
+        <DialogoEnlace {...enlace} alCerrar={() => setEnlace(null)} />
+      )}
     </>
   );
 }
@@ -137,12 +155,21 @@ export function DialogoMiembro({
 export function AccionesMiembro({ miembro, sucursales }: { miembro: AppUser; sucursales: Branch[] }) {
   const [editando, setEditando] = useState(false);
   const [pendiente, iniciar] = useTransition();
+  const [enlace, setEnlace] = useState<{ url: string; dias: number; nombre: string } | null>(null);
 
   function cambiarEstado() {
     iniciar(async () => {
       const r = await cambiarEstadoMiembroAction(miembro.id, !miembro.activo);
       if (!r.ok) { toast.error("No se pudo cambiar el estado", { description: r.mensaje }); return; }
       toast.success(miembro.activo ? "Miembro desactivado" : "Miembro activado");
+    });
+  }
+
+  function reinvitar() {
+    iniciar(async () => {
+      const r = await reinvitarAction(miembro.id, miembro.rol);
+      if (!r.ok) { toast.error("No se pudo generar el enlace", { description: r.mensaje }); return; }
+      if (r.invitacion) setEnlace({ ...r.invitacion, nombre: miembro.nombre });
     });
   }
 
@@ -156,8 +183,18 @@ export function AccionesMiembro({ miembro, sucursales }: { miembro: AppUser; suc
             </Button>
           }
         />
-        <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuContent align="end" className="w-52">
           <DropdownMenuItem onClick={() => setEditando(true)}>Editar</DropdownMenuItem>
+          {/*
+            Solo para quien todavía no tiene cuenta. A quien ya entra no se le
+            ofrece un enlace: cambiarle la contraseña es cosa suya, desde Mi
+            cuenta, y un admin generándole accesos sería otra cosa.
+          */}
+          {miembro.acceso !== "con_cuenta" && (
+            <DropdownMenuItem onClick={reinvitar} disabled={pendiente}>
+              {miembro.acceso === "invitado" ? "Generar otro enlace" : "Generar enlace de acceso"}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={cambiarEstado} disabled={pendiente}>
             {miembro.activo ? "Desactivar" : "Activar"}
           </DropdownMenuItem>
@@ -171,6 +208,8 @@ export function AccionesMiembro({ miembro, sucursales }: { miembro: AppUser; suc
         abierto={editando}
         alCerrar={() => setEditando(false)}
       />
+
+      {enlace && <DialogoEnlace {...enlace} alCerrar={() => setEnlace(null)} />}
     </>
   );
 }

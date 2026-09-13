@@ -15,6 +15,16 @@ const ROL_ESTILO: Record<string, string> = {
   vendedor: "text-muted-foreground",
 };
 
+/**
+ * Quién puede entrar. "Sin acceso" lleva ámbar porque es algo que hay que
+ * resolver: esa persona está en el equipo y no puede iniciar sesión.
+ */
+const ACCESO: Record<string, { texto: string; clase: string }> = {
+  con_cuenta: { texto: "Con cuenta", clase: "text-muted-foreground" },
+  invitado: { texto: "Invitación enviada", clase: "text-muted-foreground" },
+  sin_acceso: { texto: "Sin acceso", clase: "text-warn" },
+};
+
 export default async function EquipoPage({ searchParams }: PageProps<"/equipo">) {
   const sp = await searchParams;
   const sucursalFiltro = typeof sp.sucursal === "string" ? sp.sucursal : "";
@@ -75,6 +85,7 @@ export default async function EquipoPage({ searchParams }: PageProps<"/equipo">)
               <TableHead>Contacto</TableHead>
               <TableHead>Sucursal</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead>Acceso</TableHead>
               <TableHead className="text-right">Último acceso</TableHead>
               <TableHead className="w-10" />
             </TableRow>
@@ -105,6 +116,17 @@ export default async function EquipoPage({ searchParams }: PageProps<"/equipo">)
                   <span className={`inline-flex items-center gap-2 text-[12.5px] ${u.activo ? "text-ok" : "text-muted-foreground"}`}>
                     <span className="size-[5px] rounded-full bg-current opacity-70" />
                     {u.activo ? "Activo" : "Inactivo"}
+                  </span>
+                </TableCell>
+                {/*
+                  * Distinto de "Estado": activo es si sigue trabajando acá,
+                  * esto es si puede entrar. Antes no se distinguían, y alguien
+                  * recién agregado se veía igual que alguien con cuenta —
+                  * cuando en realidad no podía iniciar sesión.
+                  */}
+                <TableCell>
+                  <span className={`text-[12.5px] ${ACCESO[u.acceso].clase}`}>
+                    {ACCESO[u.acceso].texto}
                   </span>
                 </TableCell>
                 <TableCell className="text-right text-[12.5px] text-muted-foreground">{u.ultimoAcceso}</TableCell>

@@ -52,6 +52,8 @@ type FilaSucursal = {
 type FilaUsuario = {
   id: string; nombre: string; email: string; telefono: string | null;
   rol: AppUser["rol"]; branch_id: string | null; activo: boolean;
+  /** NULL mientras la persona sea solo una ficha del equipo, sin cuenta. */
+  auth_user_id: string | null;
 };
 
 const diasDesde = (fecha: Date | null) =>
@@ -188,11 +190,26 @@ export async function getBranches(): Promise<Branch[]> {
 export async function getUsers(incluirInactivos = false): Promise<AppUser[]> {
   if (!dbConfigurada()) return seed.users;
 
-  const rows = await consultar<FilaUsuario>(
+  const rows = await consultar<FilaUsuario & {
+    invitacion_expira: Date | null;
+  }>(
     (await orgActual()),
-    `select * from app_user
-      where organization_id = $1 and ($2::boolean or activo)
-      order by nombre`,
+    /*
+     * El lateral trae la invitación viva, si hay. Con eso la pantalla de Equipo
+     * puede decir quién puede entrar y quién es todavía una ficha sin cuenta —
+     * una distinción que antes no existía y que hacía que alguien agregado al
+     * equipo pareciera tener acceso cuando no lo tenía.
+     */
+    `select a.*, i.expira_at as invitacion_expira
+       from app_user a
+       left join lateral (
+         select expira_at from invitacion
+          where organization_id = a.organization_id and app_user_id = a.id
+            and usada_at is null and expira_at > now()
+          order by created_at desc limit 1
+       ) i on true
+      where a.organization_id = $1 and ($2::boolean or a.activo)
+      order by a.nombre`,
     [(await orgActual()), incluirInactivos],
   );
   return rows.map((u) => ({
@@ -206,6 +223,12 @@ export async function getUsers(incluirInactivos = false): Promise<AppUser[]> {
     disponibilidad: "offline" as const,
     ultimoAcceso: "",
     chatsActivos: 0,
+    acceso: u.auth_user_id
+      ? ("con_cuenta" as const)
+      : u.invitacion_expira
+        ? ("invitado" as const)
+        : ("sin_acceso" as const),
+    invitacionExpira: u.invitacion_expira?.toISOString(),
   }));
 }
 /**
@@ -1723,15 +1746,40 @@ export async function actualizarMiembro(idInterfaz: string, datos: DatosMiembro)
   if (!dbConfigurada()) return { ok: false, mensaje: "Sin base de datos no se pueden editar miembros." };
 
   const id = aUuid(idInterfaz);
-  await consultar(
-    (await orgActual()),
-    `update app_user set nombre = $3, email = $4, telefono = $5, rol = $6, branch_id = $7
-      where organization_id = $1 and id = $2`,
-    [
-      (await orgActual()), id, datos.nombre, datos.email, datos.telefono ?? null, datos.rol,
-      datos.branchId ? aUuid(datos.branchId) : null,
-    ],
-  );
+  const orgId = await orgActual();
+
+  await enTransaccion(orgId, async (cliente) => {
+    const { rows } = await cliente.query<{ auth_user_id: string | null }>(
+      `update app_user set nombre = $3, email = $4, telefono = $5, rol = $6, branch_id = $7
+        where organization_id = $1 and id = $2
+        returning auth_user_id`,
+      [
+        orgId, id, datos.nombre, datos.email, datos.telefono ?? null, datos.rol,
+        datos.branchId ? aUuid(datos.branchId) : null,
+      ],
+    );
+
+    /*
+     * EL ROL VIVE EN DOS TABLAS, y solo una manda.
+     *
+     * `sesionActual()` lee el rol de `membership`; esta pantalla escribía solo
+     * `app_user.rol`. O sea que cambiar a alguien de vendedor a admin se veía
+     * aplicado y no cambiaba nada: sus permisos reales seguían siendo los que
+     * le puso el alta. Hoy no se nota porque el rol todavía no bloquea nada,
+     * pero el día que bloquee, esto es un agujero silencioso.
+     *
+     * `app_user.rol` se conserva porque es lo que muestran las pantallas sin
+     * tener que cruzar con `membership`, que no lleva RLS.
+     */
+    const authUserId = rows[0]?.auth_user_id;
+    if (authUserId) {
+      await cliente.query(
+        `update membership set rol = $3 where user_id = $1 and organization_id = $2`,
+        [authUserId, orgId, datos.rol],
+      );
+    }
+  });
+
   return { ok: true, id };
 }
 

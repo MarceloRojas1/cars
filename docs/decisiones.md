@@ -1462,8 +1462,105 @@ Se arregla poblando Development, no bajando Production a mano: con `--environmen
 =production` el `DATABASE_URL` que llega apunta a la base de producción y el
 desarrollo local pasaría a escribir ahí sin avisar.
 
+## 2026-09-13 — Cuentas: varias por automotora, y una pantalla para la propia
+
+**La estructura ya estaba; faltaba el flujo.** `membership(user_id,
+organization_id, rol)` es muchos-a-uno desde `0001_init.sql`, y
+`app_user.auth_user_id` une la cuenta con la ficha del equipo desde `0013`. No
+hubo que migrar nada de eso.
+
+**Lo que había era peor que una funcionalidad faltante: `/equipo` creaba
+fantasmas.** `crearMiembro()` insertaba solo en `app_user`, con `auth_user_id`
+en NULL y sin `membership`. La persona aparecía en la lista con su rol y su
+sucursal, indistinguible de alguien con cuenta, y no podía entrar. La pantalla
+de login incluso decía «las crea la automotora desde Equipo», que era falso.
+Por eso la tabla ahora tiene una columna **Acceso** separada de **Estado**:
+activo es si sigue trabajando acá, acceso es si puede entrar.
+
+**Invitación por enlace, no por contraseña temporal ni por correo.**
+Por qué: el enlace lo manda el admin por WhatsApp, que es el canal que estas
+automotoras usan, y la persona elige su propia contraseña. Una contraseña
+temporal viaja por el mismo chat pero además sigue sirviendo hasta que alguien
+la cambie. El correo de invitación de Supabase quedó descartado por su SMTP por
+defecto: unos pocos envíos por hora, inservible en producción sin contratar un
+SMTP propio. Qué lo revertiría: tener SMTP propio y clientes que prefieran el
+correo.
+
+**Del token solo se guarda el sha256.** El token vive en la URL y en ningún
+otro lado, así que un volcado de la base no permite canjear nada. La
+consecuencia es de producto: el enlace se muestra UNA vez y si se pierde hay
+que generar otro — el diálogo lo dice.
+
+**`invitacion_por_token()` es `security definer` y salta RLS a propósito.** Es
+el mismo problema que `organization` por slug en el catálogo público: quien abre
+el enlace no tiene sesión, así que no hay organización que declarar. Se acota a
+lo mínimo — busca por el hash de 32 bytes aleatorios, devuelve una fila y solo
+los campos del canje, y no acepta nada enumerable. Todo lo que viene después ya
+corre con la organización declarada.
+
+**El rol vivía en dos tablas y solo una mandaba.** `sesionActual()` lee el rol
+de `membership`; `/equipo` escribía solo `app_user.rol`. O sea que cambiar a
+alguien de vendedor a admin se veía aplicado y no movía sus permisos: seguían
+siendo los que le puso el alta. No se notaba porque el rol todavía no bloquea
+nada. Ahora `actualizarMiembro()` escribe las dos, y el canje inserta
+`membership` con el rol de la invitación.
+
+**Invitar y cambiar roles quedó restringido a `owner` y `admin`.** Es el primer
+permiso por rol que la aplicación aplica de verdad. Sin él, un vendedor podía
+invitarse a sí mismo una segunda cuenta con rol owner y el rol dejaba de
+significar nada.
+
+**Mi cuenta edita nombre y teléfono, y la contraseña. No el correo ni el rol.**
+El rol y la sucursal los administra el dueño desde Equipo — si cada quien
+pudiera cambiarse el rol, el rol no serviría. El correo queda fuera porque es la
+identidad con la que se entra, vive en Supabase además de en `app_user` y
+cambiarlo dispara una confirmación: es su propio flujo. La contraseña se cambia
+con la sesión de la persona (`supabase.auth.updateUser`), **no con la clave de
+servicio**, así que funciona aunque el servidor no la tenga; se revalida la
+actual antes, para que encontrar una sesión abierta no alcance para quedarse con
+la cuenta.
+
+### El error que costó una cuenta de verdad
+
+Para que la creación de cuentas funcionara en producción se agregó
+`claveDeServicio()`, que acepta también el nombre con prefijo que inyecta la
+integración de Supabase (`sb_publishable_…_SUPABASE_SERVICE_ROLE_KEY`) — el
+mismo respaldo que `db.ts` hace con `POSTGRES_URL`, y necesario porque
+`SUPABASE_SERVICE_ROLE_KEY` no existe en Vercel con ese nombre.
+
+Se hizo lo mismo con la URL, y **eso estuvo mal**. Como `.env.local` trae las
+credenciales de PRODUCCIÓN bajo los nombres con prefijo, la primera prueba de
+canje en localhost creó una cuenta real en el Supabase de producción
+(`martin@marketcar.cl`). Se borró a mano.
+
+La regla que queda: **un respaldo de nombres está bien para leer configuración
+del entorno en que se corre; no está bien cuando el valor decide contra qué
+sistema se escribe.** La URL se lee solo de `NEXT_PUBLIC_SUPABASE_URL`, sin
+respaldo, así que el desarrollo local falla ruidoso en vez de alcanzar
+producción por accidente.
+
+**De paso quedó probado el camino de recuperación del canje.** La cuenta de
+Supabase se crea antes de la transacción porque vive en otro sistema y no
+participa del rollback. Cuando las escrituras locales fallaron, la invitación
+quedó sin marcar y `auth_user_id` en NULL — comprobado. El enlace sigue
+sirviendo y el segundo intento reutiliza la cuenta ya creada en vez de
+duplicarla.
+
+**Lo que no se puede probar en local:** el canje completo. `membership.user_id`
+referencia `auth.users`, y en desarrollo eso es el shim de `docker/initdb/`,
+mientras que las cuentas de Supabase viven en la nube. En producción son la
+misma base y la clave foránea se satisface. Probar esto de punta a punta exige
+un Supabase de pruebas aparte.
+
 ## Decisiones pendientes
 
+- [ ] Cambiar el correo de la propia cuenta: toca Supabase y `app_user`, y
+      dispara una confirmación. Hoy no se puede desde ninguna parte.
+- [ ] Que `SUPABASE_SERVICE_ROLE_KEY` exista en Vercel con su nombre, en vez de
+      depender del respaldo por sufijo.
+- [ ] Quitar una cuenta de verdad: hoy «Desactivar» corta el acceso —
+      `sesionActual()` exige `activo`— pero la fila de `membership` queda. Para
+      un despido conviene borrarla.
 - [ ] **¿Conectar Supabase antes de la Fase 2 o seguir con semilla?**
       Recomendación: seguir con semilla — el esquema aún se moverá al definir gastos
       y comisiones, y migrar datos semilla es gratis.
