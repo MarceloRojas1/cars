@@ -20,8 +20,8 @@ import { MODELOS_SEMILLA } from "@/lib/catalogos";
 import { ESCENAS, promptDe } from "@/lib/ia/imagenes/escenas";
 import { imagenLocalExiste } from "@/lib/storage";
 import type {
-  AppUser, AssistantConfig, Branch, Combustible, Integration, KnowledgeItem,
-  Lead, Organization, Showroom, Stage, Vehicle,
+  AppUser, AssistantConfig, Branch, Campaign, CierreMensual, Client, Combustible,
+  Integration, KnowledgeItem, Lead, Operation, Organization, Showroom, Stage, Vehicle,
 } from "@/lib/types";
 
 /** Fila de `vehicle` tal como vuelve de Postgres. */
@@ -396,14 +396,191 @@ export async function getLeads(): Promise<Lead[]> {
   );
   return filas.map(aLead);
 }
-export async function getClients() {
-  return seed.clients;
+/*
+ * Las tres de acá abajo devolvían la semilla SIEMPRE, sin siquiera mirar si
+ * había base. Es el mismo patrón que ya había aparecido con `getMetricas()`,
+ * `getOrganization()` y `getCurrentUser()` (ver decisiones.md, 2026-09-09), y
+ * se notaba igual de poco: con la organización de la semilla los datos falsos
+ * pasan por propios.
+ *
+ * Lo que se veía: Control de Ventas anunciaba 14 ventas por $340M mientras el
+ * Dashboard, en la misma sesión, decía 0 ventas del mes. Y Clientes listaba
+ * seis personas inventadas con RUT y teléfono.
+ */
+
+export async function getClients(): Promise<Client[]> {
+  if (!dbConfigurada()) return seed.clients;
+
+  const filas = await consultar<{
+    id: string; nombre: string; rut: string | null; telefono: string | null;
+    comuna: string | null; operaciones: string;
+  }>(
+    (await orgActual()),
+    // El contador de operaciones sale de un agregado y no de una columna: la
+    // cifra no se puede desincronizar de las operaciones que realmente hay.
+    `select c.id, c.nombre, c.rut, c.telefono, c.comuna,
+            count(o.id) as operaciones
+       from client c
+       left join operation o on o.client_id = c.id
+      where c.organization_id = $1
+      group by c.id
+      order by c.nombre`,
+    [(await orgActual())],
+  );
+
+  return filas.map((f) => ({
+    id: f.id,
+    nombre: f.nombre,
+    rut: f.rut ?? undefined,
+    telefono: f.telefono ?? "",
+    comuna: f.comuna ?? undefined,
+    operaciones: Number(f.operaciones),
+  }));
 }
-export async function getOperations() {
-  return seed.operations;
+
+export async function getOperations(): Promise<Operation[]> {
+  if (!dbConfigurada()) return seed.operations;
+
+  const filas = await consultar<{
+    id: string; kind: string; vehicle_id: string | null; client_id: string | null;
+    vendedor_id: string | null; precio: string | null; gastos: string | null;
+    saldo_pendiente: string | null; dias_en_stock: number | null; fecha: Date;
+    vehiculo_titulo: string | null; vehiculo_codigo: string | null;
+  }>(
+    (await orgActual()),
+    /*
+     * `left join` y no `join`: `operation.vehicle_id` es `on delete set null`,
+     * así que una venta cuyo vehículo se borró sigue siendo una venta y tiene
+     * que seguir contando en los totales. Con un join interno desaparecía de
+     * los ingresos sin que nadie lo notara.
+     */
+    `select o.id, o.kind, o.vehicle_id, o.client_id, o.vendedor_id,
+            o.precio, o.gastos, o.saldo_pendiente, o.dias_en_stock, o.fecha,
+            v.titulo as vehiculo_titulo, v.codigo as vehiculo_codigo
+       from operation o
+       left join vehicle v on v.id = o.vehicle_id
+      where o.organization_id = $1
+      order by o.fecha desc, o.created_at desc`,
+    [(await orgActual())],
+  );
+
+  return filas.map((f) => ({
+    id: f.id,
+    kind: f.kind as Operation["kind"],
+    vehicleId: f.vehicle_id ?? undefined,
+    vehiculoTitulo: f.vehiculo_titulo ?? "Vehículo eliminado",
+    vehiculoCodigo: f.vehiculo_codigo ?? "",
+    clientId: f.client_id ?? undefined,
+    vendedorId: idSemilla(f.vendedor_id) ?? "",
+    precio: Number(f.precio ?? 0),
+    gastos: Number(f.gastos ?? 0),
+    saldoPendiente: Number(f.saldo_pendiente ?? 0),
+    diasEnStock: f.dias_en_stock ?? 0,
+    fecha: f.fecha.toISOString().slice(0, 10),
+  }));
 }
-export async function getCampaigns() {
-  return seed.campaigns;
+
+/**
+ * Los meses ya cerrados.
+ *
+ * Estaba escrito a mano en el JSX de Control de Ventas: un cierre de mayo de
+ * 2026 con 5 ventas y $94.700.000 que aparecía igual en una automotora que
+ * nunca cerró un mes. La tabla `monthly_close` existe desde 0001_init.sql.
+ *
+ * Cerrar un mes todavía no se puede desde la aplicación —el botón no hacía
+ * nada— así que hoy esto solo lee. Ver decisiones.md.
+ */
+export async function getCierresMensuales(): Promise<CierreMensual[]> {
+  if (!dbConfigurada()) return [];
+
+  const filas = await consultar<{
+    id: string; periodo_inicio: Date; periodo_fin: Date;
+    ventas: number | null; ingresos: string | null; utilidad: string | null;
+    cerrado_at: Date | null;
+  }>(
+    (await orgActual()),
+    `select id, periodo_inicio, periodo_fin, ventas, ingresos, utilidad, cerrado_at
+       from monthly_close
+      where organization_id = $1
+      order by periodo_inicio desc`,
+    [(await orgActual())],
+  );
+
+  return filas.map((f) => ({
+    id: f.id,
+    periodoInicio: f.periodo_inicio.toISOString().slice(0, 10),
+    periodoFin: f.periodo_fin.toISOString().slice(0, 10),
+    ventas: f.ventas ?? 0,
+    ingresos: Number(f.ingresos ?? 0),
+    utilidad: Number(f.utilidad ?? 0),
+    cerradoAt: f.cerrado_at?.toISOString(),
+  }));
+}
+
+export async function getCampaigns(): Promise<Campaign[]> {
+  if (!dbConfigurada()) return seed.campaigns;
+
+  const filas = await consultar<{
+    id: string; nombre: string; estado: string; canal: string;
+    regiones: string[] | null; presupuesto_diario: string | null; vehiculos: string;
+    gasto: string | null; impresiones: number | null; alcance: number | null;
+    clics: number | null; contactos: number | null; cpl: string | null;
+    conv_whatsapp: number | null; ctr: string | null;
+  }>(
+    (await orgActual()),
+    /*
+     * `campaign_metric` y `campaign_vehicle` NO llevan RLS (ver 0001_init.sql):
+     * no tienen `organization_id`. Por eso se consultan siempre colgando de
+     * `campaign`, que sí la lleva — la fila padre ya viene filtrada por
+     * organización y el agregado no puede alcanzar la de otra automotora.
+     * Ninguna consulta puede entrar a estas dos tablas por su propio id.
+     */
+    `select c.id, c.nombre, c.estado, c.canal, c.regiones, c.presupuesto_diario,
+            (select count(*) from campaign_vehicle cv
+              where cv.campaign_id = c.id) as vehiculos,
+            m.gasto, m.impresiones, m.alcance, m.clics, m.contactos, m.cpl,
+            m.conv_whatsapp, m.ctr
+       from campaign c
+       left join lateral (
+         select sum(gasto)::bigint            as gasto,
+                sum(impresiones)::int         as impresiones,
+                sum(alcance)::int             as alcance,
+                sum(clics)::int               as clics,
+                sum(contactos)::int           as contactos,
+                sum(conv_whatsapp)::int       as conv_whatsapp,
+                avg(cpl)::bigint              as cpl,
+                /*
+                 * El CTR se recalcula sobre los totales, NO se promedian los
+                 * ctr diarios: promediar tasas le da el mismo peso a un día de
+                 * 10 impresiones que a uno de 10.000 y la cifra sale torcida.
+                 */
+                case when sum(impresiones) > 0
+                     then round(sum(clics)::numeric * 100 / sum(impresiones), 2)
+                     else 0 end               as ctr
+           from campaign_metric where campaign_id = c.id
+       ) m on true
+      where c.organization_id = $1
+      order by c.nombre`,
+    [(await orgActual())],
+  );
+
+  return filas.map((f) => ({
+    id: f.id,
+    nombre: f.nombre,
+    estado: (f.estado as Campaign["estado"]) ?? "activa",
+    canal: f.canal ?? "whatsapp",
+    vehiculos: Number(f.vehiculos),
+    regiones: f.regiones ?? [],
+    presupuestoDiario: Number(f.presupuesto_diario ?? 0),
+    gasto: Number(f.gasto ?? 0),
+    contactos: f.contactos ?? undefined,
+    cpl: f.cpl ? Number(f.cpl) : undefined,
+    impresiones: f.impresiones ?? 0,
+    alcance: f.alcance ?? 0,
+    clics: f.clics ?? 0,
+    ctr: Number(f.ctr ?? 0),
+    convWhatsapp: f.conv_whatsapp ?? 0,
+  }));
 }
 export async function getIntegrations(): Promise<Integration[]> {
   if (!dbConfigurada()) return seed.integrations;

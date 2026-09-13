@@ -1377,6 +1377,91 @@ automotoras aunque las políticas estén puestas y sin dar ningún error. Por es
 existe `supabase/rol-app.sql`. Comprobado: los 9 tests de aislamiento pasan
 contra Supabase con `velie_app`.
 
+## 2026-09-13 — Tres pantallas eran maquetas, y se veían terminadas
+
+**El patrón de la semilla volvió a aparecer, y esta vez eran tres.**
+`getClients()`, `getOperations()` y `getCampaigns()` devolvían `seed.*` sin
+siquiera mirar `dbConfigurada()`. Es exactamente lo mismo que el 2026-09-09 con
+`getMetricas()`, `getOrganization()` y `getCurrentUser()`; quedaron estas tres.
+
+Lo que se veía con la base conectada: **Control de Ventas anunciaba 14 ventas por
+$340M mientras el Dashboard, en la misma sesión, decía 0 ventas del mes.** Y
+Clientes listaba seis personas inventadas con RUT y teléfono. Las tres tablas
+—`client`, `operation`, `campaign`— existen desde `0001_init.sql`.
+
+**Pero el problema de fondo no eran las consultas: las tres pantallas nunca se
+terminaron.** Todos sus botones eran inertes —sin `onClick`, sin `href`, sin
+formulario— y se veían iguales a los que funcionan. Además había datos escritos
+a mano en el JSX, que es la forma más difícil de detectar este defecto porque no
+pasa por la capa de datos:
+
+- Los deltas «vs mes anterior» de Control de Ventas (75 %, 54 %, −12 %, 6 %) y
+  los del Dashboard (−100 % en dos tarjetas). `StatCard` no calcula nada: pinta
+  el número que le pasen.
+- El bloque «Cierres mensuales» entero: un cierre de mayo de 2026 con 5 ventas y
+  $94.700.000, con tabla `monthly_close` existiendo y vacía.
+- La columna «Estado» de Campañas imprimía «Activa» en verde para TODAS las
+  filas, sin mirar el dato. Una campaña pausada se veía corriendo.
+- Los contadores «Pausadas (0)» y «Borradores (0)» de las pestañas.
+- La línea «sincronización automática cada hora» de Campañas. **Esa
+  sincronización no existe**: no hay cron en `vercel.json` ni ruta que la
+  ejecute.
+
+**Se decidió conectarlas y sacar lo muerto, no construir las acciones.** Las tres
+quedan de solo lectura y honestas. Construir «Cerrar mes», «Nueva campaña» o las
+pestañas de Compras/Consignaciones/Notas depende de decisiones que siguen
+abiertas con el cliente —qué entra en `gastos`, comisión de consignación— así que
+parte quedaría inventada igual. Qué lo revertiría: cerrar esas definiciones.
+
+**Los buscadores de Clientes y Campañas sí se conectaron**, porque eran `Input`
+sueltos sin formulario: se escribía y no pasaba nada. Filtran en memoria y no en
+SQL a propósito — son decenas de filas, no miles, y así funcionan igual con la
+semilla. El de Clientes compara el RUT sin puntos ni guion y el nombre sin
+tildes, que es como la gente escribe en un buscador.
+
+**Una división por cero esperaba escondida detrás de la semilla.** `ticket` y
+`diasProm` eran `ingresos / operations.length`. Con las 14 operaciones de la
+semilla el divisor nunca fue 0; con una automotora sin ventas, `clp(NaN)`
+imprime **«$NaN»** en la cabecera. Es el riesgo general de arreglar estas
+funciones: quitar la semilla no deja la pantalla en cero, la deja en `NaN`. Sin
+dato se muestra una raya.
+
+**`campaign_metric` y `campaign_vehicle` no llevan RLS** —no tienen
+`organization_id`— así que se consultan siempre colgando de `campaign`, que sí la
+lleva. Ninguna consulta puede entrar a esas dos tablas por su propio id. Lo mismo
+vale para `lead_activity`, `vehicle_photo`, `vehicle_publication`, `site_config`,
+`assistant_config`, `routing_config` y `plate_lookup`: hoy están protegidas solo
+porque toda consulta pasa por su padre. **Es un aislamiento por convención, no
+por política, y conviene cerrarlo antes de tener varias automotoras reales.**
+
+**El CTR de una campaña se recalcula sobre los totales, no promediando los ctr
+diarios.** Promediar tasas le da el mismo peso a un día de 10 impresiones que a
+uno de 10.000.
+
+**`compose.yaml` se había quedado en la migración 0012.** Faltaban 0013–0017: un
+volumen nuevo nacía sin auth, sin catálogo público y sin sitio. El fallo no se
+ve, porque la base levanta igual y solo le faltan tablas, y `npm run migrar` sí
+las aplica todas — así que una base ya creada quedaba al día y el hueco solo
+aparecía al recrear el volumen. La lista hay que mantenerla a mano; queda
+advertido en el propio archivo.
+
+## 2026-09-13 — Por qué `vercel env pull` mutilaba el `.env.local`
+
+No se corrompía el archivo: se llenaba con un entorno casi vacío. En Vercel,
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DATABASE_URL` y
+todos los secretos existen **solo en Production**. `vercel env pull` baja
+**Development** por defecto, y ahí lo único que hay son las 16 variables que
+inyecta la integración de Supabase.
+
+Esas 16 vienen con el prefijo `sb_publishable_XpuoJO…`, que sale del campo
+*prefix* de la integración: quedó con el valor de la publishable key en vez de
+vacío. Por eso aparecían nombres como
+`NEXT_PUBLIC_sb_publishable_…_SUPABASE_URL`, que ningún código lee.
+
+Se arregla poblando Development, no bajando Production a mano: con `--environment
+=production` el `DATABASE_URL` que llega apunta a la base de producción y el
+desarrollo local pasaría a escribir ahí sin avisar.
+
 ## Decisiones pendientes
 
 - [ ] **¿Conectar Supabase antes de la Fase 2 o seguir con semilla?**

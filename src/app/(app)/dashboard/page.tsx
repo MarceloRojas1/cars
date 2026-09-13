@@ -26,8 +26,14 @@ export default async function DashboardPage() {
 
       <div className="mb-8 grid grid-cols-2 border-y border-border py-6 xl:grid-cols-4">
         <StatCard etiqueta="Stock disponible" valor={r.stockDisponible} icon={Car} nota={`${r.publicados} publicados`} />
-        <StatCard etiqueta="Ventas del mes" valor={r.ventasMes} icon={ShoppingCart} delta={{ valor: -100 }} />
-        <StatCard etiqueta="Leads del mes" valor={r.leadsMes} icon={Users} delta={{ valor: -100 }} />
+        {/*
+          * Estas dos traían `delta={{ valor: -100 }}` escrito a mano: un
+          * "↓100% vs mes anterior" que no salía de ningún cálculo y aparecía
+          * igual sin datos del mes anterior. `StatCard` no calcula nada, solo
+          * pinta lo que le pasan. Vuelven cuando haya con qué comparar.
+          */}
+        <StatCard etiqueta="Ventas del mes" valor={r.ventasMes} icon={ShoppingCart} nota="Sin datos previos" />
+        <StatCard etiqueta="Leads del mes" valor={r.leadsMes} icon={Users} nota="Sin datos previos" />
         <StatCard etiqueta="Utilidad del mes" valor={clp(r.utilidadMes)} icon={DollarSign} nota="Sin datos previos" />
       </div>
 

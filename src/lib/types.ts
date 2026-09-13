@@ -187,6 +187,17 @@ export type Operation = {
   fecha: string;
 };
 
+/** Un mes cerrado en Control de Ventas. Tabla `monthly_close`. */
+export type CierreMensual = {
+  id: string;
+  periodoInicio: string;
+  periodoFin: string;
+  ventas: number;
+  ingresos: number;
+  utilidad: number;
+  cerradoAt?: string;
+};
+
 export type Campaign = {
   id: string;
   nombre: string;
