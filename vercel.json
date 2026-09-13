@@ -2,10 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["gru1"],
   "crons": [
-    {
-      "comment": "El bot reintenta con quien dejó de contestar. 13:00 UTC = 10:00 en Chile: dentro del horario laboral, no a las 3 de la mañana.",
-      "path": "/api/cron/seguimiento",
-      "schedule": "0 13 * * *"
-    }
+    { "path": "/api/cron/seguimiento", "schedule": "0 13 * * *" }
   ]
 }

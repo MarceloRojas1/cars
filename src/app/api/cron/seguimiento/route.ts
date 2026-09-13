@@ -5,7 +5,15 @@ import { seguimientoDeTodas } from "@/lib/leads/seguimiento";
 /**
  * El reloj del bot: una vez al día revisa quién dejó de contestar.
  *
- * Lo llama el cron de Vercel (ver `vercel.json`). No hay sesión ni persona
+ * HORARIO: `0 13 * * *` en `vercel.json` — 13:00 UTC son las 10:00 en Chile,
+ * dentro del horario laboral. Le escribe a clientes por WhatsApp, así que la
+ * hora importa: a las 3 de la mañana molesta y además no contesta nadie.
+ *
+ * Esa explicación vive acá y no en `vercel.json` porque ese archivo es JSON
+ * estricto: no admite comentarios, y un campo `comment` de más hace fallar la
+ * build entera con "should NOT have additional property".
+ *
+ * Lo llama el cron de Vercel. No hay sesión ni persona
  * detrás, así que la organización NO sale de una cookie: esto recorre todas las
  * automotoras y fija la de cada una con `comoOrganizacion()`, igual que el
  * webhook de WhatsApp.
