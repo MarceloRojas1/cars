@@ -1598,6 +1598,16 @@ que se aprende a ignorar, y entonces no sirve para el día que sí importa.
 
 ## Decisiones pendientes
 
+- [ ] **El bot de WhatsApp está caído desde el 2026-09-09 21:00.** El token de
+      Meta expiró: era temporal. Comprobado el 2026-09-13 contra la Graph API —
+      `Error validating access token: Session has expired`. El webhook sigue
+      recibiendo y guardando (eso no depende del token), así que **los leads
+      entran al embudo pero nadie les contesta**, que es peor que no recibirlos:
+      parece que funciona. Se arregla con un token de *System User* en Meta
+      Business, que no vence; con otro temporal volvemos a lo mismo en semanas.
+      Postergado a propósito hasta poder pagar el servicio de WhatsApp Business.
+      Lo demás sí funciona: base, Claude, Gemini y Blob verificados ese día.
+
 - [ ] Cambiar el correo de la propia cuenta: toca Supabase y `app_user`, y
       dispara una confirmación. Hoy no se puede desde ninguna parte.
 - [ ] Que `SUPABASE_SERVICE_ROLE_KEY` exista en Vercel con su nombre, en vez de
