@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "tsx scripts/verificar-migraciones.ts && next build",
     "start": "next start",
     "lint": "eslint",
     "db:seed": "tsx scripts/seed-db.ts",
@@ -16,7 +16,8 @@
     "catalogo:probar": "tsx scripts/probar-catalogo.ts",
     "migrar": "tsx scripts/migrar.ts",
     "revisar-despliegue": "tsx scripts/revisar-despliegue.ts",
-    "vercel:sync": "tsx scripts/sincronizar-vercel.ts"
+    "vercel:sync": "tsx scripts/sincronizar-vercel.ts",
+    "verificar-migraciones": "tsx scripts/verificar-migraciones.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",

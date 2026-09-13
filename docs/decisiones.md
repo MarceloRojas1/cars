@@ -1552,6 +1552,50 @@ mientras que las cuentas de Supabase viven en la nube. En producción son la
 misma base y la clave foránea se satisface. Probar esto de punta a punta exige
 un Supabase de pruebas aparte.
 
+## 2026-09-13 — El panel entero caído por una migración sin aplicar
+
+**Qué pasó.** Se desplegó el código de las invitaciones sin aplicar la
+migración `0018`. `getUsers()` consulta la tabla `invitacion` y la usan casi
+todas las pantallas: **las 15 rutas del panel devolvieron 500 durante unos
+veinte minutos.** El sitio público no se vio afectado. No había clientes
+reales; eso es lo único que evitó que fuera grave, y no es una defensa.
+
+**Por qué no lo atrapó nada.** El código compilaba, el lint pasaba y la build
+de Vercel fue verde. El fallo no estaba en el código ni en la configuración
+sino en la RELACIÓN entre código nuevo y base vieja, que no era lo que miraba
+ninguna herramienta. `docs/escalar-a-200-clientes.md` punto 12 ya lo advertía
+—cambios aditivos, desplegar código primero— y este cambio no era aditivo:
+era código que exige una tabla que no existía.
+
+**La defensa que se puso: la build consulta la base antes de compilar.**
+`npm run build` corre ahora `scripts/verificar-migraciones.ts`, que compara los
+archivos de `supabase/migrations/` con la tabla `_migracion` de la base que va
+a atender el despliegue.
+
+La clave no es el aviso: es que **una build fallida no reemplaza lo que está
+sirviendo.** Con esto, el despliegue de hoy habría fallado al construir y la
+versión anterior habría seguido en pie. Es la diferencia entre "no se pudo
+desplegar" y "el panel de todos los clientes devuelve 500".
+
+**Solo bloquea cuando hay certeza**, y eso es deliberado: sin credenciales de
+base no verifica nada, y si la base no responde avisa y deja pasar — un
+problema de red no puede ser lo que impida desplegar un cambio de CSS. Bloquea
+ante un único hecho: la base contestó y le faltan migraciones. Y es estricto
+solo en Vercel (`process.env.VERCEL`), porque en local `npm run build` se usa
+para ver si compila, no para publicar.
+
+**Se consulta la conexión DIRECTA** (`POSTGRES_URL_NON_POOLING`), no el pooler
+ni la `DATABASE_URL` local: verificar el docker de quien despliega no dice nada
+sobre la base de los clientes.
+
+**De paso, `revisar-despliegue` dejó de mentir.** Comprobaba `DATABASE_URL` y
+las `NEXT_PUBLIC_SUPABASE_*` en `.env.local` — variables que viven SOLO en
+Vercel y que `vercel:sync` no sube a propósito. Daba dos "✗" permanentes por
+credenciales que en producción estaban perfectas. Ahora pregunta a Vercel por
+los NOMBRES de las variables de producción (nunca los valores) y solo bloquea
+si de verdad faltan allá. Una herramienta que grita en falso se vuelve ruido
+que se aprende a ignorar, y entonces no sirve para el día que sí importa.
+
 ## Decisiones pendientes
 
 - [ ] Cambiar el correo de la propia cuenta: toca Supabase y `app_user`, y

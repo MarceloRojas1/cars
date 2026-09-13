@@ -14,56 +14,107 @@ config({ path: ".env.local" });
 // que el archivo ya esté cargado.
 import { hayClaveDeServicio } from "../src/lib/supabase/servicio";
 import { hayAuthConfigurada } from "../src/lib/supabase/publica";
+import { verificarMigraciones } from "../src/lib/migraciones";
+import { execFileSync } from "node:child_process";
+
+/**
+ * Qué variables existen en PRODUCCIÓN, según Vercel.
+ *
+ * Varias credenciales no están —ni deben estar— en `.env.local`:
+ * `DATABASE_URL` apunta acá al Postgres de tu máquina, y las
+ * `NEXT_PUBLIC_SUPABASE_*` las pone la integración. `vercel:sync` no las sube
+ * a propósito. Buscarlas en el archivo local daba dos "✗" permanentes por
+ * variables que en producción estaban perfectas, y una herramienta que grita
+ * en falso se vuelve ruido que se aprende a ignorar.
+ *
+ * Solo se leen los NOMBRES, nunca los valores: `vercel env ls` no los muestra.
+ * Si el CLI no está o no hay sesión, se devuelve null y los chequeos que
+ * dependen de esto avisan en vez de bloquear — no saber no es lo mismo que
+ * saber que falta.
+ */
+function variablesEnVercel(): Set<string> | null {
+  try {
+    const salida = execFileSync("npx", ["vercel", "env", "ls", "production"], {
+      encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 60_000,
+    });
+    const nombres = salida
+      .split("\n")
+      .map((l) => l.trim().split(/\s+/)[0])
+      .filter((n) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(n));
+    return nombres.length > 0 ? new Set(nombres) : null;
+  } catch {
+    return null;
+  }
+}
 
 type Nivel = "bloquea" | "avisa" | "ok";
 type Chequeo = { nombre: string; nivel: Nivel; detalle: string };
 
 const hay = (v?: string) => Boolean(v && v.trim());
 
-function revisar(): Chequeo[] {
+function revisar(enVercel: Set<string> | null): Chequeo[] {
   const c: Chequeo[] = [];
   const e = process.env;
 
-  // La integración de Supabase en Vercel la inyecta como POSTGRES_URL.
-  const bd = e.DATABASE_URL || e.POSTGRES_URL;
-  c.push(
-    hay(bd)
-      ? {
-          nombre: "Base de datos",
-          nivel: bd!.includes("localhost") ? "bloquea" : "ok",
-          detalle: bd!.includes("localhost")
-            ? "Apunta a localhost: en Vercel no existe. Usa la cadena del POOLER de la base gestionada."
-            : bd!.includes("pooler") || bd!.includes("6543")
-              ? "Apunta a una base remota por el pooler."
-              : "Apunta a una base remota, pero no parece la cadena del pooler. Sin pooler, Postgres se queda sin conexiones con poco tráfico.",
-        }
-      : { nombre: "Base de datos", nivel: "bloquea", detalle: "Falta DATABASE_URL (o POSTGRES_URL)." },
-  );
-
-  // Conectarse como dueño de las tablas anula el aislamiento: RLS no se le
-  // aplica a un rol con BYPASSRLS. Ver supabase/rol-app.sql.
-  if (hay(bd) && !bd!.includes("localhost")) {
-    const comoPostgres = /:\/\/postgres[.:]/.test(bd!);
+  /*
+   * DATABASE_URL vive SOLO en Vercel: en `.env.local` apunta al docker de tu
+   * máquina y `vercel:sync` no la sube. Por eso se pregunta allá.
+   */
+  if (enVercel === null) {
     c.push({
-      nombre: "Rol de conexión",
-      nivel: comoPostgres ? "bloquea" : "ok",
-      detalle: comoPostgres
-        ? "La app se conecta como `postgres`, dueño de las tablas. Si ese rol tiene BYPASSRLS, una automotora ve los datos de otra. Crea el rol con supabase/rol-app.sql y compruébalo con `npm run test:aislamiento`."
-        : "No se conecta como el dueño de las tablas.",
+      nombre: "Base de datos",
+      nivel: "avisa",
+      detalle: "No se pudo consultar Vercel (¿`npx vercel login`?). DATABASE_URL vive allá, no acá.",
+    });
+  } else {
+    const tiene = enVercel.has("DATABASE_URL") || enVercel.has("POSTGRES_URL");
+    c.push({
+      nombre: "Base de datos",
+      nivel: tiene ? "ok" : "bloquea",
+      detalle: tiene
+        ? "DATABASE_URL está puesta en producción."
+        : "Falta DATABASE_URL (o POSTGRES_URL) en producción. La app no va a poder conectarse.",
     });
   }
 
-  // Acepta el nombre nuevo (`…PUBLISHABLE_KEY`) y el legado (`…ANON_KEY`),
-  // igual que `proxy.ts`: si el chequeo y la aplicación no miran lo mismo, el
-  // chequeo miente.
-  const authOk = hayAuthConfigurada();
+  /*
+   * Conectarse como dueño de las tablas anula el aislamiento: RLS no se le
+   * aplica a un rol con BYPASSRLS. Ver supabase/rol-app.sql. No se puede
+   * comprobar desde acá —el valor vive en Vercel y no se lee— así que queda
+   * como recordatorio verificable con el test.
+   */
   c.push({
-    nombre: "Autenticación",
-    nivel: authOk ? "ok" : "bloquea",
-    detalle: authOk
-      ? "Supabase configurado: el panel pide sesión."
-      : "Faltan NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY. SIN ESTO EL PANEL QUEDA ABIERTO A INTERNET.",
+    nombre: "Rol de conexión",
+    nivel: "avisa",
+    detalle: "No verificable desde acá. Compruébalo con `npm run test:aislamiento`.",
   });
+
+  /*
+   * Las NEXT_PUBLIC_SUPABASE_* las pone la integración de Supabase en Vercel y
+   * tampoco se sincronizan desde `.env.local`. Se acepta el nombre nuevo
+   * (`…PUBLISHABLE_KEY`) y el legado (`…ANON_KEY`), igual que `proxy.ts`: si el
+   * chequeo y la aplicación miran cosas distintas, el chequeo miente.
+   */
+  if (enVercel === null) {
+    c.push({
+      nombre: "Autenticación",
+      nivel: hayAuthConfigurada() ? "ok" : "avisa",
+      detalle: hayAuthConfigurada()
+        ? "Configurada en este entorno."
+        : "No se pudo consultar Vercel. Estas variables viven allá, no en .env.local.",
+    });
+  } else {
+    const url = enVercel.has("NEXT_PUBLIC_SUPABASE_URL");
+    const clave = enVercel.has("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+      || enVercel.has("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
+    c.push({
+      nombre: "Autenticación",
+      nivel: url && clave ? "ok" : "bloquea",
+      detalle: url && clave
+        ? "Supabase configurado en producción: el panel pide sesión."
+        : "Faltan NEXT_PUBLIC_SUPABASE_URL o la clave pública en producción. SIN ESTO EL PANEL QUEDA ABIERTO A INTERNET.",
+    });
+  }
 
   /*
    * Pasó de "avisa" a "bloquea": desde que existen las invitaciones del equipo,
@@ -127,16 +178,50 @@ function revisar(): Chequeo[] {
 
 const ICONO: Record<Nivel, string> = { bloquea: "✗", avisa: "!", ok: "✓" };
 
-const chequeos = revisar();
-console.log("\nRevisión previa al despliegue\n");
-for (const c of chequeos) {
-  console.log(`${ICONO[c.nivel]}  ${c.nombre.padEnd(26)} ${c.detalle}`);
+/**
+ * El esquema de la base, que es el chequeo que faltaba el 2026-09-13.
+ *
+ * Todos los demás miran variables de entorno: cosas que se olvidan de poner.
+ * Este mira otra cosa —si la base está al día con el código— y es el único que
+ * detecta el fallo que tumbó el panel entero, porque ese no estaba ni en el
+ * código ni en la configuración sino en la relación entre ambos.
+ */
+async function chequeoDeMigraciones(): Promise<Chequeo> {
+  const r = await verificarMigraciones();
+  switch (r.estado) {
+    case "al_dia":
+      return { nombre: "Migraciones", nivel: "ok", detalle: `La base está al día (${r.total}).` };
+    case "pendientes":
+      return {
+        nombre: "Migraciones",
+        nivel: "bloquea",
+        detalle:
+          `A ${r.host} le faltan ${r.lista.length}: ${r.lista.join(", ")}. ` +
+          "Desplegar así deja el panel en 500. Corre `npm run migrar -- --produccion`.",
+      };
+    case "sin_base":
+      return { nombre: "Migraciones", nivel: "avisa", detalle: "Sin credenciales de base: no se pudo verificar." };
+    case "inalcanzable":
+      return { nombre: "Migraciones", nivel: "avisa", detalle: `La base no respondió: ${r.motivo}` };
+  }
 }
 
-const bloquean = chequeos.filter((c) => c.nivel === "bloquea");
-console.log(
-  bloquean.length === 0
-    ? "\nTodo listo para desplegar.\n"
-    : `\n${bloquean.length} ${bloquean.length === 1 ? "cosa bloquea" : "cosas bloquean"} el despliegue.\n`,
-);
-process.exit(bloquean.length === 0 ? 0 : 1);
+async function main() {
+  // El de migraciones consulta la base, así que es el único asíncrono.
+  const chequeos = [...revisar(variablesEnVercel()), await chequeoDeMigraciones()];
+
+  console.log("\nRevisión previa al despliegue\n");
+  for (const c of chequeos) {
+    console.log(`${ICONO[c.nivel]}  ${c.nombre.padEnd(26)} ${c.detalle}`);
+  }
+
+  const bloquean = chequeos.filter((c) => c.nivel === "bloquea");
+  console.log(
+    bloquean.length === 0
+      ? "\nTodo listo para desplegar.\n"
+      : `\n${bloquean.length} ${bloquean.length === 1 ? "cosa bloquea" : "cosas bloquean"} el despliegue.\n`,
+  );
+  process.exit(bloquean.length === 0 ? 0 : 1);
+}
+
+main();
