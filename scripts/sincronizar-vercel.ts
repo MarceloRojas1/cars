@@ -32,6 +32,13 @@ const VARIABLES: { nombre: string; obligatoria: boolean; publica?: boolean }[] =
   { nombre: "WHATSAPP_VERIFY_TOKEN", obligatoria: false },
   { nombre: "ANTHROPIC_API_KEY", obligatoria: false },
   { nombre: "GEMINI_API_KEY", obligatoria: false },
+
+  // Consulta de patente. Sin ninguna de las tres, la app cae a los datos de
+  // ejemplo (`proveedorActivo()` en src/lib/patente/index.ts) — no rompe el
+  // despliegue, así que ninguna es obligatoria.
+  { nombre: "GETAPI_API_KEY", obligatoria: false },
+  { nombre: "BOOSTR_API_KEY", obligatoria: false },
+  { nombre: "AUTORIESGO_API_KEY", obligatoria: false },
   /*
    * SÍ se despliega, desde el 2026-09-13.
    *

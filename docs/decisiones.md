@@ -446,6 +446,90 @@ escribió contra la forma esperada de `vehicle_data`. Al contratar créditos hay
 confirmar los nombres de los campos antes de confiar en él. Está anotado en el
 propio archivo.
 
+## 2026-09-14 — Cuarto proveedor de patente: GetAPI
+
+**Se agregó `getapi` (`chile.getapi.cl`)** como cuarto adaptador, a partir de una
+colección Postman que subió el cliente (`get-api-key.json`, sin clave cargada) y
+la documentación pública en `getapi.cl/docs`. A diferencia de Boostr y AutoRiesgo,
+no tiene un bloqueo conocido (Cloudflare mal configurado el uno, créditos pagos
+obligatorios el otro), así que en `proveedorActivo()` va primero en el orden de
+fallback cuando no se fija `PROVEEDOR_PATENTE` explícitamente.
+
+**Su plan base ya trae VIN, color y kilometraje** — no hace falta contratar un
+plan extendido para eso, a diferencia de Boostr. Solo `plantaRevisora` (detalle
+de la planta de revisión técnica) queda para el plan PRO, y no se mapea.
+
+**Verificado contra la API real** el mismo día, con clave del cliente
+(`GETAPI_API_KEY`, renombrada desde `API_CARS` como venía en `.env.local` para
+seguir la convención `<PROVEEDOR>_API_KEY`). Consultas de prueba: `SGXR43`
+(Changan Uni T 2023), `KLZS96` (MG 3 2018, con km e imagen). Confirmado:
+
+- `model.name` viene con la versión pegada ("UNI T TURBO 1.5 AUT") y el campo
+  `version` aparte trae otra cosa (más bien el detalle de la ficha técnica, tipo
+  "1.5 LUXURY AT 5P") — no son redundantes, pero tampoco se puede separar limpio
+  uno del otro. Se dejan ambos tal cual vienen.
+- La API devuelve `null` (no omite la clave) en los campos que no tiene, así
+  que el mapeo necesita `?? undefined` explícito en vin/motor/dv — si no, el
+  `null` se filtraba hasta la UI en vez de tratarse como ausente.
+- El límite de tasa del plan gratuito es bajo: a la sexta consulta seguida ya
+  respondía 429. Para probar hay que espaciar las consultas.
+- El campo que cruza con `CARROCERIA_POR_TIPO` es `model.typeVehicle.name`
+  ("STATION WAGON" para `SGXR43`, en el vocabulario del Registro Civil), NO
+  `typeVehicle.category` como se había escrito antes de probar contra datos
+  reales — `category` es una clase más ancha ("LIVIANO"/"PESADO") que nunca
+  iba a calzar contra esa tabla. Confirmado con el endpoint de tasación (ver
+  abajo), que devuelve el mismo objeto `vehicle` con más detalle.
+
+**De paso se probó el endpoint de tasación** (`GET /v1/vehicles/appraisal/{patente}`,
+también en la colección Postman). Devuelve `precioUsado` (precio + banda
+mín/máx) y `precioRetoma` (valor de toma en parte), además de la misma ficha
+del vehículo. Para `SGXR43`: precio usado $13.600.000 (banda $13.124.000 –
+$14.076.000), retoma $10.277.520. `informacionFiscal.tasacion` vino en 0 —
+ese campo depende de si el SII tiene tasación fiscal cargada para esa patente,
+no siempre está. **No se integró todavía**: no hay pantalla ni tipo para esto
+en el proyecto, y toca una de las preguntas abiertas de `AGENTS.md` ("qué
+entra en `gastos` para calcular utilidad"). Queda para cuando se decida si
+`precioRetoma` sirve de referencia para armar una oferta de consignación.
+
+**De paso se encontró un bug en `aTitulo` que afecta a los tres proveedores
+reales, no solo a GetAPI**: siglas como `BMW` o `MG` quedaban `Bmw` y `Mg`
+porque `aTitulo` solo capitaliza la primera letra de cada palabra y no sabe
+qué marcas son acrónimos. Se agregó `marcaCanonica()` en
+`src/lib/patente/normalizar.ts`, que compara contra `MARCAS` (el catálogo
+cerrado de `src/lib/catalogos.ts`) y usa esa forma si calza. Por ahora solo se
+aplicó en `getapi.ts` — Boostr y AutoRiesgo tienen el mismo problema latente,
+pendiente de aplicarles el mismo cambio cuando se puedan probar contra datos
+reales de nuevo.
+
+## 2026-09-14 — "Consultar patente" → "Nuevo vehículo" en un clic
+
+**El link "Crear una publicación con estos datos →" no llevaba nada.** Iba a
+`/vehiculos/nuevo` sin parámetros: la búsqueda que ya se había hecho en
+`/consultar-patente` se perdía y había que escribir la misma patente otra vez
+en el formulario. Ahora el link manda `?patente=XXX`.
+
+**La búsqueda de esa patente se resuelve en el servidor**, en
+`NuevoVehiculoPage`, junto con el resto de los datos de la página
+(`getBranches`, `getCatalogoModelos`, `getUsers`) — no en un `useEffect` en
+`VehiculoForm`. Se probó primero con un efecto en el cliente (buscar sola al
+montar si venía `patenteInicial`) y **el linter de React lo rechazó**:
+`react-hooks/set-state-in-effect`, porque `buscarPorPatente` hace
+`setBuscando(true)` de forma síncrona dentro del efecto. Resolverlo con
+`queueMicrotask` o similar era un parche; hacer el fetch en el Server
+Component donde ya se resuelven los otros datos de la página es la forma en
+que el resto del proyecto ya trae datos, y de paso evita el parpadeo de un
+formulario vacío que se rellena un instante después.
+
+**Se sirve de la caché de 24 h** (`plate_lookup`, migración 0007): si se buscó
+hace un minuto en `/consultar-patente`, esta segunda consulta no gasta cupo
+del proveedor.
+
+`camposDesdeResultado()` (en `vehiculo-form.tsx`) es la única función que
+traduce un `ResultadoPatente` a estado del formulario — la usan tanto el
+estado inicial (`resultadoPatenteInicial`, resuelto en el servidor) como
+`buscarPorPatente()` (la búsqueda manual con el botón). Antes eran dos copias
+del mismo mapeo que se podían desalinear.
+
 ## 2026-09-02 — Filtros y paginación del inventario
 
 **Se filtra y pagina en SQL, no en memoria.** Con 8.000 vehículos, traerlos todos

@@ -4,6 +4,7 @@ import { normalizarPatente, patenteValida } from "./normalizar";
 import { proveedorFixtures } from "./fixtures";
 import { proveedorBoostr } from "./boostr";
 import { proveedorAutoriesgo } from "./autoriesgo";
+import { proveedorGetApi } from "./getapi";
 import type { DatosPatente, Proveedor, ResultadoPatente } from "./tipos";
 
 export type { DatosPatente, ResultadoPatente, Proveedor } from "./tipos";
@@ -15,6 +16,7 @@ const PROVEEDORES: Record<string, Proveedor> = {
   fixtures: proveedorFixtures,
   boostr: proveedorBoostr,
   autoriesgo: proveedorAutoriesgo,
+  getapi: proveedorGetApi,
 };
 
 /**
@@ -24,11 +26,13 @@ const PROVEEDORES: Record<string, Proveedor> = {
  * como último recurso, los datos de ejemplo — de modo que la aplicación siempre
  * funcione aunque ningún tercero esté disponible. Ese fue el motivo de separar
  * los adaptadores: hoy Boostr bloquea su propio endpoint público y AutoRiesgo
- * exige créditos, y aun así el proyecto avanza.
+ * exige créditos, y aun así el proyecto avanza. GetAPI va primero en este orden
+ * porque, a diferencia de los otros dos, no tiene un bloqueo conocido.
  */
 export function proveedorActivo(): Proveedor {
   const elegido = process.env.PROVEEDOR_PATENTE;
   if (elegido && PROVEEDORES[elegido]) return PROVEEDORES[elegido];
+  if (process.env.GETAPI_API_KEY) return proveedorGetApi;
   if (process.env.BOOSTR_API_KEY) return proveedorBoostr;
   if (process.env.AUTORIESGO_API_KEY) return proveedorAutoriesgo;
   return proveedorFixtures;

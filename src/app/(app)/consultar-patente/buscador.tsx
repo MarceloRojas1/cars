@@ -108,7 +108,7 @@ export function BuscadorPatente({ patentesDePrueba }: { patentesDePrueba?: reado
           </dl>
           <div className="border-t border-border px-5 py-3">
             <Link
-              href="/vehiculos/nuevo"
+              href={`/vehiculos/nuevo?patente=${datos.patente}`}
               className="text-[13px] text-foreground underline underline-offset-4"
             >
               Crear una publicación con estos datos →

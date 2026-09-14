@@ -1,4 +1,4 @@
-import { CARROCERIAS, MODELOS_SEMILLA } from "@/lib/catalogos";
+import { CARROCERIAS, MARCAS, MODELOS_SEMILLA } from "@/lib/catalogos";
 
 /** Formatos chilenos: 2 letras + 4 dígitos (antiguo) o 4 letras + 2 dígitos. */
 const FORMATO = /^(?:[A-Z]{2}\d{4}|[A-Z]{4}\d{2})$/;
@@ -13,6 +13,17 @@ export function patenteValida(patente: string) {
 
 export function aTitulo(s: string) {
   return s.toLowerCase().replace(/\b\p{L}/gu, (c) => c.toUpperCase()).trim();
+}
+
+/**
+ * `aTitulo` deja las siglas mal ("Bmw", "Mg", "Jac") porque no sabe cuáles
+ * marcas son acrónimos. Si el valor calza con una marca conocida (sin
+ * importar mayúsculas), se usa la forma canónica del catálogo (`BMW`, `MG`);
+ * si no, se deja el resultado de `aTitulo` tal cual.
+ */
+export function marcaCanonica(valor: string) {
+  const titulo = aTitulo(valor);
+  return MARCAS.find((m) => m.toLowerCase() === titulo.toLowerCase()) ?? titulo;
 }
 
 export const aEntero = (v: unknown) => {

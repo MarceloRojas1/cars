@@ -18,19 +18,65 @@ import {
 import { REGIONES, NOMBRES_REGIONES } from "@/lib/geo-chile";
 import { CargaDeFotos } from "@/components/form/fotos";
 import { Combo } from "@/components/form/combo";
+import type { ResultadoPatente } from "@/lib/patente";
 import type { AppUser, Branch, Vehicle } from "@/lib/types";
 
 const MAX_TITULO = 100;
 const inicial: EstadoFormulario = {};
 
+type AvisoPatente = { tipo: "ok" | "error"; texto: string };
+
+/**
+ * Traduce un `ResultadoPatente` a lo que necesita el formulario. La misma
+ * función arma el estado inicial (búsqueda ya resuelta en el servidor,
+ * viniendo de "Consultar patente") y el resultado de una búsqueda manual —
+ * un solo lugar donde vive el mapeo, no dos copias que se puedan desalinear.
+ */
+function camposDesdeResultado(r: ResultadoPatente) {
+  if (!r.ok) {
+    return { aviso: { tipo: "error", texto: r.mensaje } satisfies AvisoPatente };
+  }
+  const d = r.datos;
+
+  // Lo que solo llega con el plan extendido. Si no viene, no se toca.
+  const desdePatente: Record<string, string> = {};
+  if (d.km) desdePatente.km = String(d.km);
+  if (d.combustible) desdePatente.combustible = d.combustible;
+  if (d.transmision) desdePatente.transmision = d.transmision;
+  if (d.puertas) desdePatente.puertas = String(d.puertas);
+  if (d.color) desdePatente.colorExterior = d.color;
+  if (d.vin) desdePatente.vin = d.vin;
+  if (d.motor) desdePatente.numeroMotor = d.motor;
+  if (d.cilindrada) desdePatente.cilindrada = d.cilindrada;
+
+  return {
+    marca: d.marca, modelo: d.modelo, version: d.version,
+    anio: d.anio ? String(d.anio) : undefined,
+    carroceria: d.carroceria,
+    desdePatente,
+    aviso: {
+      tipo: "ok",
+      texto: [
+        "Ficha rellenada" + (d.desdeCache ? " (dato en caché)" : "") + ".",
+        d.extendido ? "" : "El plan gratuito no trae la ficha técnica.",
+        "Revísala antes de guardar.",
+      ].filter(Boolean).join(" "),
+    } satisfies AvisoPatente,
+  };
+}
+
 export function VehiculoForm({
-  catalogoModelos, sucursales, vendedores, vehiculo,
+  catalogoModelos, sucursales, vendedores, vehiculo, patenteInicial, resultadoPatenteInicial,
 }: {
   catalogoModelos: Record<string, string[]>;
   sucursales: Branch[];
   vendedores: AppUser[];
   /** Si viene, el formulario edita en vez de crear. */
   vehiculo?: Vehicle;
+  /** Viene de "Consultar patente": la patente que se escribió allá. */
+  patenteInicial?: string;
+  /** La búsqueda de `patenteInicial`, ya resuelta en el servidor. */
+  resultadoPatenteInicial?: ResultadoPatente;
 }) {
   const editando = Boolean(vehiculo);
   const accion = vehiculo
@@ -38,10 +84,12 @@ export function VehiculoForm({
     : crearVehiculoAction;
   const [estado, enviar, pendiente] = useActionState(accion, inicial);
 
-  const [marca, setMarca] = useState(vehiculo?.marca ?? "");
-  const [modelo, setModelo] = useState(vehiculo?.modelo ?? "");
-  const [version, setVersion] = useState(vehiculo?.version ?? "");
-  const [anio, setAnio] = useState(vehiculo?.anio ? String(vehiculo.anio) : "");
+  const campos = resultadoPatenteInicial ? camposDesdeResultado(resultadoPatenteInicial) : null;
+
+  const [marca, setMarca] = useState(campos?.marca ?? vehiculo?.marca ?? "");
+  const [modelo, setModelo] = useState(campos?.modelo ?? vehiculo?.modelo ?? "");
+  const [version, setVersion] = useState(campos?.version ?? vehiculo?.version ?? "");
+  const [anio, setAnio] = useState(campos?.anio ?? (vehiculo?.anio ? String(vehiculo.anio) : ""));
 
   // El título se arma solo hasta que lo tocas. Desde ahí manda lo que escribiste.
   const [tituloManual, setTituloManual] = useState<string | null>(vehiculo?.titulo ?? null);
@@ -63,14 +111,14 @@ export function VehiculoForm({
     if (suc) { setRegion(suc.region); setComuna(suc.comuna); }
   }
 
-  const [patente, setPatente] = useState(vehiculo?.patente ?? "");
+  const [patente, setPatente] = useState(patenteInicial ?? vehiculo?.patente ?? "");
   const [buscando, setBuscando] = useState(false);
-  const [avisoPatente, setAvisoPatente] = useState<
-    { tipo: "ok" | "error"; texto: string } | null
-  >(null);
-  const [carroceriaAuto, setCarroceriaAuto] = useState<string | undefined>();
+  const [avisoPatente, setAvisoPatente] = useState<AvisoPatente | null>(campos?.aviso ?? null);
+  const [carroceriaAuto, setCarroceriaAuto] = useState<string | undefined>(campos?.carroceria);
   /** Campos que rellena la consulta de patente; el vendedor los puede corregir. */
-  const [desdePatente, setDesdePatente] = useState<Record<string, string>>({});
+  const [desdePatente, setDesdePatente] = useState<Record<string, string>>(
+    campos?.desdePatente ?? {},
+  );
   const campo = (k: string, guardado?: string | number) =>
     desdePatente[k] ?? (guardado !== undefined ? String(guardado) : "");
 
@@ -79,38 +127,19 @@ export function VehiculoForm({
     setAvisoPatente(null);
     try {
       const r = await consultarPatenteAction(patente);
+      const c = camposDesdeResultado(r);
       if (!r.ok) {
-        setAvisoPatente({ tipo: "error", texto: r.mensaje });
+        setAvisoPatente(c.aviso);
         return;
       }
-      const d = r.datos;
-      if (d.marca) setMarca(d.marca);
-      if (d.modelo) setModelo(d.modelo);
-      if (d.version) setVersion(d.version);
-      if (d.anio) setAnio(String(d.anio));
-      if (d.carroceria) setCarroceriaAuto(d.carroceria);
-
-      // Lo que solo llega con el plan extendido. Si no viene, no se toca.
-      const traidos: Record<string, string> = {};
-      if (d.km) traidos.km = String(d.km);
-      if (d.combustible) traidos.combustible = d.combustible;
-      if (d.transmision) traidos.transmision = d.transmision;
-      if (d.puertas) traidos.puertas = String(d.puertas);
-      if (d.color) traidos.colorExterior = d.color;
-      if (d.vin) traidos.vin = d.vin;
-      if (d.motor) traidos.numeroMotor = d.motor;
-      if (d.cilindrada) traidos.cilindrada = d.cilindrada;
-      setDesdePatente((prev) => ({ ...prev, ...traidos }));
-
+      if (c.marca) setMarca(c.marca);
+      if (c.modelo) setModelo(c.modelo);
+      if (c.version) setVersion(c.version);
+      if (c.anio) setAnio(c.anio);
+      if (c.carroceria) setCarroceriaAuto(c.carroceria);
+      setDesdePatente((prev) => ({ ...prev, ...c.desdePatente }));
       setTituloManual(null); // que el título se rearme con lo que llegó
-      setAvisoPatente({
-        tipo: "ok",
-        texto: [
-          "Ficha rellenada" + (d.desdeCache ? " (dato en caché)" : "") + ".",
-          d.extendido ? "" : "El plan gratuito no trae la ficha técnica.",
-          "Revísala antes de guardar.",
-        ].filter(Boolean).join(" "),
-      });
+      setAvisoPatente(c.aviso);
     } finally {
       setBuscando(false);
     }
