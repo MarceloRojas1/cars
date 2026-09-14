@@ -4,10 +4,10 @@ import { normalizarPatente, patenteValida } from "./normalizar";
 import { proveedorFixtures } from "./fixtures";
 import { proveedorBoostr } from "./boostr";
 import { proveedorAutoriesgo } from "./autoriesgo";
-import { proveedorGetApi } from "./getapi";
-import type { DatosPatente, Proveedor, ResultadoPatente } from "./tipos";
+import { consultarTasacionGetApi, proveedorGetApi } from "./getapi";
+import type { DatosPatente, Proveedor, ResultadoPatente, ResultadoTasacion } from "./tipos";
 
-export type { DatosPatente, ResultadoPatente, Proveedor } from "./tipos";
+export type { DatosPatente, DatosTasacion, ResultadoPatente, ResultadoTasacion, Proveedor } from "./tipos";
 export { normalizarPatente, patenteValida } from "./normalizar";
 
 const CACHE_HORAS = 24;
@@ -86,4 +86,20 @@ export async function consultarPatente(
     );
   }
   return resultado;
+}
+
+/**
+ * Tasación de referencia (precio usado + retoma). Solo GetAPI la tiene, así
+ * que —a diferencia de `consultarPatente`— no pasa por `proveedorActivo()` ni
+ * tiene caché: es información extra, no bloquea nada si falta.
+ */
+export async function consultarTasacion(entrada: string): Promise<ResultadoTasacion> {
+  const patente = normalizarPatente(entrada);
+  if (!patenteValida(patente)) {
+    return { ok: false, mensaje: "Formato inválido." };
+  }
+  if (!process.env.GETAPI_API_KEY) {
+    return { ok: false, mensaje: "Falta GETAPI_API_KEY." };
+  }
+  return consultarTasacionGetApi(patente);
 }

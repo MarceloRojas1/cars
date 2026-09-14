@@ -8,7 +8,7 @@ import {
   crearVehiculo, eliminarVehiculo,
 } from "@/lib/data";
 import { COMBUSTIBLES } from "@/lib/catalogos";
-import { consultarPatente } from "@/lib/patente";
+import { consultarPatente, consultarTasacion } from "@/lib/patente";
 import { urlDeFotoValida } from "@/lib/storage";
 import { revalidarCatalogo } from "@/lib/catalogo/revalidar";
 import { mensajeParaElUsuario } from "@/lib/errores";
@@ -188,4 +188,8 @@ export async function eliminarAction(id: string) {
 
 export async function consultarPatenteAction(patente: string, forzar = false) {
   return consultarPatente(patente, forzar);
+}
+
+export async function consultarTasacionAction(patente: string) {
+  return consultarTasacion(patente);
 }

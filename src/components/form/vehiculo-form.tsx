@@ -4,13 +4,14 @@ import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import {
-  actualizarVehiculoAction, consultarPatenteAction, crearVehiculoAction,
-  type EstadoFormulario,
+  actualizarVehiculoAction, consultarPatenteAction, consultarTasacionAction,
+  crearVehiculoAction, type EstadoFormulario,
 } from "@/app/(app)/vehiculos/acciones";
 import { Campo, Seccion, Select, controlBase } from "@/components/form/campos";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { clp } from "@/lib/format";
 import {
   CARROCERIAS, COLORES_EXTERIOR, COLORES_INTERIOR, COMBUSTIBLES,
   MARCAS, PUERTAS, TAGS, TRANSMISIONES,
@@ -18,7 +19,7 @@ import {
 import { REGIONES, NOMBRES_REGIONES } from "@/lib/geo-chile";
 import { CargaDeFotos } from "@/components/form/fotos";
 import { Combo } from "@/components/form/combo";
-import type { ResultadoPatente } from "@/lib/patente";
+import type { DatosTasacion, ResultadoPatente, ResultadoTasacion } from "@/lib/patente";
 import type { AppUser, Branch, Vehicle } from "@/lib/types";
 
 const MAX_TITULO = 100;
@@ -66,7 +67,8 @@ function camposDesdeResultado(r: ResultadoPatente) {
 }
 
 export function VehiculoForm({
-  catalogoModelos, sucursales, vendedores, vehiculo, patenteInicial, resultadoPatenteInicial,
+  catalogoModelos, sucursales, vendedores, vehiculo, patenteInicial,
+  resultadoPatenteInicial, resultadoTasacionInicial,
 }: {
   catalogoModelos: Record<string, string[]>;
   sucursales: Branch[];
@@ -77,6 +79,8 @@ export function VehiculoForm({
   patenteInicial?: string;
   /** La búsqueda de `patenteInicial`, ya resuelta en el servidor. */
   resultadoPatenteInicial?: ResultadoPatente;
+  /** La tasación de `patenteInicial`, ya resuelta en el servidor. Solo informativa. */
+  resultadoTasacionInicial?: ResultadoTasacion;
 }) {
   const editando = Boolean(vehiculo);
   const accion = vehiculo
@@ -122,11 +126,21 @@ export function VehiculoForm({
   const campo = (k: string, guardado?: string | number) =>
     desdePatente[k] ?? (guardado !== undefined ? String(guardado) : "");
 
+  /** Solo informativa: referencia de mercado, nunca llena el precio de venta. */
+  const [tasacion, setTasacion] = useState<DatosTasacion | undefined>(
+    resultadoTasacionInicial?.ok ? resultadoTasacionInicial.datos : undefined,
+  );
+
   async function buscarPorPatente() {
     setBuscando(true);
     setAvisoPatente(null);
     try {
-      const r = await consultarPatenteAction(patente);
+      const [r, t] = await Promise.all([
+        consultarPatenteAction(patente),
+        consultarTasacionAction(patente),
+      ]);
+      setTasacion(t.ok ? t.datos : undefined);
+
       const c = camposDesdeResultado(r);
       if (!r.ok) {
         setAvisoPatente(c.aviso);
@@ -290,6 +304,22 @@ export function VehiculoForm({
             className={cn(controlBase, "tabular")}
           />
         </Campo>
+        {tasacion && (
+          <div className="flex flex-col gap-1.5">
+            <p className="etiqueta">Referencia de mercado (GetAPI)</p>
+            <p className="tabular text-[13.5px]">
+              {clp(tasacion.precioUsado)}
+              <span className="text-muted-foreground">
+                {" "}(banda {clp(tasacion.bandaMin)} – {clp(tasacion.bandaMax)})
+              </span>
+            </p>
+            <p className="text-[11.5px] text-muted-foreground">
+              Retoma: <span className="tabular">{clp(tasacion.precioRetoma)}</span>.
+              Solo informativa — el precio de venta se pone a mano.
+            </p>
+          </div>
+        )}
+
         <Campo
           label="Pie de financiamiento" htmlFor="pieFinanciamiento"
           hint="Opcional. Se publica como “pie desde”."

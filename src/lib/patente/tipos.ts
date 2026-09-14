@@ -28,6 +28,23 @@ export type ResultadoPatente =
   | { ok: true; datos: DatosPatente }
   | { ok: false; mensaje: string };
 
+/**
+ * Tasación de referencia. Es una función aparte de `Proveedor`: solo GetAPI la
+ * tiene (Boostr y AutoRiesgo no ofrecen esto), así que no es parte del
+ * contrato que cumplen todos los proveedores de identificación de patente.
+ */
+export type DatosTasacion = {
+  precioUsado: number;
+  bandaMin: number;
+  bandaMax: number;
+  /** Valor de toma en parte, referencial. */
+  precioRetoma: number;
+};
+
+export type ResultadoTasacion =
+  | { ok: true; datos: DatosTasacion }
+  | { ok: false; mensaje: string };
+
 export type Proveedor = {
   /** Identificador estable: se guarda en la caché para no mezclar orígenes. */
   id: string;

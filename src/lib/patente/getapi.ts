@@ -1,4 +1,6 @@
-import type { Proveedor, ResultadoPatente, DatosPatente } from "./tipos";
+import type {
+  DatosPatente, DatosTasacion, Proveedor, ResultadoPatente, ResultadoTasacion,
+} from "./tipos";
 import {
   aEntero, aTitulo, CARROCERIA_POR_TIPO, COMBUSTIBLE_POR_VALOR,
   marcaCanonica, normalizar, TRANSMISION_POR_VALOR,
@@ -116,3 +118,61 @@ export const proveedorGetApi: Proveedor = {
     return { ok: true, datos: mapearGetApi(cuerpo.data) };
   },
 };
+
+type RespuestaTasacion = {
+  success: boolean;
+  data?: {
+    precioUsado?: { precio?: number; banda_max?: number; banda_min?: number };
+    precioRetoma?: number;
+  };
+  message?: string;
+};
+
+/**
+ * Tasación — GET /v1/vehicles/appraisal/{patente}. Solo GetAPI la tiene, así
+ * que no pasa por el mismo mecanismo intercambiable que `proveedorActivo()`;
+ * se llama directo cuando `GETAPI_API_KEY` está puesta.
+ *
+ * Es informativa nada más: el precio de venta lo sigue poniendo el vendedor
+ * a mano (ver `docs/decisiones.md`, 2026-09-14). No tiene caché propia —a
+ * diferencia de `plate_lookup`— así que recargar la página de "Nuevo
+ * vehículo" con la misma patente vuelve a gastar una consulta.
+ */
+export async function consultarTasacionGetApi(patente: string): Promise<ResultadoTasacion> {
+  const k = clave();
+  if (!k) return { ok: false, mensaje: "Falta GETAPI_API_KEY." };
+
+  let respuesta: Response;
+  try {
+    respuesta = await fetch(`${BASE}/v1/vehicles/appraisal/${patente}`, {
+      headers: { Accept: "application/json", "X-Api-Key": k },
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch {
+    return { ok: false, mensaje: "No se pudo contactar a GetAPI." };
+  }
+
+  if (respuesta.status === 429) {
+    return { ok: false, mensaje: "Demasiadas consultas seguidas. Espera unos segundos." };
+  }
+
+  let cuerpo: RespuestaTasacion;
+  try {
+    cuerpo = await respuesta.json();
+  } catch {
+    return { ok: false, mensaje: "GetAPI devolvió una respuesta ilegible." };
+  }
+
+  const u = cuerpo.data?.precioUsado;
+  if (!cuerpo.success || !u?.precio || !cuerpo.data?.precioRetoma) {
+    return { ok: false, mensaje: cuerpo.message ?? "No hay tasación para este vehículo." };
+  }
+
+  const datos: DatosTasacion = {
+    precioUsado: u.precio,
+    bandaMin: u.banda_min ?? u.precio,
+    bandaMax: u.banda_max ?? u.precio,
+    precioRetoma: cuerpo.data.precioRetoma,
+  };
+  return { ok: true, datos };
+}

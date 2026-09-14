@@ -3,7 +3,7 @@ import { ChevronLeft } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { VehiculoForm } from "@/components/form/vehiculo-form";
 import { getBranches, getCatalogoModelos, getUsers } from "@/lib/data";
-import { consultarPatente } from "@/lib/patente";
+import { consultarPatente, consultarTasacion } from "@/lib/patente";
 
 export const metadata = { title: "Nuevo vehículo" };
 
@@ -11,11 +11,13 @@ export default async function NuevoVehiculoPage({ searchParams }: PageProps<"/ve
   const sp = await searchParams;
   const patenteInicial = typeof sp.patente === "string" ? sp.patente : undefined;
 
-  const [catalogoModelos, sucursales, usuarios, resultadoPatente] = await Promise.all([
+  const [catalogoModelos, sucursales, usuarios, resultadoPatente, resultadoTasacion] = await Promise.all([
     getCatalogoModelos(), getBranches(), getUsers(),
     // Viene de "Consultar patente": ya se sabe el dato, no hace falta que el
     // vendedor la vuelva a escribir. Reusa la caché de 24 h de esa búsqueda.
     patenteInicial ? consultarPatente(patenteInicial) : Promise.resolve(undefined),
+    // Tasación es solo informativa (no tiene caché): si falla, no importa.
+    patenteInicial ? consultarTasacion(patenteInicial) : Promise.resolve(undefined),
   ]);
   // Por ahora hay una sola sucursal, pero el desplegable se puebla solo cuando haya más.
   const vendedores = usuarios.filter((u) => u.rol === "vendedor" || u.rol === "owner");
@@ -40,6 +42,7 @@ export default async function NuevoVehiculoPage({ searchParams }: PageProps<"/ve
         vendedores={vendedores}
         patenteInicial={patenteInicial}
         resultadoPatenteInicial={resultadoPatente}
+        resultadoTasacionInicial={resultadoTasacion}
       />
     </div>
   );

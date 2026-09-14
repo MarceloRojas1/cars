@@ -530,6 +530,38 @@ estado inicial (`resultadoPatenteInicial`, resuelto en el servidor) como
 `buscarPorPatente()` (la búsqueda manual con el botón). Antes eran dos copias
 del mismo mapeo que se podían desalinear.
 
+## 2026-09-14 — Tasación como referencia junto al precio, no como dato
+
+**Se agregó `consultarTasacion()`** (`GET /v1/vehicles/appraisal/{patente}`,
+GetAPI) y se muestra al lado de "Precio de venta" en el formulario: precio
+usado con su banda, y precio de retoma. **A propósito, no rellena el campo**
+—el precio de venta lo sigue escribiendo el vendedor a mano—: es contexto
+para decidir, no un dato de la ficha del auto. Esto responde en parte la
+pregunta abierta de `AGENTS.md` sobre tasación, pero no la cierra: sigue sin
+resolverse si `precioRetoma` debería usarse para algo más, como una oferta de
+consignación.
+
+**No es parte de `Proveedor`** (`src/lib/patente/tipos.ts`): Boostr y
+AutoRiesgo no tienen tasación, así que forzarla al contrato que cumplen los
+cuatro adaptadores de identificación de patente hubiera sido una abstracción
+sin otro caso de uso. `consultarTasacion()` vive aparte, gateada solo por
+`GETAPI_API_KEY`.
+
+**No tiene caché**, a diferencia de `consultarPatente()` (que sí usa
+`plate_lookup`, 24 h). Es una decisión consciente por ahora: agregar una
+tabla nueva solo para esto era desproporcionado para un dato que se pidió
+como "información extra". El costo real es que recargar `/vehiculos/nuevo
+?patente=X` varias veces gasta una consulta de tasación cada vez, además de
+la de identificación — con el límite de tasa bajo de GetAPI (ver la entrada
+del proveedor, arriba), unas pocas recargas seguidas alcanzan el 429. Si esto
+molesta en la práctica, la caché es el primer lugar por dónde mirar.
+
+**Si la tasación falla, no rompe nada**: `consultarTasacion()` se llama en
+paralelo con `consultarPatente()` (`Promise.all`) y si no hay dato o da
+error, el bloque de referencia simplemente no se muestra — no hay mensaje de
+error para esto, porque no es información que el vendedor esté esperando
+activamente.
+
 ## 2026-09-02 — Filtros y paginación del inventario
 
 **Se filtra y pagina en SQL, no en memoria.** Con 8.000 vehículos, traerlos todos
