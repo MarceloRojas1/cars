@@ -600,6 +600,60 @@ del popup nativo aunque el resto del `<option>` no se pueda estilar — por
 eso alcanza con dos líneas y no hace falta reemplazar los `<select>` por
 componentes propios.
 
+## 2026-09-14 — Borrador local de "Nuevo vehículo"
+
+**Vive solo en `localStorage`, no en la base.** Se evaluó una tabla de
+borradores en Supabase y se descartó: multiplicaba el trabajo (migración,
+RLS, pantalla para listarlos y retomarlos, decidir qué pasa si dos personas
+abren el mismo borrador) para resolver un problema que es de una sola
+persona en un solo navegador — "no perder lo que estaba escribiendo si se
+recarga o cierra por accidente", no "reanudar el trabajo en otro equipo".
+Si en el futuro hace falta lo segundo, ahí sí se justifica el viaje a la base.
+
+**Solo aplica creando, nunca editando.** Un vehículo que ya existe tiene su
+propia verdad en la base — mezclar un borrador local encima sería una
+segunda fuente de verdad compitiendo con la primera, y el bug que eso genera
+(¿cuál gana, el borrador de hace tres días o lo que hay guardado?) es peor
+que el problema que se quiere resolver.
+
+**El autoguardado lee el DOM (`new FormData(form)`), no el estado de React
+campo por campo.** La mitad de los campos del formulario son inputs no
+controlados (`equipamiento`, `descripción`, las fechas, el vendedor) que
+viven fuera de cualquier `useState`; leerlos desde `FormData` cubre a todos
+por igual, controlados o no, sin tener que mantener una lista aparte que se
+desactualiza cada vez que se agrega un campo nuevo al formulario.
+
+**Restaurar sí necesita distinguir uno por uno.** Los campos controlados se
+restauran con su `setX`; los que no, escribiendo directo en el elemento del
+DOM vía `form.elements.namedItem(nombre)` — ahí sí hace falta la lista,
+porque cada tipo de campo necesita una forma distinta de que el cambio se
+note (React para unos, el DOM para otros).
+
+**No se restaura si viene `patenteInicial`.** Si se llegó desde "Consultar
+patente" hay un dato recién resuelto en el servidor, más nuevo que
+cualquier borrador guardado — pisarlo con algo viejo sería peor que no
+ofrecer nada.
+
+**El borrador se descarta al tocar "Publicar", no al confirmar que se guardó
+bien.** `crearVehiculoAction` redirige en éxito (`redirect()`), y eso corta
+la ejecución del lado del cliente antes de que el componente pueda enterarse
+del resultado y limpiar algo después — no hay un "if success" al que
+engancharse. La alternativa (una bandera en `sessionStorage` que se revisa
+al montar `/vehiculos`) es más precisa pero también más piezas moviéndose.
+**El costo real de la simplificación**: si falla una validación y cierras o
+recargas sin tocar nada más, se pierde esa versión exacta del formulario —
+pero solo esa; volver a escribir algo dispara el autoguardado de nuevo. Se
+aceptó el trade-off por ser un caso angosto (falla + cierre inmediato sin
+ningún otro cambio) para no sumar una segunda señal.
+
+**El `useEffect` de restaurar defiere el `setState` con `queueMicrotask`**,
+mismo motivo que en la búsqueda de patente (ver la entrada de "Consultar
+patente → Nuevo vehículo en un clic"): el linter de React
+(`react-hooks/set-state-in-effect`) rechaza un `setState` síncrono dentro
+del cuerpo del efecto. Acá sí tenía que ser un efecto —`localStorage` no
+existe en el servidor, así que no hay SSR al que mudar el fetch como se hizo
+allá.
+
 ## 2026-09-02 — Filtros y paginación del inventario
 
 **Se filtra y pagina en SQL, no en memoria.** Con 8.000 vehículos, traerlos todos

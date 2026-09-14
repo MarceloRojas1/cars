@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import {
@@ -20,10 +20,18 @@ import { REGIONES, NOMBRES_REGIONES } from "@/lib/geo-chile";
 import { CargaDeFotos } from "@/components/form/fotos";
 import { Combo } from "@/components/form/combo";
 import type { DatosTasacion, ResultadoPatente, ResultadoTasacion } from "@/lib/patente";
-import type { AppUser, Branch, Vehicle } from "@/lib/types";
+import type { AppUser, Branch, Vehicle, VehiclePhoto } from "@/lib/types";
 
 const MAX_TITULO = 100;
 const inicial: EstadoFormulario = {};
+
+/** Solo se usa creando (no editando): un vehículo real ya tiene su propia verdad guardada. */
+const CLAVE_BORRADOR = "velie:borrador-vehiculo";
+
+function escribirEnDom(form: HTMLFormElement, nombre: string, valor: string) {
+  const el = form.elements.namedItem(nombre);
+  if (el && "value" in el) (el as unknown as { value: string }).value = valor;
+}
 
 type AvisoPatente = { tipo: "ok" | "error"; texto: string };
 
@@ -190,6 +198,134 @@ export function VehiculoForm({
   const [tags, setTags] = useState<string[]>(vehiculo?.tags ?? []);
   const [tagPropio, setTagPropio] = useState("");
 
+  const formRef = useRef<HTMLFormElement>(null);
+  const [fotosRestauradas, setFotosRestauradas] = useState<VehiclePhoto[] | null>(null);
+  const [avisoBorrador, setAvisoBorrador] = useState<number | null>(null);
+
+  /**
+   * Restaura lo que se estaba llenando si se salió o recargó la página antes
+   * de publicar. No pisa una edición real (`vehiculo` ya tiene su propia
+   * verdad en la base) ni una búsqueda de patente recién resuelta en el
+   * servidor (`patenteInicial`) — esa es más nueva que cualquier borrador.
+   */
+  useEffect(() => {
+    if (editando || patenteInicial) return;
+
+    // Diferido a un microtask: el linter de React exige que un efecto no
+    // llame a setState de forma síncrona en su propio cuerpo (mismo motivo
+    // que en el fetch de "Consultar patente" — ver docs/decisiones.md).
+    queueMicrotask(function restaurarBorrador() {
+      let crudo: string | null;
+      try {
+        crudo = localStorage.getItem(CLAVE_BORRADOR);
+      } catch {
+        return; // localStorage bloqueado (modo privado): no hay borrador que ofrecer.
+      }
+      if (!crudo) return;
+
+      let guardado: { guardadoEn: number; campos: Record<string, string | string[]> } | null;
+      try {
+        guardado = JSON.parse(crudo);
+      } catch {
+        guardado = null;
+      }
+      const campos = guardado?.campos;
+      if (!campos) return;
+
+      // Los nombres son los `name=` del formulario, no los estados de React.
+      const CONTROLADOS: Record<string, (v: string) => void> = {
+        patente: setPatente, marca: setMarca, modelo: setModelo, version: setVersion,
+        anio: setAnio, titulo: setTituloManual, precio: setPrecio,
+        pieFinanciamiento: (v) => { setModoPie("monto"); setPieValor(v); },
+        carroceria: setCarroceriaAuto, branchId: setSucursalId,
+        region: setRegion, comuna: setComuna,
+      };
+      const DE_PATENTE = [
+        "km", "combustible", "transmision", "puertas",
+        "colorExterior", "colorInterior", "vin", "numeroMotor", "cilindrada",
+      ];
+
+      const form = formRef.current;
+      const nuevoDesdePatente: Record<string, string> = {};
+
+      for (const [nombre, valor] of Object.entries(campos)) {
+        if (nombre === "tags") {
+          setTags(Array.isArray(valor) ? valor : [valor]);
+          continue;
+        }
+        if (nombre === "fotos" && typeof valor === "string") {
+          try {
+            const guardadas = JSON.parse(valor) as { url: string; esPrincipal: boolean }[];
+            setFotosRestauradas(
+              guardadas.map((f, i) => ({ id: f.url, url: f.url, orden: i, esPrincipal: f.esPrincipal })),
+            );
+          } catch { /* nada que restaurar */ }
+          continue;
+        }
+        if (typeof valor !== "string") continue;
+        if (nombre === "cantidadDuenos") {
+          setUnicoDueno(valor === "1");
+          if (valor !== "1" && form) escribirEnDom(form, nombre, valor);
+          continue;
+        }
+        if (DE_PATENTE.includes(nombre)) { nuevoDesdePatente[nombre] = valor; continue; }
+        if (CONTROLADOS[nombre]) { CONTROLADOS[nombre](valor); continue; }
+        // El resto (equipamiento, descripción, fechas, vendedor…) no es
+        // estado controlado: se escribe directo en el elemento del DOM.
+        if (form) escribirEnDom(form, nombre, valor);
+      }
+      if (Object.keys(nuevoDesdePatente).length) {
+        setDesdePatente((prev) => ({ ...prev, ...nuevoDesdePatente }));
+      }
+      setAvisoBorrador(guardado?.guardadoEn ?? Date.now());
+    });
+    // Solo al montar: es una restauración de una sola vez, no una sincronización continua.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /**
+   * Autoguardado. Lee el DOM en vez de depender de cada estado de React por
+   * separado — así cubre también los campos no controlados (equipamiento,
+   * descripción, fechas, vendedor) sin tener que enumerarlos dos veces.
+   */
+  useEffect(() => {
+    if (editando) return;
+    const form = formRef.current;
+    if (!form) return;
+
+    let temporizador: ReturnType<typeof setTimeout>;
+    function guardarBorrador() {
+      clearTimeout(temporizador);
+      temporizador = setTimeout(() => {
+        const datos = new FormData(form!);
+        const campos: Record<string, string | string[]> = {};
+        for (const [nombre, valor] of datos.entries()) {
+          if (typeof valor !== "string") continue; // este formulario no tiene inputs de archivo
+          const previo = campos[nombre];
+          campos[nombre] = previo === undefined
+            ? valor
+            : Array.isArray(previo) ? [...previo, valor] : [previo, valor];
+        }
+        try {
+          localStorage.setItem(CLAVE_BORRADOR, JSON.stringify({ guardadoEn: Date.now(), campos }));
+        } catch { /* localStorage bloqueado: no hay borrador, pero tampoco se rompe nada */ }
+      }, 800);
+    }
+
+    form.addEventListener("input", guardarBorrador);
+    form.addEventListener("change", guardarBorrador);
+    return () => {
+      form.removeEventListener("input", guardarBorrador);
+      form.removeEventListener("change", guardarBorrador);
+      clearTimeout(temporizador);
+    };
+  }, [editando]);
+
+  function descartarBorrador() {
+    try { localStorage.removeItem(CLAVE_BORRADOR); } catch { /* nada que borrar */ }
+    window.location.reload();
+  }
+
   const modelos = catalogoModelos[marca] ?? [];
   const e = estado.errores ?? {};
 
@@ -203,10 +339,35 @@ export function VehiculoForm({
   };
 
   return (
-    <form action={enviar}>
+    <form
+      ref={formRef}
+      action={enviar}
+      onSubmit={() => {
+        // Se publicó (o se intentó): el borrador ya cumplió su función.
+        if (!editando) {
+          try { localStorage.removeItem(CLAVE_BORRADOR); } catch { /* nada que borrar */ }
+        }
+      }}
+    >
       {tags.map((t) => (
         <input key={t} type="hidden" name="tags" value={t} />
       ))}
+
+      {avisoBorrador && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-l-2 border-l-ok bg-ok/[0.06] px-4 py-3 text-[12.5px]">
+          <span>
+            Se restauró un borrador sin publicar de las{" "}
+            {new Date(avisoBorrador).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}.
+            Revísalo antes de guardar.
+          </span>
+          <button
+            type="button" onClick={descartarBorrador}
+            className="shrink-0 text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          >
+            Descartar y empezar de cero
+          </button>
+        </div>
+      )}
 
       {/* --- búsqueda por patente --- */}
       <section className="mb-2 border border-border bg-card p-5">
@@ -629,7 +790,10 @@ export function VehiculoForm({
         titulo="Fotos"
         descripcion="Los avisos con más fotos reciben más consultas. La principal encabeza la publicación."
       >
-        <CargaDeFotos iniciales={vehiculo?.fotos} />
+        <CargaDeFotos
+          key={fotosRestauradas ? "restaurado" : "original"}
+          iniciales={fotosRestauradas ?? vehiculo?.fotos}
+        />
       </Seccion>
 
       {/* --- acciones --- */}
