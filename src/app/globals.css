@@ -191,6 +191,19 @@
   html {
     @apply font-sans;
   }
+  /*
+   * `color-scheme: dark` (arriba) no le alcanza a todos los navegadores para
+   * pintar oscuro el popup nativo de <option> — en algunos sale con fondo
+   * claro y el texto gris apagado del tema oscuro encima, casi ilegible. A
+   * diferencia del resto de las propiedades de un <option>, `background-color`
+   * y `color` sí se aplican dentro de ese popup nativo, así que se fuerzan acá
+   * como respaldo. Esto no afecta al <Combo> (Marca, Modelo, Color…): ese no
+   * es un <select>, lo dibuja nuestro propio CSS.
+   */
+  select option {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+  }
 }
 @layer base {
   /* Cifras: siempre monoespaciadas y alineadas en columna. */

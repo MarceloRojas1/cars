@@ -562,6 +562,44 @@ error, el bloque de referencia simplemente no se muestra — no hay mensaje de
 error para esto, porque no es información que el vendedor esté esperando
 activamente.
 
+## 2026-09-14 — Pie de financiamiento: pesos o porcentaje, pero se guarda en pesos
+
+**El campo siempre guarda un monto en pesos** (`pieFinanciamiento`, columna
+`pie_financiamiento`) — así lo esperan el catálogo público y el simulador de
+crédito (`src/lib/catalogo/financiamiento.ts`, `simulador.tsx`), que ya hacen
+la conversión inversa (monto → % más cercano entre 10/20/30/40) para armar su
+propio desplegable. Cambiar el tipo de dato hubiera significado tocar esos
+dos consumidores para nada: el problema real era que escribirlo a mano
+siempre en pesos es incómodo cuando lo que uno sabe es "pide 20% de pie".
+
+**La conversión pasa por el precio de venta actual del formulario**, no por
+uno guardado ni por el de la tasación de GetAPI — cambiar de $ a % y de
+vuelta hace ida y vuelta exacta mientras el precio no cambie mientras tanto.
+Por eso "Precio de venta" pasó de `defaultValue` (no controlado) a estado:
+sin eso, no había forma de leer su valor actual para convertir.
+
+**El input visible nunca es el que se envía.** Lleva el número en la unidad
+que se esté mostrando (pesos o %) pero sin `name`; un `<input type="hidden"
+name="pieFinanciamiento">` aparte lleva siempre el monto ya convertido a
+pesos. Así el servidor (`crearVehiculoAction`/`actualizarVehiculoAction`) no
+se entera de que existe un modo porcentaje — recibe lo mismo de siempre.
+
+## 2026-09-14 — Los `<select>` nativos con el popup casi ilegible
+
+**`color-scheme: dark` (ya declarado en `.dark`, en `globals.css`) no le
+alcanza a todos los navegadores** para pintar oscuro el popup nativo de un
+`<select>`: en algunos
+salía con fondo claro y encima el gris apagado del tema oscuro
+(`--muted-foreground`), casi ilegible. No pasaba en "Color exterior/interior"
+porque esos usan `<Combo>`, que no es un `<select>` — lo pinta nuestro CSS,
+no el navegador.
+
+**Se fuerza `background-color`/`color` en `option`** (`globals.css`) como
+respaldo. Son de las pocas propiedades que los navegadores sí aplican dentro
+del popup nativo aunque el resto del `<option>` no se pueda estilar — por
+eso alcanza con dos líneas y no hace falta reemplazar los `<select>` por
+componentes propios.
+
 ## 2026-09-02 — Filtros y paginación del inventario
 
 **Se filtra y pagina en SQL, no en memoria.** Con 8.000 vehículos, traerlos todos

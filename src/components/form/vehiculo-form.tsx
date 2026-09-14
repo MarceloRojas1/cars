@@ -103,6 +103,33 @@ export function VehiculoForm({
   );
   const titulo = tituloManual ?? tituloAuto;
 
+  const [precio, setPrecio] = useState(vehiculo?.precio ? String(vehiculo.precio) : "");
+
+  // El pie se puede escribir en pesos o en porcentaje del precio; lo que se
+  // guarda siempre es el monto en pesos (ver DatosPatente/pieFinanciamiento).
+  const [modoPie, setModoPie] = useState<"monto" | "porcentaje">("monto");
+  const [pieValor, setPieValor] = useState(
+    vehiculo?.pieFinanciamiento ? String(vehiculo.pieFinanciamiento) : "",
+  );
+  function cambiarModoPie(nuevo: "monto" | "porcentaje") {
+    if (nuevo === modoPie) return;
+    const n = Number(pieValor);
+    const precioNum = Number(precio);
+    if (n > 0 && precioNum > 0) {
+      setPieValor(
+        nuevo === "porcentaje"
+          ? String(Math.round((n / precioNum) * 100))
+          : String(Math.round((n / 100) * precioNum)),
+      );
+    }
+    setModoPie(nuevo);
+  }
+  const pieEnPesos = modoPie === "monto"
+    ? pieValor
+    : (Number(pieValor) > 0 && Number(precio) > 0
+      ? String(Math.round((Number(pieValor) / 100) * Number(precio)))
+      : "");
+
   const sucursalInicial = sucursales.find((s) => s.id === vehiculo?.branchId) ?? sucursales[0];
   const [sucursalId, setSucursalId] = useState(sucursalInicial?.id ?? "");
   const [region, setRegion] = useState(vehiculo?.region ?? sucursalInicial?.region ?? "");
@@ -300,7 +327,8 @@ export function VehiculoForm({
         <Campo label="Precio de venta" htmlFor="precio" error={e.precio}>
           <input
             id="precio" name="precio" inputMode="numeric" placeholder="16450000"
-            defaultValue={vehiculo?.precio ?? ""}
+            value={precio}
+            onChange={(ev) => setPrecio(ev.target.value.replace(/\D/g, ""))}
             className={cn(controlBase, "tabular")}
           />
         </Campo>
@@ -322,13 +350,38 @@ export function VehiculoForm({
 
         <Campo
           label="Pie de financiamiento" htmlFor="pieFinanciamiento"
-          hint="Opcional. Se publica como “pie desde”."
+          hint={
+            modoPie === "porcentaje" && pieEnPesos
+              ? `Se guarda como ${clp(Number(pieEnPesos))}. Se publica como “pie desde”.`
+              : "Opcional. Se publica como “pie desde”."
+          }
         >
-          <input
-            id="pieFinanciamiento" name="pieFinanciamiento" inputMode="numeric"
-            defaultValue={vehiculo?.pieFinanciamiento ?? ""}
-            className={cn(controlBase, "tabular")}
-          />
+          <div className="flex gap-1.5">
+            <input
+              id="pieFinanciamiento" inputMode="numeric"
+              placeholder={modoPie === "porcentaje" ? "20" : "3290000"}
+              value={pieValor}
+              onChange={(ev) => setPieValor(ev.target.value.replace(/\D/g, ""))}
+              className={cn(controlBase, "tabular")}
+            />
+            <input type="hidden" name="pieFinanciamiento" value={pieEnPesos} />
+            <div className="flex h-9 shrink-0 divide-x divide-input border border-input">
+              {(["monto", "porcentaje"] as const).map((m) => (
+                <button
+                  key={m} type="button" onClick={() => cambiarModoPie(m)}
+                  aria-pressed={modoPie === m}
+                  className={cn(
+                    "w-9 text-[13px] transition-colors",
+                    modoPie === m
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {m === "monto" ? "$" : "%"}
+                </button>
+              ))}
+            </div>
+          </div>
         </Campo>
       </Seccion>
 
