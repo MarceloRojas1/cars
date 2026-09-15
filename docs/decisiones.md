@@ -2071,9 +2071,23 @@ fotos en 1,1 s, o sea **~4 minutos para las 1.011** de los disponibles, y unos
 dependiendo de que el viejo siga en pie, que es justamente lo que se está
 reemplazando.
 
-**Los vendidos quedan fuera por defecto**, con una casilla para traerlos: son
+**Los vendidos quedan fuera por defecto**, con un interruptor para traerlos: son
 68 de los 100 y 1.970 de las 2.981 fotos. Sirven de historial pero no se
 publican, y triplican el tiempo y el almacenamiento.
+
+**Y TODO el resumen se recalcula con ese interruptor**, no solo el botón. La
+primera versión contaba el catálogo entero en los recuadros: con el interruptor
+apagado decía «70 autos nuevos» y el botón iba a crear 2, porque 68 eran
+vendidos. Un número que no corresponde con lo que va a pasar hace desconfiar de
+todo lo demás que diga la pantalla — y lo que sigue es escribir treinta autos en
+el inventario. Ahora los recuadros, el conteo de fotos, la lista y el botón
+miran lo mismo:
+
+| | Apagado | Encendido |
+|---|---|---|
+| Autos nuevos | 4 | 70 |
+| Les faltan fotos | 28 | 30 |
+| Fotos | 1.011 | 2.981 |
 
 **El modelo NO se capitaliza y la marca sí.** «PEUGEOT» se ve mal en la ficha,
 pero los modelos están llenos de siglas —GLA, CX-5, XV, RAV4— y capitalizarlas

@@ -9,6 +9,7 @@ import {
 } from "@/app/(app)/vehiculos/importar/sitio";
 import { Button } from "@/components/ui/button";
 import { controlBase } from "@/components/form/campos";
+import { Switch } from "@/components/ui/switch";
 
 const INICIAL: AnalisisSitio = { fase: "vacio" };
 
@@ -94,25 +95,50 @@ export function ImportarDesdeSitio({ alTerminar }: { alTerminar: () => void }) {
   }
 
   const { resumen, fichas, datos } = estado;
+
   /*
-   * Lo que de verdad se va a traer, según esté marcado o no lo vendido. El
-   * conteo de fotos tiene que seguir a esa casilla: decía "2.981 fotos" y el
-   * botón iba a traer mil, que es la clase de número que hace desconfiar de
-   * todo lo demás que diga la pantalla.
+   * TODO el resumen se recalcula sobre lo que está seleccionado, no sobre lo
+   * que trae el sitio.
+   *
+   * Antes los recuadros contaban el catálogo entero: con el interruptor
+   * apagado decía "70 autos nuevos" y el botón iba a crear 2, porque 68 eran
+   * vendidos. Un número que no corresponde con lo que va a pasar hace
+   * desconfiar de todo lo demás que diga la pantalla — y acá lo que sigue es
+   * escribir treinta autos en el inventario.
    */
   const seleccionados = incluirVendidos ? datos : datos.filter((d) => !d.vendido);
+  const visibles = incluirVendidos ? fichas : fichas.filter((f) => !f.vendido);
   const aImportar = seleccionados.length;
   const fotosAImportar = seleccionados.reduce((a, d) => a + d.fotos.length, 0);
+  const cuenta = (e: (typeof fichas)[number]["estado"]) =>
+    visibles.filter((f) => f.estado === e).length;
 
   return (
     <div className="flex flex-col gap-4">
       <p className="truncate text-[12.5px] text-muted-foreground">{estado.sitio}</p>
 
+      {resumen.vendidos > 0 && (
+        <div className="flex items-start gap-3 border border-border px-3 py-2.5">
+          <Switch
+            id="incluir-vendidos"
+            checked={incluirVendidos}
+            onCheckedChange={(v) => setIncluirVendidos(Boolean(v))}
+            className="mt-0.5 shrink-0"
+          />
+          <label htmlFor="incluir-vendidos" className="cursor-pointer text-[12.5px]">
+            Traer también los {resumen.vendidos} vendidos
+            <span className="block text-[11.5px] leading-relaxed text-muted-foreground">
+              Sirven de historial, pero no se publican y son {resumen.fotos - fotosAImportar} fotos más.
+            </span>
+          </label>
+        </div>
+      )}
+
       <dl className="grid grid-cols-3 border-y border-border py-4 text-center">
         {[
-          { n: resumen.nuevos, etiqueta: "autos nuevos" },
-          { n: resumen.completar, etiqueta: "les faltan fotos" },
-          { n: resumen.yaEstan, etiqueta: "ya completos" },
+          { n: cuenta("nuevo"), etiqueta: "autos nuevos" },
+          { n: cuenta("completar_fotos"), etiqueta: "les faltan fotos" },
+          { n: cuenta("ya_esta"), etiqueta: "ya completos" },
         ].map(({ n, etiqueta }) => (
           <div key={etiqueta}>
             <dd className="display text-[26px] leading-none">{n}</dd>
@@ -128,25 +154,9 @@ export function ImportarDesdeSitio({ alTerminar }: { alTerminar: () => void }) {
         </span>
       </p>
 
-      {resumen.vendidos > 0 && (
-        <label className="flex cursor-pointer items-start gap-2.5 border border-border px-3 py-2.5 text-[12.5px]">
-          <input
-            type="checkbox" checked={incluirVendidos}
-            onChange={(e) => setIncluirVendidos(e.target.checked)}
-            className="mt-0.5"
-          />
-          <span>
-            Traer también los {resumen.vendidos} vendidos
-            <span className="block text-[11.5px] text-muted-foreground">
-              Sirven de historial, pero son muchas más fotos y no se publican.
-            </span>
-          </span>
-        </label>
-      )}
-
       {/* El detalle: qué se empareja con qué, para poder revisarlo antes. */}
       <div className="max-h-56 overflow-y-auto border border-border">
-        {fichas.map((f) => (
+        {visibles.map((f) => (
           <p key={f.codigoVenpu} className="flex items-center gap-2 border-b px-3 py-2 text-[12px] last:border-b-0">
             <span className="flex-1 truncate">{f.titulo}</span>
             {f.vendido && <span className="shrink-0 text-[11px] text-muted-foreground">vendido</span>}
@@ -155,7 +165,11 @@ export function ImportarDesdeSitio({ alTerminar }: { alTerminar: () => void }) {
               {f.estado === "nuevo" ? (
                 <span className="text-foreground">se crea</span>
               ) : f.estado === "completar_fotos" ? (
-                <span className="text-primary">{f.patenteProbable ?? "—"} · fotos</span>
+                /* La patente si la tiene; si no, el código del auto con el que
+                   emparejó. Una raya no dice con qué se juntó. */
+                <span className="text-primary">
+                  {f.patenteProbable ?? f.emparejadoCon?.codigo ?? "—"} · fotos
+                </span>
               ) : (
                 <span className="text-muted-foreground">ya está</span>
               )}
