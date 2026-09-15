@@ -1870,6 +1870,53 @@ WhatsApp a los clientes de una automotora.
 `0019` estaba aplicada solo en local y el chequeo bloqueó la build antes de
 subirla.
 
+## 2026-09-15 — Exportar el inventario a Excel
+
+**El formato no lo elegimos nosotros.** Sale del `Libro1.xlsx` que la automotora
+ya usa, y por eso las columnas se llaman como se llaman —«Version» sin tilde,
+«P. Publicación»— y los valores vienen abreviados. Copiar su planilla es lo que
+permite pegar esto en lo que ya tienen sin reordenar nada:
+
+    Patente · Marca · Tipo · Modelo · Version · Transmision · Año · Kilometraje · P. Publicación
+
+**Su vocabulario no es el nuestro**, y la traducción vive en el export, no en el
+catálogo: la interfaz sigue diciendo «Automática» y «Camioneta» porque es lo que
+alguien elige en un formulario; la planilla dice `AT` y `Pick Up`. CVT y
+Semiautomática caen en `AT`, porque para esa planilla lo que importa es si el
+conductor embraga. Las carrocerías sin equivalente —Van, Furgón, Minibús— pasan
+tal cual: una celda que diga «Furgón» es mejor que una vacía o que un «Otro» que
+pierde el dato. Y la patente ausente se escribe «Sin Patente», como en su
+original.
+
+**Año, kilometraje y precio van como NÚMERO, no como texto.** Es lo que permite
+ordenar y sumar en Excel: un «47.450.000» con puntos se ordena como texto y pone
+9.000.000 arriba de 47.000.000.
+
+**El .xlsx se escribe a mano, sin dependencia.** Un xlsx es un ZIP con unos
+pocos XML; son ~120 líneas en `lib/exportar/xlsx.ts`. La alternativa era
+`exceljs` (más de un mega para una sola pantalla) o `xlsx`, cuyo paquete en npm
+quedó congelado cuando el proyecto se mudó a su propio CDN. Para una tabla de
+texto y números, sin fórmulas ni formatos ni gráficos, no se justifica ninguna.
+**Qué lo revertiría:** necesitar estilos, anchos de columna, varias hojas o
+fechas — ahí sí conviene la librería.
+
+Los textos van en línea (`inlineStr`) en vez de la tabla de cadenas
+compartidas: Excel acepta las dos formas y así se ahorra un archivo entero y
+toda la contabilidad de índices. Las celdas vacías se omiten, y cada celda lleva
+su referencia (`D4`), así que una fila con huecos no se desalinea.
+
+**La ruta vive en `/vehiculos/exportar`, no en `/api`.** `esRutaDelPanel()` mira
+el primer segmento del camino, así que hereda la puerta del panel sin escribir
+un solo chequeo. Colgada de `/api` habría quedado abierta —como le pasó a
+`/api/fotos`— y con ella se llevaría el inventario completo con precios
+cualquiera que adivinara la URL.
+
+**Se exporta lo que se está viendo.** Los filtros viajan en la URL desde la
+pantalla, así que filtrar por Peugeot y exportar da los Peugeot. Exportar
+siempre el inventario entero sería una sorpresa para quien acaba de filtrar.
+Quedan fuera `pagina` —se exporta el resultado completo del filtro, no la página
+visible— y `modo`, que es cómo se mira y no qué se mira.
+
 ## Decisiones pendientes
 
 - [ ] **El bot de WhatsApp está caído desde el 2026-09-09 21:00.** El token de

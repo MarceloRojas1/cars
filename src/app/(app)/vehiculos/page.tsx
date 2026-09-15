@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Plus, Lightbulb, ImageOff } from "lucide-react";
+import { Plus, Lightbulb, ImageOff, Download } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Completitud, DiasEnSalon, EstadoVehiculo } from "@/components/badges";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -21,6 +21,24 @@ export const metadata = { title: "Vehículos" };
 const CANAL_LABEL: Record<string, string> = {
   mercadolibre: "ML", ml_propia: "ML+", chileautos: "CA", yapo: "YP",
 };
+
+/**
+ * Los filtros de la URL, tal cual, para que la exportación devuelva lo mismo
+ * que hay en pantalla.
+ *
+ * `pagina` y `modo` se quedan fuera a propósito: la primera porque se exporta
+ * el resultado completo y no la página visible, y la segunda porque grilla o
+ * tabla es cómo se mira, no qué se mira.
+ */
+function paramsDeExportacion(sp: Record<string, string | string[] | undefined>): string {
+  const p = new URLSearchParams();
+  for (const [clave, valor] of Object.entries(sp)) {
+    if (clave === "pagina" || clave === "modo") continue;
+    if (typeof valor === "string" && valor) p.set(clave, valor);
+  }
+  const q = p.toString();
+  return q ? `?${q}` : "";
+}
 
 export default async function VehiculosPage({ searchParams }: PageProps<"/vehiculos">) {
   const sp = await searchParams;
@@ -78,9 +96,28 @@ export default async function VehiculosPage({ searchParams }: PageProps<"/vehicu
           </>
         }
         accion={
-          <Link href="/vehiculos/nuevo" className={buttonVariants({ className: "gap-2" })}>
-            <Plus className="size-4" /> Nuevo vehículo
-          </Link>
+          <div className="flex items-center gap-2">
+            {/*
+              * Se lleva los filtros que estén puestos: si filtraste por Peugeot,
+              * exportas los Peugeot. `sp` es lo que ya viene en la URL, así que
+              * no hay un segundo lugar donde definir qué se está mirando.
+              *
+              * `download` y no `target="_blank"`: la respuesta trae
+              * `Content-Disposition: attachment`, así que el navegador la baja
+              * sin abrir una pestaña en blanco que se cierra sola.
+              */}
+            <Link
+              href={`/vehiculos/exportar${paramsDeExportacion(sp)}`}
+              prefetch={false}
+              download
+              className={buttonVariants({ variant: "outline", className: "gap-2" })}
+            >
+              <Download className="size-4" /> Exportar Excel
+            </Link>
+            <Link href="/vehiculos/nuevo" className={buttonVariants({ className: "gap-2" })}>
+              <Plus className="size-4" /> Nuevo vehículo
+            </Link>
+          </div>
         }
       />
 
