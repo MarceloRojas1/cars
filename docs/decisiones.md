@@ -1973,6 +1973,57 @@ siempre el inventario entero sería una sorpresa para quien acaba de filtrar.
 Quedan fuera `pagina` —se exporta el resultado completo del filtro, no la página
 visible— y `modo`, que es cómo se mira y no qué se mira.
 
+## 2026-09-15 — Las fotos: ver en grande, ordenar arrastrando, y elegir cuál monta la IA
+
+**La primera es la portada, y esa es ahora la única regla.** Antes la portada se
+marcaba con una estrella, independiente del orden. Al poder arrastrar aparecían
+dos nociones de «primera» que podían contradecirse —mover una foto al frente y
+que la portada siguiera siendo otra— y eso es de las cosas que producen un
+reporte de error garantizado. La estrella se quedó, pero como atajo: trae la
+foto al principio.
+
+Las fichas viejas pueden tener la principal en otra posición; al abrir el
+formulario se reordena para que quede primera. Recién al guardar se corrige en
+la base. El catálogo público sigue ordenando por `es_principal desc, orden`, así
+que las dos formas conviven sin que nada se vea mal mientras tanto.
+
+**El orden ya se persistía**: `crearVehiculo()` guarda el índice del array en
+`vehicle_photo.orden` desde siempre. No hubo que tocar el esquema — arrastrar
+solo cambia el array, y la galería del catálogo, el listado y los portales leen
+ese orden.
+
+**El arrastre tiene reemplazo de teclado.** La API de arrastre del navegador no
+responde ni al teclado ni al dedo. Con la miniatura enfocada, las flechas la
+mueven y el foco la sigue. Sin eso, el orden de las fotos quedaba fuera del
+alcance de quien no usa mouse — y en un teléfono, de todos.
+
+**Un bug que salió al probar, y que era peor de lo que parecía.** Con el visor
+abierto, las flechas hacían DOS cosas: navegaban la foto ampliada y además la
+movían de lugar en la grilla de atrás, porque la miniatura conservaba el foco
+detrás del modal. Mirar las fotos las reordenaba sin que nadie lo pidiera, en
+silencio. Se arregló por los dos lados: el visor se lleva el foco al abrirse y
+lo devuelve al cerrarse —que es lo correcto para un diálogo— y el manejador de
+la grilla no actúa mientras el visor esté abierto.
+
+Apareció porque dos corridas de la misma prueba dieron resultados distintos. Un
+solo test no lo habría mostrado.
+
+**El visor no usa el `Dialog` del proyecto**: ese centra una caja con ancho
+máximo y padding, y acá se quiere pantalla completa en negro. La foto va con
+`object-contain`, entera y no recortada, porque el punto es juzgar la foto, no
+ver cómo quedaría encuadrada.
+
+**El Estudio deja elegir del pool, no solo la portada.** La portada es la que
+vende el auto en el listado —de tres cuartos, entera— y no siempre es la que
+mejor entra en una escena; para eso suele servir un perfil limpio. Las fotos se
+piden al elegir el vehículo y no todas de entrada: con cincuenta autos serían
+cientos de miniaturas que casi nadie va a mirar. La sección aparece solo si hay
+más de una, y la numeración de los pasos se corre sola.
+
+La foto pedida por URL se valida contra las del vehículo antes de montarla: sin
+eso, el editor cargaría cualquier imagen de internet que alguien escribiera en
+el parámetro.
+
 ## Decisiones pendientes
 
 - [ ] **El bot de WhatsApp está caído desde el 2026-09-09 21:00.** El token de

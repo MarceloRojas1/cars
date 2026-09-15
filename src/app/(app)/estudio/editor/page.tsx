@@ -10,6 +10,7 @@ export default async function EditorPage({ searchParams }: PageProps<"/estudio/e
   const sp = await searchParams;
   const pedido = typeof sp.vehiculo === "string" ? sp.vehiculo : undefined;
   const fondoPedido = typeof sp.fondo === "string" ? sp.fondo : undefined;
+  const fotoPedida = typeof sp.foto === "string" ? sp.foto : undefined;
 
   const [vehiculos, { biblioteca, propios }, organizacion] = await Promise.all([
     getVehicles(),
@@ -22,6 +23,7 @@ export default async function EditorPage({ searchParams }: PageProps<"/estudio/e
   // quien entra con un error en vez de con una pieza.
   const id = pedido ?? (vehiculos.find((v) => v.fotoPrincipal) ?? vehiculos[0])?.id;
   const vehiculo = id ? await getVehiculo(id) : null;
+  const fotosDelVehiculo = (vehiculo?.fotos ?? []).map((f) => f.url);
 
   return (
     <>
@@ -54,7 +56,16 @@ export default async function EditorPage({ searchParams }: PageProps<"/estudio/e
           vehiculos={vehiculos.filter((v) => v.fotoPrincipal)}
           fondos={[...propios, ...biblioteca]}
           automotora={organizacion.nombre}
-          foto={vehiculo.fotoPrincipal ?? vehiculo.fotos?.[0]?.url ?? null}
+          /*
+           * La foto pedida solo si de verdad es de este vehículo: llega de la
+           * URL, y montar una imagen arbitraria porque alguien la escribió ahí
+           * dejaría al editor cargar cualquier cosa de internet.
+           */
+          foto={
+            (fotoPedida && fotosDelVehiculo.includes(fotoPedida) ? fotoPedida : null)
+            ?? vehiculo.fotoPrincipal ?? fotosDelVehiculo[0] ?? null
+          }
+          fotos={fotosDelVehiculo}
           fondoInicial={fondoPedido ?? null}
         />
       )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowRight, ImageOff } from "lucide-react";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { clp } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Showroom, Vehicle } from "@/lib/types";
+import { cargarVehiculoAction } from "@/app/(app)/estudio/acciones";
 
 /**
  * Paso previo al editor: qué auto y sobre qué fondo.
@@ -28,11 +29,47 @@ export function ElegirPieza({
   const [vehiculo, setVehiculo] = useState<string | null>(conFoto[0]?.id ?? null);
   const [fondo, setFondo] = useState<string | null>(fondos[0]?.url ?? null);
 
-  const listo = Boolean(vehiculo && fondo);
+  /*
+   * Las fotos del auto elegido, para escoger CUÁL se monta.
+   *
+   * Antes siempre se montaba la portada, y la portada es la que vende el auto
+   * en el listado —de tres cuartos, entera— que no siempre es la que mejor
+   * queda dentro de una escena: para eso suele servir un perfil limpio.
+   *
+   * Se piden al elegir el vehículo y no todas de entrada: con cincuenta autos
+   * serían cientos de miniaturas que casi nadie va a mirar.
+   */
+  const [fotos, setFotos] = useState<string[]>([]);
+  const [foto, setFoto] = useState<string | null>(null);
+  const [cargandoFotos, iniciar] = useTransition();
+
+  useEffect(() => {
+    if (!vehiculo) return;
+    /*
+     * `vigente` evita que una respuesta lenta pise a una nueva: si se cambia de
+     * auto mientras la primera consulta viaja, al volver ya no corresponde y se
+     * descarta. Sin esto se ven las fotos del auto anterior sobre el nuevo.
+     */
+    let vigente = true;
+    iniciar(async () => {
+      const r = await cargarVehiculoAction(vehiculo);
+      if (!vigente) return;
+      const lista = r.ok ? r.fotos : [];
+      setFotos(lista);
+      setFoto(lista[0] ?? null);
+    });
+    return () => { vigente = false; };
+  }, [vehiculo]);
+
+  const listo = Boolean(vehiculo && fondo && foto);
 
   function crear() {
-    if (!vehiculo || !fondo) return;
-    router.push(`/estudio/editor?vehiculo=${vehiculo}&fondo=${encodeURIComponent(fondo)}`);
+    if (!vehiculo || !fondo || !foto) return;
+    router.push(
+      `/estudio/editor?vehiculo=${vehiculo}` +
+      `&fondo=${encodeURIComponent(fondo)}` +
+      `&foto=${encodeURIComponent(foto)}`,
+    );
   }
 
   return (
@@ -41,7 +78,7 @@ export function ElegirPieza({
         <div className="mb-3 flex items-baseline justify-between">
           <h2 className="etiqueta">1 · Vehículo</h2>
           <span className="text-[11.5px] text-muted-foreground">
-            Se monta su foto principal
+            Después eliges cuál de sus fotos
           </span>
         </div>
 
@@ -86,9 +123,54 @@ export function ElegirPieza({
         )}
       </section>
 
+      {/*
+        Aparece solo cuando hay más de una: con una sola foto no hay nada que
+        elegir, y una sección con un único elemento es ruido.
+      */}
+      {vehiculo && (cargandoFotos || fotos.length > 1) && (
+        <section>
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="etiqueta">2 · Qué foto</h2>
+            <span className="text-[11.5px] text-muted-foreground">
+              La que mejor entre en la escena, no necesariamente la portada
+            </span>
+          </div>
+
+          {cargandoFotos ? (
+            <p className="border border-dashed border-border px-6 py-8 text-center text-[13px] text-muted-foreground">
+              Buscando sus fotos…
+            </p>
+          ) : (
+            <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-8">
+              {fotos.map((url, i) => (
+                <li key={url}>
+                  <button
+                    onClick={() => setFoto(url)}
+                    aria-pressed={foto === url}
+                    className={cn(
+                      "relative w-full border transition-colors",
+                      foto === url ? "border-primary" : "border-border hover:bg-accent/30",
+                    )}
+                  >
+                    <div className="relative aspect-[4/3] bg-muted/30">
+                      <Image src={url} alt={`Foto ${i + 1}`} fill sizes="160px" className="object-cover" />
+                    </div>
+                    {i === 0 && (
+                      <span className="absolute left-1 top-1 bg-background/85 px-1 text-[10px] text-muted-foreground">
+                        portada
+                      </span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
       <section>
         <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="etiqueta">2 · Fondo</h2>
+          <h2 className="etiqueta">{vehiculo && fotos.length > 1 ? "3" : "2"} · Fondo</h2>
           <span className="text-[11.5px] text-muted-foreground">
             Se puede cambiar después
           </span>

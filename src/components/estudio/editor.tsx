@@ -27,7 +27,7 @@ import type { Showroom, Vehicle } from "@/lib/types";
  * final, a menor escala. Lo que se ve arrastrando es lo que se descarga.
  */
 export function EditorCreativo({
-  vehiculo, vehiculos, fondos, automotora, foto, fondoInicial,
+  vehiculo, vehiculos, fondos, automotora, foto, fotos, fondoInicial,
 }: {
   vehiculo: Vehicle;
   /** Los del inventario con foto, para cambiar de auto sin salir del editor. */
@@ -35,12 +35,21 @@ export function EditorCreativo({
   fondos: Showroom[];
   automotora: string;
   /** Recorte ya hecho de este vehículo, si lo hay. */
-  /** Foto principal del vehículo, sin recortar. */
+  /** La foto que se monta, sin recortar. */
   foto: string | null;
+  /** Todas las del vehículo, para cambiar de toma sin salir del editor. */
+  fotos: string[];
   fondoInicial: string | null;
 }) {
   const disponibles = fondos.filter((f) => f.url);
   const [actual, setActual] = useState(vehiculo);
+  /*
+   * Las fotos del auto que está puesto y cuál de ellas se está montando.
+   * Cambian juntas al cambiar de vehículo, por eso viven acá y no se derivan.
+   */
+  const [fotosActuales, setFotosActuales] = useState<string[]>(fotos);
+  const [fotoActual, setFotoActual] = useState<string | null>(foto);
+  const [cambiandoFoto, setCambiandoFoto] = useState<string | null>(null);
   const [creativo, setCreativo] = useState<Creativo>(() =>
     creativoInicial(vehiculo, fondoInicial ?? disponibles[0]?.url ?? null, foto, automotora),
   );
@@ -171,8 +180,31 @@ export function EditorCreativo({
 
     if (r.foto) await cargarImagen(r.foto);
     setActual(r.vehiculo);
+    setFotosActuales(r.fotos);
+    setFotoActual(r.foto);
     setCreativo((c) => cambiarVehiculo(c, r.vehiculo, r.foto, automotora));
     if (r.aviso) toast.warning(r.vehiculo.titulo, { description: r.aviso });
+  }
+
+  /**
+   * Cambia la TOMA sin cambiar de auto.
+   *
+   * La portada es la que vende el auto en el listado —de tres cuartos, entera—
+   * y no siempre es la que mejor entra en una escena; para eso suele servir un
+   * perfil limpio. Se conserva la disposición: solo se reemplaza la imagen.
+   */
+  async function cambiarFoto(url: string) {
+    if (url === fotoActual) return;
+    setCambiandoFoto(url);
+    try {
+      await cargarImagen(url);
+      setFotoActual(url);
+      setCreativo((c) => cambiarVehiculo(c, actual, url, automotora));
+    } catch {
+      toast.error("No se pudo cargar esa foto.");
+    } finally {
+      setCambiandoFoto(null);
+    }
   }
 
   /**
@@ -293,6 +325,42 @@ export function EditorCreativo({
             ))}
           </div>
         </div>
+
+        {/*
+          La toma. Solo aparece si el auto tiene más de una foto: con una sola
+          no hay nada que elegir y la tira sería una fila de ruido.
+        */}
+        {fotosActuales.length > 1 && (
+          <div>
+            <div className="mb-1.5 flex items-baseline justify-between gap-2">
+              <p className="etiqueta">Toma</p>
+              <span className="tabular text-[11px] text-muted-foreground">
+                {Math.max(1, fotosActuales.indexOf(fotoActual ?? "") + 1)}/{fotosActuales.length}
+              </span>
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {fotosActuales.map((url, i) => (
+                <button
+                  key={url}
+                  onClick={() => cambiarFoto(url)}
+                  title={i === 0 ? "Portada" : `Foto ${i + 1}`}
+                  aria-pressed={url === fotoActual}
+                  className={cn(
+                    "relative aspect-[4/3] w-16 shrink-0 border transition-colors",
+                    url === fotoActual ? "border-primary" : "border-border hover:border-muted-foreground",
+                  )}
+                >
+                  <Image src={url} alt="" fill sizes="64px" className="object-cover" />
+                  {cambiandoFoto === url && (
+                    <span className="absolute inset-0 grid place-items-center bg-background/70">
+                      <Loader2 className="size-3.5 animate-spin" />
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div>
           <p className="etiqueta mb-1.5">Fondo</p>

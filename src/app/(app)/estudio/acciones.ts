@@ -83,7 +83,15 @@ export async function generarShowroomAction(
 }
 
 export type VehiculoParaPieza =
-  | { ok: true; vehiculo: Vehicle; foto: string | null; aviso?: string }
+  | {
+      ok: true;
+      vehiculo: Vehicle;
+      /** La que se monta: la pedida, o la portada si no se pidió ninguna. */
+      foto: string | null;
+      /** TODAS las suyas, en el orden de la ficha, para poder cambiar de toma. */
+      fotos: string[];
+      aviso?: string;
+    }
   | { ok: false; mensaje: string };
 
 /**
@@ -93,14 +101,32 @@ export type VehiculoParaPieza =
  * montaje lo hace la IA cuando se aprieta "Poner el auto". Antes esto llamaba a
  * rembg y tardaba unos segundos la primera vez; ahora es inmediato.
  */
-export async function cargarVehiculoAction(vehiculoId: string): Promise<VehiculoParaPieza> {
+export async function cargarVehiculoAction(
+  vehiculoId: string,
+  fotoPedida?: string,
+): Promise<VehiculoParaPieza> {
   const vehiculo = await getVehiculo(vehiculoId);
   if (!vehiculo) return { ok: false, mensaje: "No se encontró el vehículo." };
 
-  const foto = vehiculo.fotoPrincipal ?? vehiculo.fotos?.[0]?.url ?? null;
+  /*
+   * Todas sus fotos, en el orden de la ficha — que es el que se decide
+   * arrastrando en el formulario. La primera es la portada.
+   */
+  const fotos = (vehiculo.fotos ?? []).map((f) => f.url);
+  if (vehiculo.fotoPrincipal && !fotos.includes(vehiculo.fotoPrincipal)) {
+    fotos.unshift(vehiculo.fotoPrincipal);
+  }
+
+  /*
+   * La pedida solo si de verdad es de este vehículo: el parámetro llega de la
+   * URL, y montar una foto arbitraria porque alguien la escribió ahí sería
+   * dejar que el editor cargue cualquier imagen de internet.
+   */
+  const foto = fotoPedida && fotos.includes(fotoPedida) ? fotoPedida : fotos[0] ?? null;
+
   return foto
-    ? { ok: true, vehiculo, foto }
-    : { ok: true, vehiculo, foto: null, aviso: "No tiene fotos cargadas." };
+    ? { ok: true, vehiculo, foto, fotos }
+    : { ok: true, vehiculo, foto: null, fotos, aviso: "No tiene fotos cargadas." };
 }
 
 /**

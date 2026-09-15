@@ -8,18 +8,42 @@ import { ImagePlus, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { VehiclePhoto } from "@/lib/types";
+import { VisorFotos } from "@/components/fotos/visor";
 
 export const MAX_FOTOS = 50;
 
 export type Foto = { url: string; nombre: string };
 
 export function CargaDeFotos({ iniciales }: { iniciales?: VehiclePhoto[] }) {
-  const [fotos, setFotos] = useState<Foto[]>(
-    () => (iniciales ?? []).map((f) => ({ url: f.url, nombre: f.url.split("/").pop() ?? "foto" })),
-  );
-  const [principal, setPrincipal] = useState(
-    () => Math.max(0, (iniciales ?? []).findIndex((f) => f.esPrincipal)),
-  );
+  /*
+   * LA PRIMERA ES LA PRINCIPAL.
+   *
+   * Antes la portada se marcaba con una estrella, independiente del orden. Al
+   * poder arrastrar aparecían dos nociones de "primera" que podían
+   * contradecirse: mover una foto al frente y que la portada siguiera siendo
+   * otra. Ahora hay una sola regla, y la estrella pasó a ser un atajo para
+   * traer una foto al principio.
+   *
+   * Las que vienen de la base se reordenan al cargar para que la principal
+   * quede primera: en fichas viejas puede no estarlo.
+   */
+  const [fotos, setFotos] = useState<Foto[]>(() => {
+    const lista = (iniciales ?? []).map((f) => ({
+      url: f.url,
+      nombre: f.url.split("/").pop() ?? "foto",
+      esPrincipal: f.esPrincipal,
+    }));
+    const i = lista.findIndex((f) => f.esPrincipal);
+    if (i > 0) lista.unshift(...lista.splice(i, 1));
+    return lista.map(({ url, nombre }) => ({ url, nombre }));
+  });
+
+  /** Cuál se está arrastrando, para pintar el hueco donde va a caer. */
+  const [arrastrando, setArrastrando] = useState<number | null>(null);
+  const [encima, setEncima] = useState<number | null>(null);
+  /** Qué foto está abierta en el visor. */
+  const [viendo, setViendo] = useState<number | null>(null);
+
   const [subiendo, setSubiendo] = useState(false);
   const [avance, setAvance] = useState<{ hechas: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -111,17 +135,61 @@ export function CargaDeFotos({ iniciales }: { iniciales?: VehiclePhoto[] }) {
 
   function quitar(i: number) {
     setFotos((prev) => prev.filter((_, idx) => idx !== i));
-    setPrincipal((p) => (i === p ? 0 : i < p ? p - 1 : p));
+    setViendo(null);
+  }
+
+  /** Mueve la foto `desde` a la posición `hasta`, corriendo el resto. */
+  function reordenar(desde: number, hasta: number) {
+    if (desde === hasta) return;
+    setFotos((prev) => {
+      const copia = [...prev];
+      const [movida] = copia.splice(desde, 1);
+      copia.splice(hasta, 0, movida);
+      return copia;
+    });
+  }
+
+  /*
+   * Arrastrar con el teclado.
+   *
+   * La API de arrastre del navegador no responde al teclado ni al dedo, así que
+   * sin esto el orden de las fotos sería inalcanzable para quien no use mouse.
+   * Con la miniatura enfocada, las flechas la mueven.
+   */
+  function alPulsarEnFoto(e: React.KeyboardEvent, i: number) {
+    /*
+     * Con el visor abierto, NO.
+     *
+     * La miniatura conserva el foco detrás del modal, así que las flechas
+     * llegaban a los dos sitios: navegaban el visor y además movían la foto de
+     * lugar. Mirar las fotos terminaba reordenándolas sin que nadie lo pidiera.
+     */
+    if (viendo !== null) return;
+
+    const paso = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
+    if (paso === 0) return;
+    const destino = i + paso;
+    if (destino < 0 || destino >= fotos.length) return;
+    e.preventDefault();
+    reordenar(i, destino);
+    // El foco sigue a la foto, no se queda en la posición.
+    requestAnimationFrame(() => {
+      document.getElementById(`foto-${destino}`)?.focus();
+    });
   }
 
   return (
     <div className="sm:col-span-2">
-      {/* lo que realmente viaja al servidor */}
+      {/*
+        Lo que viaja al servidor. El ORDEN del array es el orden de la galería
+        —`crearVehiculo` guarda el índice en `vehicle_photo.orden`— y la primera
+        va marcada como principal.
+      */}
       <input
         type="hidden"
         name="fotos"
         value={JSON.stringify(
-          fotos.map((f, i) => ({ url: f.url, esPrincipal: i === principal })),
+          fotos.map((f, i) => ({ url: f.url, esPrincipal: i === 0 })),
         )}
       />
 
@@ -163,36 +231,80 @@ export function CargaDeFotos({ iniciales }: { iniciales?: VehiclePhoto[] }) {
 
       {fotos.length > 0 && (
         <>
-          <p className="mt-4 text-[11.5px] text-muted-foreground">
-            La foto principal es la que se ve en el listado y en los portales.
-            Haz clic en la estrella para cambiarla.
+          <p className="mt-4 text-[11.5px] leading-relaxed text-muted-foreground">
+            <span className="text-foreground">La primera es la portada</span> — se ve en
+            el listado, en los portales y primero en el catálogo. Arrástralas para
+            cambiar el orden, o muévelas con las flechas del teclado. Haz clic en una
+            para verla en grande.
           </p>
+
           <ul className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2">
             {fotos.map((foto, i) => (
               <li
                 key={foto.url}
+                draggable
+                onDragStart={(e) => {
+                  setArrastrando(i);
+                  e.dataTransfer.effectAllowed = "move";
+                  /*
+                   * Hay que escribir ALGO en el portapapeles del arrastre o
+                   * Firefox no inicia el gesto. Y sirve para distinguir este
+                   * arrastre del de archivos: aquel trae `files`, este no.
+                   */
+                  e.dataTransfer.setData("text/plain", String(i));
+                }}
+                onDragEnd={() => { setArrastrando(null); setEncima(null); }}
+                onDragOver={(e) => {
+                  if (arrastrando === null) return;   // es un archivo, no una foto
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setEncima(i);
+                }}
+                onDrop={(e) => {
+                  if (arrastrando === null) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  reordenar(arrastrando, i);
+                  setArrastrando(null);
+                  setEncima(null);
+                }}
                 className={cn(
-                  "group relative aspect-[4/3] border",
-                  i === principal ? "border-foreground" : "border-border",
+                  "group relative aspect-[4/3] border transition-opacity",
+                  i === 0 ? "border-foreground" : "border-border",
+                  arrastrando === i && "opacity-40",
+                  encima === i && arrastrando !== i && "ring-2 ring-primary ring-offset-1 ring-offset-background",
                 )}
               >
-                <Image
-                  src={foto.url} alt={foto.nombre} fill sizes="200px"
-                  className="object-cover"
-                />
+                {/*
+                  La imagen es un botón: clic la abre en grande. Las flechas la
+                  mueven de lugar, que es el reemplazo de teclado del arrastre.
+                */}
                 <button
-                  type="button" onClick={() => setPrincipal(i)}
-                  aria-label={`Marcar ${foto.nombre} como principal`}
-                  aria-pressed={i === principal}
-                  className={cn(
-                    "absolute left-1 top-1 grid size-6 place-items-center border bg-background/85",
-                    i === principal
-                      ? "border-foreground text-foreground"
-                      : "border-border text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100",
-                  )}
+                  type="button"
+                  id={`foto-${i}`}
+                  onClick={() => setViendo(i)}
+                  onKeyDown={(e) => alPulsarEnFoto(e, i)}
+                  aria-label={`Ver ${foto.nombre} en grande. Posición ${i + 1} de ${fotos.length}. Usa las flechas para moverla.`}
+                  className="absolute inset-0 cursor-zoom-in focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
-                  <Star className={cn("size-3", i === principal && "fill-current")} />
+                  <Image
+                    src={foto.url} alt={foto.nombre} fill sizes="200px"
+                    className="object-cover"
+                  />
                 </button>
+
+                {/* Atajo: trae la foto al frente, que es lo mismo que hacerla portada. */}
+                {i !== 0 && (
+                  <button
+                    type="button" onClick={() => reordenar(i, 0)}
+                    aria-label={`Hacer portada a ${foto.nombre}`}
+                    title="Hacer portada"
+                    className="absolute left-1 top-1 grid size-6 place-items-center border border-border bg-background/85 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+                  >
+                    <Star className="size-3" />
+                  </button>
+                )}
+
                 <button
                   type="button" onClick={() => quitar(i)}
                   aria-label={`Quitar ${foto.nombre}`}
@@ -200,9 +312,14 @@ export function CargaDeFotos({ iniciales }: { iniciales?: VehiclePhoto[] }) {
                 >
                   <X className="size-3" />
                 </button>
-                {i === principal && (
-                  <span className="absolute inset-x-0 bottom-0 bg-foreground py-0.5 text-center text-[10px] font-medium text-background">
-                    Principal
+
+                {i === 0 ? (
+                  <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-foreground py-0.5 text-center text-[10px] font-medium text-background">
+                    Portada
+                  </span>
+                ) : (
+                  <span className="tabular pointer-events-none absolute bottom-1 right-1 grid size-5 place-items-center bg-background/85 text-[10px] text-muted-foreground">
+                    {i + 1}
                   </span>
                 )}
               </li>
@@ -210,6 +327,13 @@ export function CargaDeFotos({ iniciales }: { iniciales?: VehiclePhoto[] }) {
           </ul>
         </>
       )}
+
+      <VisorFotos
+        fotos={fotos}
+        indice={viendo}
+        onCerrar={() => setViendo(null)}
+        onCambiar={setViendo}
+      />
     </div>
   );
 }
