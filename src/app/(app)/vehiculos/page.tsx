@@ -14,6 +14,7 @@ import {
 import { VehiculosFiltros } from "@/components/vehiculos-filtros";
 import { Paginacion } from "@/components/paginacion";
 import { VehiculosGrilla } from "@/components/vehiculos-grilla";
+import { ImportarPlanilla } from "@/components/vehiculos/importar";
 import { LayoutGrid, Rows3 } from "lucide-react";
 
 export const metadata = { title: "Vehículos" };
@@ -97,10 +98,12 @@ export default async function VehiculosPage({ searchParams }: PageProps<"/vehicu
         }
         accion={
           <div className="flex items-center gap-2">
+            <ImportarPlanilla />
             {/*
-              * Se lleva los filtros que estén puestos: si filtraste por Peugeot,
-              * exportas los Peugeot. `sp` es lo que ya viene en la URL, así que
-              * no hay un segundo lugar donde definir qué se está mirando.
+              * La exportación se lleva los filtros que estén puestos: si
+              * filtraste por Peugeot, exportas los Peugeot. `sp` es lo que ya
+              * viene en la URL, así que no hay un segundo lugar donde definir
+              * qué se está mirando.
               *
               * `download` y no `target="_blank"`: la respuesta trae
               * `Content-Disposition: attachment`, así que el navegador la baja

@@ -1870,6 +1870,62 @@ WhatsApp a los clientes de una automotora.
 `0019` estaba aplicada solo en local y el chequeo bloqueó la build antes de
 subirla.
 
+## 2026-09-15 — Importar el inventario desde su planilla
+
+Lo que se pidió primero fue **importar**; la exportación de la entrada de abajo
+salió de una lectura equivocada de la misma frase. Se quedó porque ya estaba
+hecha, funciona y comparte el formato — pero el trabajo de verdad es este.
+
+**Dos pasos, y el primero no escribe nada.** Se lee el archivo, se muestra qué
+va a pasar, y recién con el segundo clic se crea. Importar treinta autos es de
+las pocas cosas del panel que no se deshacen con un clic —habría que
+archivarlos uno por uno— así que la vista previa no es un lujo.
+
+**Los repetidos se saltan, no se actualizan.** Si alguien editó ese auto en el
+panel —le subió fotos, le corrigió el precio, le escribió la descripción— la
+planilla no se lo pisa. Importar dos veces por error no destruye nada. Se
+comparan patentes contra activos Y archivados: un auto archivado sigue ocupando
+su patente, y recrearlo dejaría dos fichas del mismo vehículo. También se
+detectan las repetidas dentro de la misma planilla.
+**Qué lo revertiría:** querer mantener la planilla como fuente de verdad y
+reimportarla para sincronizar precios.
+
+**«Sin Patente» no es una patente**, es como su planilla escribe la ausencia.
+Esas filas no se pueden deduplicar, así que siempre se crean.
+
+**El título no viene en la planilla: se compone** como `Marca Modelo Version`,
+que es la forma de los títulos que ya existen en el panel. Se recorta por
+palabra a 100 caracteres, que es lo que acepta el formulario.
+
+**Mínimo para entrar: marca, modelo, año y precio** — lo mismo que exige el
+formulario. Del `Libro1.xlsx` real entraron 32 de 34 filas; las dos que no,
+porque venían sin año ni precio. Se listan en la vista previa con su número de
+fila y qué les falta, en vez de fallar en silencio o rechazar la planilla
+entera.
+
+**Se creó la carrocería «Moto».** Apareció importando su inventario real: venden
+una BMW R1250 RT y nuestro catálogo no tenía dónde ponerla. Lo que no
+reconocemos pasa tal cual —mejor guardar «Buggy» que perder el dato— pero esto
+era una categoría de verdad.
+
+**Se crean de a uno y sin transacción envolvente.** `crearVehiculo()` calcula el
+correlativo `COD9xxxxx` leyendo el máximo actual, así que necesita ver lo que
+insertó la fila anterior. Si una falla, las anteriores quedan creadas y se
+informa cuál falló: es preferible a perder 31 autos por culpa del 32.
+
+**El cupo del plan se revisa antes de escribir**, no a la mitad:
+`crearVehiculo()` no lo mira, y una planilla de 300 filas podría pasarse del
+límite sin que nada lo dijera.
+
+**El lector de .xlsx también se escribió a mano** (`lib/importar/xlsx.ts`), por
+las mismas razones que el escritor. Lee el zip por el DIRECTORIO CENTRAL y no
+recorriendo cabeceras locales: las locales pueden traer el tamaño en cero cuando
+el archivo se escribió en streaming. Y la posición de cada celda sale de su
+referencia (`D4`), no del orden — una fila con huecos omite las celdas vacías, y
+leerlas en orden correría todo a la izquierda hasta dejar el año en la columna
+del modelo. Entiende cadenas compartidas (lo que usa Excel) y en línea (lo que
+escribe nuestro exportador).
+
 ## 2026-09-15 — Exportar el inventario a Excel
 
 **El formato no lo elegimos nosotros.** Sale del `Libro1.xlsx` que la automotora

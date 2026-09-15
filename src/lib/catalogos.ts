@@ -56,6 +56,9 @@ export const TRANSMISIONES = ["Manual", "Automática", "CVT", "Semiautomática"]
 export const CARROCERIAS = [
   "Sedán", "Hatchback", "SUV", "Camioneta", "Station Wagon", "Coupé",
   "Convertible", "Van", "Furgón", "Minibús",
+  // Apareció al importar el inventario real de Marketcar: venden motos
+  // (una BMW R1250 RT). Sin esto, la ficha quedaba sin carrocería.
+  "Moto",
 ] as const;
 
 export const PUERTAS = [2, 3, 4, 5] as const;
