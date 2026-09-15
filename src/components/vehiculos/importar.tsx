@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { Upload, FileSpreadsheet, AlertTriangle, Check } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertTriangle, Check, Globe } from "lucide-react";
 import { toast } from "sonner";
 import {
   analizarPlanillaAction, importarAction, type EstadoAnalisis,
@@ -10,6 +10,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import { ImportarDesdeSitio } from "@/components/vehiculos/importar-sitio";
+import { cn } from "@/lib/utils";
 
 const INICIAL: EstadoAnalisis = { fase: "vacio" };
 
@@ -21,8 +23,17 @@ const INICIAL: EstadoAnalisis = { fase: "vacio" };
  * que no se deshacen con un clic —habría que archivarlos uno por uno— así que
  * la vista previa no es un lujo.
  */
+/** De dónde se trae el inventario. */
+type Camino = "sitio" | "excel";
+
 export function ImportarPlanilla() {
   const [abierto, setAbierto] = useState(false);
+  /*
+   * El sitio va primero y es el que abre por defecto: trae los autos CON sus
+   * fotos, que es el trabajo que de verdad duele hacer a mano. El Excel sirve
+   * para lo que no está publicado —pendientes, reservados— y no trae imágenes.
+   */
+  const [camino, setCamino] = useState<Camino>("sitio");
   const [estado, analizar, analizando] = useActionState(analizarPlanillaAction, INICIAL);
   const [importando, iniciar] = useTransition();
 
@@ -60,7 +71,7 @@ export function ImportarPlanilla() {
         onClick={() => setAbierto(true)}
         className={buttonVariants({ variant: "outline", className: "gap-2" })}
       >
-        <Upload className="size-4" /> Importar Excel
+        <Upload className="size-4" /> Importar
       </button>
 
       <Dialog open={abierto} onOpenChange={(v) => (v ? setAbierto(true) : cerrar())}>
@@ -68,12 +79,33 @@ export function ImportarPlanilla() {
           <DialogHeader>
             <DialogTitle className="display text-[19px]">Importar inventario</DialogTitle>
             <DialogDescription className="text-[13px] leading-relaxed">
-              Un archivo .xlsx con las columnas Patente, Marca, Tipo, Modelo, Version,
-              Transmision, Año, Kilometraje y P. Publicación.
+              Desde el sitio que ya tienes publicado, o desde una planilla.
             </DialogDescription>
           </DialogHeader>
 
-          {estado.fase !== "previsualizado" ? (
+          <div className="flex gap-4 border-b border-border">
+            {([
+              { id: "sitio", etiqueta: "Desde mi página", Icono: Globe },
+              { id: "excel", etiqueta: "Desde un Excel", Icono: FileSpreadsheet },
+            ] as const).map(({ id, etiqueta, Icono }) => (
+              <button
+                key={id} type="button" onClick={() => setCamino(id)}
+                aria-current={camino === id ? "true" : undefined}
+                className={cn(
+                  "-mb-px flex items-center gap-1.5 border-b py-2 text-[13px] transition-colors",
+                  camino === id
+                    ? "border-b-foreground text-foreground"
+                    : "border-b-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Icono className="size-3.5" /> {etiqueta}
+              </button>
+            ))}
+          </div>
+
+          {camino === "sitio" ? (
+            <ImportarDesdeSitio alTerminar={cerrar} />
+          ) : estado.fase !== "previsualizado" ? (
             <form action={analizar} className="flex flex-col gap-4">
               <label
                 htmlFor="planilla"

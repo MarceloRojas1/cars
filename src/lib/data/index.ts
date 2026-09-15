@@ -2029,3 +2029,47 @@ export async function eliminarDiapositiva(id: string): Promise<void> {
     [id, orgId],
   );
 }
+
+/**
+ * Agrega fotos a un vehículo que ya existe, al final de las que tenga.
+ *
+ * Es para la importación desde el sitio de VENPU: el auto ya está en Velie
+ * —lo subió el Excel, que no trae imágenes— y lo único que le falta son las
+ * fotos. Reemplazar la ficha entera sería peor: se perdería lo que alguien
+ * haya corregido a mano.
+ */
+export async function agregarFotos(
+  vehiculoId: string,
+  fotos: { url: string; esPrincipal: boolean }[],
+): Promise<void> {
+  if (fotos.length === 0) return;
+  const orgId = await orgActual();
+
+  await enTransaccion(orgId, async (cliente) => {
+    // Que el vehículo sea de ESTA automotora: el id viene de una acción y no
+    // de la sesión, así que se comprueba antes de escribirle nada.
+    const { rows: suyo } = await cliente.query<{ id: string }>(
+      `select id from vehicle where id = $1 and organization_id = $2`,
+      [vehiculoId, orgId],
+    );
+    if (!suyo[0]) throw new Error("Ese vehículo no es de tu automotora.");
+
+    const { rows } = await cliente.query<{ siguiente: number; tiene: string }>(
+      `select coalesce(max(orden) + 1, 0) as siguiente, count(*)::text as tiene
+         from vehicle_photo where vehicle_id = $1`,
+      [vehiculoId],
+    );
+    const desde = Number(rows[0]?.siguiente ?? 0);
+    const yaTenia = Number(rows[0]?.tiene ?? 0) > 0;
+
+    for (const [i, foto] of fotos.entries()) {
+      await cliente.query(
+        `insert into vehicle_photo (vehicle_id, url, orden, es_principal)
+         values ($1,$2,$3,$4)`,
+        // La portada solo si no tenía ninguna: si ya había fotos, la que
+        // alguien eligió manda sobre la que traiga la importación.
+        [vehiculoId, foto.url, desde + i, !yaTenia && foto.esPrincipal],
+      );
+    }
+  });
+}

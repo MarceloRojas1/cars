@@ -2024,6 +2024,67 @@ La foto pedida por URL se valida contra las del vehículo antes de montarla: sin
 eso, el editor cargaría cualquier imagen de internet que alguien escribiera en
 el parámetro.
 
+## 2026-09-15 — Importar el inventario desde el sitio que VENPU les generó
+
+**Es el camino de entrada al producto, no un script de una vez.** Toda
+automotora que llegue viene de VENPU con su inventario cargado y fotografiado,
+y volver a subir treinta autos con cuarenta fotos cada uno a mano es motivo
+suficiente para no cambiarse. Por eso vive en el panel —se pega la dirección y
+listo— y no en un `scripts/migrar-*.ts` que solo sirve para un cliente.
+
+**El descubrimiento que lo hace barato:** el sitio que VENPU genera está hecho
+con Astro, y su página de catálogo trae los vehículos COMPLETOS embebidos en el
+HTML — la paginación que se ve es JavaScript sobre datos que ya están. Una sola
+petición devolvió **100 vehículos con 2.981 fotos**, con 29 campos cada uno:
+descripción, color, puertas, combustible, carrocería, versión, comuna, región.
+Mucho más que el Excel que exporta VENPU, que trae 9 columnas y ninguna foto.
+
+**El cruce es por marca + año + kilometraje, no por patente.** Su sitio no
+publica patentes —ninguna automotora lo hace— pero el kilometraje es casi una
+huella digital: 48.903, 71.031, 59.146. Medido contra el catálogo real de
+Marketcar: **15 emparejamientos únicos, 0 ambiguos**. Y hay verificación
+independiente: los 6 autos a los que el cliente ya había subido fotos a mano
+emparejaron con su ficha pública y **con el mismo número de fotos** — 37/37,
+38/38, 40/40. Seis casos cuya respuesta correcta se conocía de antemano.
+
+**SSRF es el riesgo real de esta función**, porque el servidor pide una URL que
+escribe el usuario. Sin defensa, alguien pega
+`http://169.254.169.254/latest/meta-data/` —el servicio de metadatos de la
+nube— y el servidor, que sí lo alcanza, le devuelve credenciales de la
+infraestructura. Tres defensas: solo http/https, la IP resuelta tiene que ser
+pública, y las redirecciones se siguen A MANO revisando cada salto (si no,
+basta un dominio público que redirija a 127.0.0.1). Probado contra los seis
+casos clásicos, todos bloqueados.
+
+**Se reconoce VENPU con DOS señales, no una:** el enlace a `venpu.cl` del pie y
+la forma de los códigos `COD9xxxxx`. Cualquiera por separado podría aparecer por
+casualidad. Y el motivo del rechazo se le dice a la persona, en vez de un "no se
+pudo" que no se sabe cómo arreglar.
+
+**La importación va de a UN vehículo por llamada.** Con cuarenta fotos cada uno
+son más de mil imágenes que bajar y volver a subir; hacerlo en una sola pasada
+se come el límite de tiempo de la función y deja la pantalla quieta. Medido: 5
+fotos en 1,1 s, o sea **~4 minutos para las 1.011** de los disponibles, y unos
+250 MB en Blob.
+
+**Las fotos se copian, no se enlazan.** Enlazarlas dejaría el catálogo nuevo
+dependiendo de que el viejo siga en pie, que es justamente lo que se está
+reemplazando.
+
+**Los vendidos quedan fuera por defecto**, con una casilla para traerlos: son
+68 de los 100 y 1.970 de las 2.981 fotos. Sirven de historial pero no se
+publican, y triplican el tiempo y el almacenamiento.
+
+**El modelo NO se capitaliza y la marca sí.** «PEUGEOT» se ve mal en la ficha,
+pero los modelos están llenos de siglas —GLA, CX-5, XV, RAV4— y capitalizarlas
+las estropea («Gla 250»). Dejar «OUTBACK» a gritos es un defecto menor que
+escribir mal el nombre del auto.
+
+**Los dos importadores se unificaron en un botón.** Tres botones en la cabecera
+de Vehículos era demasiado. Dentro, «Desde mi página» abre por defecto: trae los
+autos CON sus fotos, que es el trabajo que de verdad duele. El Excel queda para
+lo que no está publicado —pendientes, reservados— y no trae imágenes.
+
 ## Decisiones pendientes
 
 - [ ] **El bot de WhatsApp está caído desde el 2026-09-09 21:00.** El token de
