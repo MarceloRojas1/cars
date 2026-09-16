@@ -8,6 +8,7 @@ import {
   crearVehiculo, eliminarVehiculo,
 } from "@/lib/data";
 import { COMBUSTIBLES } from "@/lib/catalogos";
+import { ADQUISICIONES } from "@/lib/types";
 import { consultarPatente, consultarTasacion } from "@/lib/patente";
 import { urlDeFotoValida } from "@/lib/storage";
 import { revalidarCatalogo } from "@/lib/catalogo/revalidar";
@@ -57,6 +58,9 @@ const esquema = z.object({
   permisoCirculacionVence: textoOpcional,
   revisionTecnicaVence: textoOpcional,
   cantidadDuenos: enteroOpcional,
+  // Opcional: los vehículos que ya están cargados no saben cómo llegaron, y
+  // obligar a un valor haría inventar uno.
+  adquisicion: z.preprocess(opcional, z.enum(ADQUISICIONES).optional()),
   equipamiento: textoOpcional,
   descripcion: textoOpcional,
   branchId: textoOpcional,

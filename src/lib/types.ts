@@ -81,6 +81,20 @@ export type AppUser = {
   invitacionExpira?: string;
 };
 
+/**
+ * Cómo entró el auto a la automotora. INTERNO: nunca sale al catálogo público
+ * ni al asistente de WhatsApp — ver `FichaPublica` en lib/ia/ficha-publica.ts.
+ */
+export const ADQUISICIONES = ["compra", "consignacion", "parte_pago"] as const;
+export type TipoAdquisicion = (typeof ADQUISICIONES)[number];
+
+/** Cómo se lee cada una en pantalla. */
+export const ADQUISICION_LABEL: Record<TipoAdquisicion, string> = {
+  compra: "Compra",
+  consignacion: "Consignación",
+  parte_pago: "Parte de pago",
+};
+
 export type Combustible =
   | "Bencina" | "Diésel" | "Híbrido" | "Híbrido enchufable" | "Eléctrico" | "Gas (GLP/GNV)";
 
@@ -128,6 +142,12 @@ export type Vehicle = {
   region?: string;
   comuna?: string;
   archivado?: boolean;
+  /**
+   * Cómo llegó el auto. Dato INTERNO: decide de quién es la plata —propio en
+   * una compra, comisión en una consignación— y decírselo a un comprador le
+   * regala la negociación.
+   */
+  adquisicion?: TipoAdquisicion;
   /** URL de la foto principal. Viene resuelta en el listado. */
   fotoPrincipal?: string;
   fotos?: VehiclePhoto[];

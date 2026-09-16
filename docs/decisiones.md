@@ -2099,6 +2099,59 @@ de Vehículos era demasiado. Dentro, «Desde mi página» abre por defecto: trae
 autos CON sus fotos, que es el trabajo que de verdad duele. El Excel queda para
 lo que no está publicado —pendientes, reservados— y no trae imágenes.
 
+## 2026-09-15 — Cómo llegó el auto: un campo interno en la ficha
+
+**Qué se pidió y qué se encontró.** El cliente quería elegir, al crear un
+vehículo, entre compra, consignación y nota de venta. Se entró a VENPU a ver
+cómo lo modelan ellos (solo lectura, cuenta de referencia):
+
+| Pestaña de Control de Ventas | Qué registra |
+|---|---|
+| Compras | Precio compra · **Comisión compra** |
+| Consignaciones | Rango publicación · **Comisión** · **Libre a pago** |
+| Notas de Venta | Comprador · RUT · Precio · Pagos · Seguro · Fecha |
+
+**Las dos primeras son cómo el auto ENTRÓ; la nota de venta es cómo SALIÓ** —
+es el documento de la venta al comprador final. No son el mismo eje, y meterlas
+en un solo campo habría dejado un dato que no significa nada. Se consultó y la
+tercera opción pasó a ser **parte de pago**, que sí es una forma de entrar y
+hoy no se registraba en ninguna parte.
+
+**En VENPU esto NO está en el formulario de vehículo**: son pestañas aparte, y
+por eso su propio panel muestra «Ventas por tipo: Sin tipo 4». Ese es
+exactamente el hueco que se tapa acá.
+
+**Es un dato interno y esa es la parte importante.** Decirle a un comprador que
+el auto está consignado le regala la negociación: sabe que el precio no lo
+decide quien se lo está vendiendo y que hay un dueño detrás con su propio
+apuro. No sale al catálogo público ni lo ve el asistente de WhatsApp.
+
+Las dos fronteras ya existían y son listas de PERMITIDOS, así que una columna
+nueva queda fuera por omisión: `CAMPOS` en `lib/data/catalogo.ts` y
+`FichaPublica` en `lib/ia/ficha-publica.ts`. Ese diseño es el que hizo que esto
+costara una línea de documentación en vez de una auditoría.
+
+**Se agregó una prueba, y se comprobó que sabe fallar.** `npm run test:internos`
+arma un vehículo con `adquisicion` puesto y verifica que no aparezca ni en la
+ficha del bot ni en el TEXTO que se le manda al modelo — lo segundo por
+separado, porque `fichaEnTexto` podría serializar el objeto entero por
+descuido. Se expuso el campo a propósito para confirmar que la prueba falla; sin
+esa comprobación, una prueba en verde no dice nada.
+
+**`text` con restricción, no un enum**, por lo aprendido con 0018: el editor SQL
+de Supabase no resuelve tipos creados en otra sesión. Y nullable a propósito —
+los vehículos ya cargados no saben cómo llegaron, y obligar a un valor haría
+inventarlo. Vacío significa «no se registró», que es la verdad.
+
+**El control vive en la sección Precio**, no en la ficha técnica: no describe el
+auto, dice de quién es la plata. Volver a tocar el botón elegido lo deja en
+blanco.
+
+**Queda pendiente** conectarlo con `operation`: hoy es una etiqueta en el
+vehículo, y lo que sigue naturalmente es que una consignación traiga su
+comisión y su «libre a pago», como en VENPU. Eso depende del modelo de comisión
+que aún no está cerrado con el cliente.
+
 ## Decisiones pendientes
 
 - [ ] **El bot de WhatsApp está caído desde el 2026-09-09 21:00.** El token de

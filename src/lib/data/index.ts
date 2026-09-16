@@ -31,6 +31,7 @@ type FilaVehiculo = {
   patente: string | null; precio: string | null; km: number | null;
   combustible: string | null; branch_id: string | null; vendedor_id: string | null;
   estado: Vehicle["estado"]; completitud_pct: number; publicado_at: Date | null;
+  adquisicion: Vehicle["adquisicion"] | null;
   pie_financiamiento: string | null; transmision: string | null; carroceria: string | null;
   puertas: number | null; color: string | null; color_interior: string | null;
   permiso_circulacion_vence: Date | null; revision_tecnica_vence: Date | null;
@@ -66,6 +67,7 @@ function aVehiculo(f: FilaVehiculo): Vehicle {
     id: f.id,
     codigo: f.codigo,
     titulo: f.titulo,
+    adquisicion: f.adquisicion ?? undefined,
     marca: f.marca ?? "",
     modelo: f.modelo ?? undefined,
     version: f.version ?? undefined,
@@ -959,6 +961,8 @@ export type NuevoVehiculo = {
   vendedorId?: string;
   region?: string;
   comuna?: string;
+  /** Cómo llegó el auto. Interno: no sale al catálogo ni al asistente. */
+  adquisicion?: Vehicle["adquisicion"];
   /** URLs ya subidas por /api/fotos. La primera es la principal salvo que se indique otra. */
   fotos?: { url: string; esPrincipal: boolean }[];
 };
@@ -986,9 +990,10 @@ export async function crearVehiculo(datos: NuevoVehiculo): Promise<Vehicle> {
          version, anio, patente, precio, km, combustible, transmision, carroceria,
          puertas, color, color_interior, pie_financiamiento, permiso_circulacion_vence,
          revision_tecnica_vence, cantidad_duenos, tags, equipamiento, descripcion,
-         region, comuna, vin, numero_motor, cilindrada, estado, completitud_pct, publicado_at)
+         region, comuna, vin, numero_motor, cilindrada, adquisicion,
+         estado, completitud_pct, publicado_at)
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
-               $20,$21,$22,$23,$24,$25,$26,$27,$29,$30,$31,'disponible',$28, now())
+               $20,$21,$22,$23,$24,$25,$26,$27,$29,$30,$31,$32,'disponible',$28, now())
        returning *`,
       [
         (await orgActual()),
@@ -1003,6 +1008,7 @@ export async function crearVehiculo(datos: NuevoVehiculo): Promise<Vehicle> {
         datos.tags, datos.equipamiento ?? null, datos.descripcion ?? null,
         datos.region ?? null, datos.comuna ?? null, completitud,
         datos.vin ?? null, datos.numeroMotor ?? null, datos.cilindrada ?? null,
+        datos.adquisicion ?? null,
       ],
     );
 
@@ -1058,7 +1064,8 @@ export async function actualizarVehiculo(id: string, datos: NuevoVehiculo): Prom
          permiso_circulacion_vence = $19, revision_tecnica_vence = $20,
          cantidad_duenos = $21, tags = $22, equipamiento = $23, descripcion = $24,
          region = $25, comuna = $26, completitud_pct = $27,
-         vin = $29, numero_motor = $30, cilindrada = $31, actualizado_at = now()
+         vin = $29, numero_motor = $30, cilindrada = $31, adquisicion = $32,
+         actualizado_at = now()
        where id = $1 and organization_id = $28`,
       [
         id,
@@ -1073,6 +1080,7 @@ export async function actualizarVehiculo(id: string, datos: NuevoVehiculo): Prom
         datos.tags, datos.equipamiento ?? null, datos.descripcion ?? null,
         datos.region ?? null, datos.comuna ?? null, completitud, (await orgActual()),
         datos.vin ?? null, datos.numeroMotor ?? null, datos.cilindrada ?? null,
+        datos.adquisicion ?? null,
       ],
     );
     if (!rowCount) throw new Error("El vehículo no existe.");

@@ -17,7 +17,8 @@
     "migrar": "tsx scripts/migrar.ts",
     "revisar-despliegue": "tsx scripts/revisar-despliegue.ts",
     "vercel:sync": "tsx scripts/sincronizar-vercel.ts",
-    "verificar-migraciones": "tsx scripts/verificar-migraciones.ts"
+    "verificar-migraciones": "tsx scripts/verificar-migraciones.ts",
+    "test:internos": "tsx --test tests/campos-internos.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",

@@ -37,6 +37,12 @@ export type FichaPublica = {
  * QUÉ QUEDA FUERA, Y POR QUÉ. Si algún día uno de estos tiene que entrar, que
  * sea una decisión con su motivo, no un descuido.
  *
+ *   adquisicion         Si el auto es comprado, consignado o recibido en parte
+ *                       de pago. Decirle a un comprador que está consignado le
+ *                       regala la negociación: sabe que el precio no lo decide
+ *                       quien se lo está vendiendo, y que hay un dueño detrás
+ *                       con su propio apuro. Es el dato más sensible de la
+ *                       ficha y por eso no sale ni al catálogo público.
  *   publicadoHaceDias   Cuánto lleva el auto en el salón. Decirle a un cliente
  *                       que lleva noventa días parado regala la negociación.
  *   completitudPct      Métrica interna de calidad de la publicación.

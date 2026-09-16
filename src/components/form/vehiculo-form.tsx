@@ -8,6 +8,7 @@ import {
   crearVehiculoAction, type EstadoFormulario,
 } from "@/app/(app)/vehiculos/acciones";
 import { Campo, Seccion, Select, controlBase } from "@/components/form/campos";
+import { ADQUISICIONES, ADQUISICION_LABEL } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -112,6 +113,12 @@ export function VehiculoForm({
   const titulo = tituloManual ?? tituloAuto;
 
   const [precio, setPrecio] = useState(vehiculo?.precio ? String(vehiculo.precio) : "");
+  /*
+   * Vacío es un valor válido: los autos que ya están cargados no saben cómo
+   * llegaron, y obligar a elegir haría inventar el dato. Volver a tocar el
+   * botón elegido lo deja en blanco.
+   */
+  const [adquisicion, setAdquisicion] = useState<string>(vehiculo?.adquisicion ?? "");
 
   // El pie se puede escribir en pesos o en porcentaje del precio; lo que se
   // guarda siempre es el monto en pesos (ver DatosPatente/pieFinanciamiento).
@@ -543,6 +550,38 @@ export function VehiculoForm({
               ))}
             </div>
           </div>
+        </Campo>
+
+        {/*
+          * Va en Precio y no en la ficha técnica porque no describe el auto:
+          * dice de quién es la plata. Un auto comprado es capital propio; uno
+          * consignado es de un tercero y lo que se gana es una comisión.
+          */}
+        <Campo
+          label="¿Cómo llegó este auto?"
+          htmlFor="adquisicion"
+          hint="Solo lo ves tú: no sale al catálogo público ni lo ve el asistente."
+          ancho="completo"
+        >
+          <div className="flex flex-wrap gap-1.5">
+            {ADQUISICIONES.map((a) => (
+              <button
+                key={a}
+                type="button"
+                onClick={() => setAdquisicion(adquisicion === a ? "" : a)}
+                aria-pressed={adquisicion === a}
+                className={cn(
+                  "h-9 rounded-[10px] border px-3.5 text-[13px] transition-colors",
+                  adquisicion === a
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border hover:bg-accent/50",
+                )}
+              >
+                {ADQUISICION_LABEL[a]}
+              </button>
+            ))}
+          </div>
+          <input type="hidden" name="adquisicion" value={adquisicion} />
         </Campo>
       </Seccion>
 
