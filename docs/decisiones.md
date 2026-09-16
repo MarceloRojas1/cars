@@ -2199,6 +2199,30 @@ cerrado con el cliente.
       Postergado a propósito hasta poder pagar el servicio de WhatsApp Business.
       Lo demás sí funciona: base, Claude, Gemini y Blob verificados ese día.
 
+- [ ] **Cerrar la adquisición: falta el MODELO DE COMISIÓN y falta la
+      contraparte.** Lo construido el 2026-09-15 llega hasta los montos en el
+      vehículo (`precio_compra`, `comision_compra`, `publicacion_min/max`,
+      `comision_consignacion`, `libre_a_pago`). Quedan dos huecos, y el primero
+      bloquea al segundo:
+
+      · **El modelo de comisión.** Hoy la comisión es un monto fijo que alguien
+        escribe. No sabemos si en la práctica es un porcentaje del precio de
+        venta, un monto fijo acordado, un mínimo garantizado, o un tramo —y de
+        eso depende si el campo es `bigint` o hacen falta dos (tipo + valor),
+        y si «libre a pago» se calcula solo o se pacta aparte. **Preguntarle al
+        cliente antes de tocar el esquema**: cambiarlo después obliga a revisar
+        auto por auto. Es el mismo pendiente que AGENTS.md lista como «modelo
+        de comisión de consignación», ahora con el detalle de qué decide.
+
+      · **A quién se le compró / quién consignó** — el paso 2 del asistente de
+        VENPU («Comprado a» / «Cliente»). Conecta con la tabla `client`, que ya
+        existe y hoy se llena sola desde las operaciones. Es lo que falta para
+        que Control de Ventas pueda mostrar compras y consignaciones como hace
+        VENPU, con su consignador y su teléfono.
+
+      Mientras tanto lo que hay funciona y no estorba: los montos se registran,
+      son internos y están probados (`npm run test:internos`).
+
 - [ ] Cambiar el correo de la propia cuenta: toca Supabase y `app_user`, y
       dispara una confirmación. Hoy no se puede desde ninguna parte.
 - [ ] Que `SUPABASE_SERVICE_ROLE_KEY` exista en Vercel con su nombre, en vez de

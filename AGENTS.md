@@ -65,8 +65,15 @@ Cuando tomemos una decisión que no sea obvia mirando el código, anótala en
 
 Antes de construir estas pantallas hay que resolver:
 proveedor de datos de patente · APIs reales de Yapo y ChileAutos · qué entra en
-`gastos` para calcular utilidad · modelo de comisión de consignación · permisos
-del rol vendedor · qué es la pestaña "Matches" · cómo se calcula el % de completitud
-y la temperatura del lead.
+`gastos` para calcular utilidad · permisos del rol vendedor · qué es la pestaña
+"Matches" · cómo se calcula el % de completitud y la temperatura del lead.
+
+**El modelo de comisión de consignación es el que bloquea trabajo hoy.** La
+adquisición del vehículo ya guarda comisión y "libre a pago" como montos fijos
+(migración `0021`), pero no sabemos si en la práctica es un porcentaje del
+precio de venta, un monto pactado, un mínimo garantizado o un tramo — y de eso
+depende si el campo alcanza o hacen falta dos, y si "libre a pago" se calcula
+solo. **Preguntar antes de tocar el esquema:** cambiarlo después obliga a
+revisar auto por auto. Detalle en `docs/decisiones.md`, en pendientes.
 
 <!-- END:project -->
