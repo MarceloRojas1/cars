@@ -61,6 +61,17 @@ const esquema = z.object({
   // Opcional: los vehículos que ya están cargados no saben cómo llegaron, y
   // obligar a un valor haría inventar uno.
   adquisicion: z.preprocess(opcional, z.enum(ADQUISICIONES).optional()),
+  /*
+   * Las condiciones con que entró. Todas opcionales: el papeleo de una
+   * consignación a veces se cierra después de tener el auto en el salón, y un
+   * dato que falta no puede bloquear la carga.
+   */
+  precioCompra: enteroOpcional,
+  comisionCompra: enteroOpcional,
+  publicacionMin: enteroOpcional,
+  publicacionMax: enteroOpcional,
+  comisionConsignacion: enteroOpcional,
+  libreAPago: enteroOpcional,
   equipamiento: textoOpcional,
   descripcion: textoOpcional,
   branchId: textoOpcional,

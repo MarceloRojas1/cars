@@ -148,6 +148,17 @@ export type Vehicle = {
    * regala la negociación.
    */
   adquisicion?: TipoAdquisicion;
+  /**
+   * Las condiciones con que entró, según el tipo. TODAS INTERNAS: que un
+   * comprador sepa en cuánto compraste el auto que te está comprando es lo
+   * peor que puede pasar acá.
+   */
+  precioCompra?: number;          // compra y parte de pago
+  comisionCompra?: number;        // compra
+  publicacionMin?: number;        // consignación
+  publicacionMax?: number;        // consignación
+  comisionConsignacion?: number;  // consignación: lo nuestro
+  libreAPago?: number;            // consignación: lo del dueño
   /** URL de la foto principal. Viene resuelta en el listado. */
   fotoPrincipal?: string;
   fotos?: VehiclePhoto[];

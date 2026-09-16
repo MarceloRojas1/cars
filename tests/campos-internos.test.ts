@@ -36,16 +36,37 @@ const VEHICULO: Vehicle = {
   canales: ["mercadolibre"],
   tags: [],
   adquisicion: "consignacion",
+  precioCompra: 38_000_000,
+  comisionCompra: 200_000,
+  publicacionMin: 43_000_000,
+  publicacionMax: 45_000_000,
+  comisionConsignacion: 1_500_000,
+  libreAPago: 42_400_000,
   vendedorId: "usr_juan",
 };
 
 test("el asistente no recibe cómo se adquirió el auto", () => {
   const ficha = fichaParaElBot(VEHICULO);
 
-  assert.ok(
-    !("adquisicion" in ficha),
-    "`adquisicion` llegó a la ficha del bot: es interno y le regala la negociación al comprador.",
-  );
+  for (const campo of [
+    "adquisicion", "precioCompra", "comisionCompra",
+    "publicacionMin", "publicacionMax", "comisionConsignacion", "libreAPago",
+  ]) {
+    assert.ok(
+      !(campo in (ficha as Record<string, unknown>)),
+      `\`${campo}\` llegó a la ficha del bot: es interno y le regala la negociación al comprador.`,
+    );
+  }
+
+  /*
+   * Y los MONTOS, que es lo peor que podría escaparse: que el modelo sepa en
+   * cuánto se compró el auto que está vendiendo. Se buscan los números tal
+   * cual, por si alguno llegara dentro de un texto libre.
+   */
+  const crudo = JSON.stringify(ficha);
+  for (const monto of ["38000000", "42400000", "1500000"]) {
+    assert.ok(!crudo.includes(monto), `El monto interno ${monto} llegó a la ficha del bot.`);
+  }
 
   /*
    * Y el texto, que es lo que de verdad viaja al modelo. Se revisa aparte

@@ -8,7 +8,7 @@ import {
   crearVehiculoAction, type EstadoFormulario,
 } from "@/app/(app)/vehiculos/acciones";
 import { Campo, Seccion, Select, controlBase } from "@/components/form/campos";
-import { ADQUISICIONES, ADQUISICION_LABEL } from "@/lib/types";
+import { ADQUISICIONES, ADQUISICION_LABEL, type TipoAdquisicion } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -77,7 +77,7 @@ function camposDesdeResultado(r: ResultadoPatente) {
 
 export function VehiculoForm({
   catalogoModelos, sucursales, vendedores, vehiculo, patenteInicial,
-  resultadoPatenteInicial, resultadoTasacionInicial,
+  resultadoPatenteInicial, resultadoTasacionInicial, adquisicionInicial,
 }: {
   catalogoModelos: Record<string, string[]>;
   sucursales: Branch[];
@@ -90,6 +90,8 @@ export function VehiculoForm({
   resultadoPatenteInicial?: ResultadoPatente;
   /** La tasación de `patenteInicial`, ya resuelta en el servidor. Solo informativa. */
   resultadoTasacionInicial?: ResultadoTasacion;
+  /** Elegido en el paso previo. Decide qué condiciones se piden. */
+  adquisicionInicial?: TipoAdquisicion;
 }) {
   const editando = Boolean(vehiculo);
   const accion = vehiculo
@@ -118,7 +120,27 @@ export function VehiculoForm({
    * llegaron, y obligar a elegir haría inventar el dato. Volver a tocar el
    * botón elegido lo deja en blanco.
    */
-  const [adquisicion, setAdquisicion] = useState<string>(vehiculo?.adquisicion ?? "");
+  const [adquisicion, setAdquisicion] = useState<string>(
+    vehiculo?.adquisicion ?? adquisicionInicial ?? "",
+  );
+
+  /*
+   * Las condiciones con que entró. Cuáles se piden depende del tipo: una
+   * compra pide cuánto se pagó; una consignación, entre cuánto se puede
+   * publicar, qué comisión queda y cuánto se le promete al dueño.
+   */
+  const [precioCompra, setPrecioCompra] = useState(
+    vehiculo?.precioCompra ? String(vehiculo.precioCompra) : "");
+  const [comisionCompra, setComisionCompra] = useState(
+    vehiculo?.comisionCompra ? String(vehiculo.comisionCompra) : "");
+  const [publicacionMin, setPublicacionMin] = useState(
+    vehiculo?.publicacionMin ? String(vehiculo.publicacionMin) : "");
+  const [publicacionMax, setPublicacionMax] = useState(
+    vehiculo?.publicacionMax ? String(vehiculo.publicacionMax) : "");
+  const [comisionConsignacion, setComisionConsignacion] = useState(
+    vehiculo?.comisionConsignacion ? String(vehiculo.comisionConsignacion) : "");
+  const [libreAPago, setLibreAPago] = useState(
+    vehiculo?.libreAPago ? String(vehiculo.libreAPago) : "");
 
   // El pie se puede escribir en pesos o en porcentaje del precio; lo que se
   // guarda siempre es el monto en pesos (ver DatosPatente/pieFinanciamiento).
@@ -583,6 +605,84 @@ export function VehiculoForm({
           </div>
           <input type="hidden" name="adquisicion" value={adquisicion} />
         </Campo>
+
+        {/*
+          * Cada tipo pide lo suyo. Es la razón de que la elección vaya antes
+          * del formulario: si fuera un campo más, estos aparecerían y
+          * desaparecerían a mitad de la carga.
+          *
+          * Todos opcionales: el papeleo de una consignación a veces se cierra
+          * después, y un dato que falta no puede bloquear la carga del auto.
+          */}
+        {(adquisicion === "compra" || adquisicion === "parte_pago") && (
+          <>
+            <Campo
+              label={adquisicion === "compra" ? "Precio de compra" : "Valor reconocido al cliente"}
+              htmlFor="precioCompra"
+              hint={adquisicion === "compra"
+                ? "Lo que saliste a pagar. Con el precio de venta sale la utilidad."
+                : "Cuánto se le descontó del auto que compró."}
+            >
+              <input
+                id="precioCompra" name="precioCompra" inputMode="numeric" placeholder="13500000"
+                value={precioCompra}
+                onChange={(ev) => setPrecioCompra(ev.target.value.replace(/\D/g, ""))}
+                className={cn(controlBase, "tabular")}
+              />
+            </Campo>
+            {adquisicion === "compra" && (
+              <Campo label="Comisión de compra" htmlFor="comisionCompra"
+                hint="Lo que se le paga a quien consiguió el auto.">
+                <input
+                  id="comisionCompra" name="comisionCompra" inputMode="numeric" placeholder="200000"
+                  value={comisionCompra}
+                  onChange={(ev) => setComisionCompra(ev.target.value.replace(/\D/g, ""))}
+                  className={cn(controlBase, "tabular")}
+                />
+              </Campo>
+            )}
+          </>
+        )}
+
+        {adquisicion === "consignacion" && (
+          <>
+            <Campo label="Publicar desde" htmlFor="publicacionMin"
+              hint="El piso acordado con el dueño.">
+              <input
+                id="publicacionMin" name="publicacionMin" inputMode="numeric" placeholder="40000000"
+                value={publicacionMin}
+                onChange={(ev) => setPublicacionMin(ev.target.value.replace(/\D/g, ""))}
+                className={cn(controlBase, "tabular")}
+              />
+            </Campo>
+            <Campo label="Hasta" htmlFor="publicacionMax" hint="El techo, si lo hay.">
+              <input
+                id="publicacionMax" name="publicacionMax" inputMode="numeric" placeholder="41000000"
+                value={publicacionMax}
+                onChange={(ev) => setPublicacionMax(ev.target.value.replace(/\D/g, ""))}
+                className={cn(controlBase, "tabular")}
+              />
+            </Campo>
+            <Campo label="Tu comisión" htmlFor="comisionConsignacion"
+              hint="Lo que queda para la automotora.">
+              <input
+                id="comisionConsignacion" name="comisionConsignacion" inputMode="numeric"
+                placeholder="1000000" value={comisionConsignacion}
+                onChange={(ev) => setComisionConsignacion(ev.target.value.replace(/\D/g, ""))}
+                className={cn(controlBase, "tabular")}
+              />
+            </Campo>
+            <Campo label="Libre a pago" htmlFor="libreAPago"
+              hint="Lo que recibe el dueño una vez vendido.">
+              <input
+                id="libreAPago" name="libreAPago" inputMode="numeric" placeholder="39000000"
+                value={libreAPago}
+                onChange={(ev) => setLibreAPago(ev.target.value.replace(/\D/g, ""))}
+                className={cn(controlBase, "tabular")}
+              />
+            </Campo>
+          </>
+        )}
       </Seccion>
 
       {/* --- 3. ficha técnica --- */}

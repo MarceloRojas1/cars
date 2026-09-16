@@ -42,6 +42,7 @@ services:
       - ./supabase/migrations/0018_invitaciones.sql:/docker-entrypoint-initdb.d/19-invitaciones.sql:ro
       - ./supabase/migrations/0019_seguimiento.sql:/docker-entrypoint-initdb.d/20-seguimiento.sql:ro
       - ./supabase/migrations/0020_adquisicion.sql:/docker-entrypoint-initdb.d/21-adquisicion.sql:ro
+      - ./supabase/migrations/0021_condiciones_adquisicion.sql:/docker-entrypoint-initdb.d/22-condiciones.sql:ro
       - ./docker/initdb/06-rol-app.sql:/docker-entrypoint-initdb.d/06-rol-app.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U velie -d velie"]

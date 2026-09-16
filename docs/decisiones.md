@@ -2147,10 +2147,45 @@ inventarlo. Vacío significa «no se registró», que es la verdad.
 auto, dice de quién es la plata. Volver a tocar el botón elegido lo deja en
 blanco.
 
-**Queda pendiente** conectarlo con `operation`: hoy es una etiqueta en el
-vehículo, y lo que sigue naturalmente es que una consignación traiga su
-comisión y su «libre a pago», como en VENPU. Eso depende del modelo de comisión
-que aún no está cerrado con el cliente.
+**La etiqueta sola no servía: cada tipo pide cosas distintas** (misma tarde).
+
+Marcar el tipo no alimentaba ningún cálculo. Se volvió a VENPU a ver sus
+formularios: los dos usan el mismo asistente de cuatro pasos y **lo que cambia
+es el paso 2 y el 3**.
+
+| | Compra | Consignación |
+|---|---|---|
+| Paso 2 | Comprado a | Cliente (consignador) |
+| Paso 3 | Precio compra · Comisión compra | Rango publicación · Comisión · Libre a pago |
+
+Se copió ese reparto porque es el vocabulario que la automotora ya tiene en la
+cabeza, no porque sea la única forma de modelarlo.
+
+**La elección va ANTES del formulario, en su propia pantalla.** Es la
+consecuencia de que decida qué se pregunta: como campo en medio de la ficha,
+los montos aparecían y desaparecían a mitad de la carga. Viaja en la URL
+(`?tipo=`) y no en estado, así que el botón de atrás funciona.
+
+**Hay una salida: «Todavía no lo sé — cargar el auto igual».** El papeleo de una
+consignación a veces se cierra después de tener el auto en el salón, y un dato
+que falta no puede bloquear la carga. Por lo mismo, todos los montos son
+opcionales.
+
+**Los vehículos ya cargados quedaron como `compra`**, por pedido explícito. No
+es adivinar: es fijar el caso normal de un inventario que está en el salón y
+dejar que se corrija el que no lo sea, que son menos. La migración solo toca los
+que estaban en blanco — si alguien ya marcó uno a mano, se respeta.
+
+**La prueba de campos internos se amplió a los montos**, y busca los NÚMEROS en
+el JSON serializado además de los nombres de campo: que el modelo sepa en cuánto
+se compró el auto que está vendiendo es lo peor que podría escaparse por acá.
+Verificado además sobre la ficha pública real de un auto consignado con montos
+puestos: los cuatro valores dan cero apariciones y el precio público sí aparece.
+
+**Queda pendiente** conectarlo con `operation` y con `client`: hoy los montos
+viven en el vehículo y falta registrar A QUIÉN se le compró o quién consignó
+—el paso 2 de VENPU—. Eso depende del modelo de comisión que aún no está
+cerrado con el cliente.
 
 ## Decisiones pendientes
 

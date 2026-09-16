@@ -32,6 +32,9 @@ type FilaVehiculo = {
   combustible: string | null; branch_id: string | null; vendedor_id: string | null;
   estado: Vehicle["estado"]; completitud_pct: number; publicado_at: Date | null;
   adquisicion: Vehicle["adquisicion"] | null;
+  precio_compra: string | null; comision_compra: string | null;
+  publicacion_min: string | null; publicacion_max: string | null;
+  comision_consignacion: string | null; libre_a_pago: string | null;
   pie_financiamiento: string | null; transmision: string | null; carroceria: string | null;
   puertas: number | null; color: string | null; color_interior: string | null;
   permiso_circulacion_vence: Date | null; revision_tecnica_vence: Date | null;
@@ -68,6 +71,12 @@ function aVehiculo(f: FilaVehiculo): Vehicle {
     codigo: f.codigo,
     titulo: f.titulo,
     adquisicion: f.adquisicion ?? undefined,
+    precioCompra: f.precio_compra ? Number(f.precio_compra) : undefined,
+    comisionCompra: f.comision_compra ? Number(f.comision_compra) : undefined,
+    publicacionMin: f.publicacion_min ? Number(f.publicacion_min) : undefined,
+    publicacionMax: f.publicacion_max ? Number(f.publicacion_max) : undefined,
+    comisionConsignacion: f.comision_consignacion ? Number(f.comision_consignacion) : undefined,
+    libreAPago: f.libre_a_pago ? Number(f.libre_a_pago) : undefined,
     marca: f.marca ?? "",
     modelo: f.modelo ?? undefined,
     version: f.version ?? undefined,
@@ -961,8 +970,14 @@ export type NuevoVehiculo = {
   vendedorId?: string;
   region?: string;
   comuna?: string;
-  /** Cómo llegó el auto. Interno: no sale al catálogo ni al asistente. */
+  /** Cómo llegó el auto y con qué condiciones. Interno. */
   adquisicion?: Vehicle["adquisicion"];
+  precioCompra?: number;
+  comisionCompra?: number;
+  publicacionMin?: number;
+  publicacionMax?: number;
+  comisionConsignacion?: number;
+  libreAPago?: number;
   /** URLs ya subidas por /api/fotos. La primera es la principal salvo que se indique otra. */
   fotos?: { url: string; esPrincipal: boolean }[];
 };
@@ -991,9 +1006,12 @@ export async function crearVehiculo(datos: NuevoVehiculo): Promise<Vehicle> {
          puertas, color, color_interior, pie_financiamiento, permiso_circulacion_vence,
          revision_tecnica_vence, cantidad_duenos, tags, equipamiento, descripcion,
          region, comuna, vin, numero_motor, cilindrada, adquisicion,
+         precio_compra, comision_compra, publicacion_min, publicacion_max,
+         comision_consignacion, libre_a_pago,
          estado, completitud_pct, publicado_at)
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
-               $20,$21,$22,$23,$24,$25,$26,$27,$29,$30,$31,$32,'disponible',$28, now())
+               $20,$21,$22,$23,$24,$25,$26,$27,$29,$30,$31,$32,
+               $33,$34,$35,$36,$37,$38,'disponible',$28, now())
        returning *`,
       [
         (await orgActual()),
@@ -1009,6 +1027,9 @@ export async function crearVehiculo(datos: NuevoVehiculo): Promise<Vehicle> {
         datos.region ?? null, datos.comuna ?? null, completitud,
         datos.vin ?? null, datos.numeroMotor ?? null, datos.cilindrada ?? null,
         datos.adquisicion ?? null,
+        datos.precioCompra ?? null, datos.comisionCompra ?? null,
+        datos.publicacionMin ?? null, datos.publicacionMax ?? null,
+        datos.comisionConsignacion ?? null, datos.libreAPago ?? null,
       ],
     );
 
@@ -1065,6 +1086,9 @@ export async function actualizarVehiculo(id: string, datos: NuevoVehiculo): Prom
          cantidad_duenos = $21, tags = $22, equipamiento = $23, descripcion = $24,
          region = $25, comuna = $26, completitud_pct = $27,
          vin = $29, numero_motor = $30, cilindrada = $31, adquisicion = $32,
+         precio_compra = $33, comision_compra = $34,
+         publicacion_min = $35, publicacion_max = $36,
+         comision_consignacion = $37, libre_a_pago = $38,
          actualizado_at = now()
        where id = $1 and organization_id = $28`,
       [
@@ -1081,6 +1105,9 @@ export async function actualizarVehiculo(id: string, datos: NuevoVehiculo): Prom
         datos.region ?? null, datos.comuna ?? null, completitud, (await orgActual()),
         datos.vin ?? null, datos.numeroMotor ?? null, datos.cilindrada ?? null,
         datos.adquisicion ?? null,
+        datos.precioCompra ?? null, datos.comisionCompra ?? null,
+        datos.publicacionMin ?? null, datos.publicacionMax ?? null,
+        datos.comisionConsignacion ?? null, datos.libreAPago ?? null,
       ],
     );
     if (!rowCount) throw new Error("El vehículo no existe.");
